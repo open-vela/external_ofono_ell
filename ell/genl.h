@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+struct iovec;
+
 struct l_genl;
 struct l_genl_family_info;
 struct l_genl_family;
