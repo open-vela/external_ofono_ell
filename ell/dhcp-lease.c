@@ -110,6 +110,17 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 	if (lease->lifetime < 10)
 		goto error;
 
+	/*
+	 * RFC2131, Section 3.3:
+	 * "Throughout the protocol, times are to be represented in units of
+	 * seconds.  The time value of 0xffffffff is reserved to represent
+	 * "infinity"."
+	 *
+	 * Don't bother checking t1/t2 for infinite leases
+	 */
+	if (lease->lifetime == 0xffffffffu)
+		return lease;
+
 	if (!lease->t1)
 		lease->t1 = lease->lifetime / 2;
 
