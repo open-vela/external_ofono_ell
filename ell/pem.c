@@ -333,7 +333,8 @@ LIB_EXPORT struct l_queue *l_pem_load_certificate_list_from_data(
 		const char *base64;
 		size_t base64_len;
 
-		base64 = pem_next(ptr, len, &label, &base64_len, &ptr, false);
+		base64 = pem_next(ptr, end - ptr, &label,
+					&base64_len, &ptr, false);
 		if (!base64) {
 			if (!ptr)
 				break;
