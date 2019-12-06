@@ -240,11 +240,12 @@ unsigned int _dbus_filter_add_rule(struct _dbus_filter *filter,
 				void *user_data)
 {
 	struct filter_node **node_ptr = &filter->root;
-	struct filter_node *node;
+	struct filter_node *uninitialized_var(node);
 	struct filter_node *parent = filter->root;
 	bool remote_rule = false;
 	struct _dbus_filter_condition sorted[rule_len];
-	struct _dbus_filter_condition *unused, *condition;
+	struct _dbus_filter_condition *unused;
+	struct _dbus_filter_condition *uninitialized_var(condition);
 	struct _dbus_filter_condition *end = sorted + rule_len;
 
 	memcpy(sorted, rule, sizeof(sorted));
