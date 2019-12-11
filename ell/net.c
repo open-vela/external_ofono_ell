@@ -110,3 +110,26 @@ LIB_EXPORT char *l_net_get_name(uint32_t ifindex)
 
 	return l_strdup(ifr.ifr_name);
 }
+
+/**
+ * l_net_hostname_is_root:
+ * @hostname: Hostname to validate
+ *
+ * Identifies if the hostname given by @hostname is root domain name or
+ * not.
+ *
+ * Returns: #true if the given hostname is root and #false otherwise.
+ **/
+LIB_EXPORT bool l_net_hostname_is_root(const char *hostname)
+{
+	if (unlikely(!hostname))
+		return false;
+
+	if (!strcmp(hostname, ""))
+		return true;
+
+	if (!strcmp(hostname, "."))
+		return true;
+
+	return false;
+}
