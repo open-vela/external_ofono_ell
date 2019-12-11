@@ -133,3 +133,48 @@ LIB_EXPORT bool l_net_hostname_is_root(const char *hostname)
 
 	return false;
 }
+
+static bool str_has_suffix(const char *str, const char *suffix)
+{
+	size_t str_len;
+	size_t suffix_len;
+	size_t len_diff;
+
+	str_len = strlen(str);
+	suffix_len = strlen(suffix);
+
+	if (str_len < suffix_len)
+		return false;
+
+	len_diff = str_len - suffix_len;
+
+	return !strcasecmp(&str[len_diff], suffix);
+}
+
+/**
+ * l_net_hostname_is_localhost:
+ * @hostname: Hostname to validate
+ *
+ * Identifies if the hostname given by @hostname is localhost or not.
+ *
+ * Returns: #true if the given hostname is localhost and #false otherwise.
+ **/
+LIB_EXPORT bool l_net_hostname_is_localhost(const char *hostname)
+{
+	if (unlikely(!hostname))
+		return false;
+
+	if (!strcasecmp(hostname, "localhost") ||
+			!strcasecmp(hostname, "localhost.") ||
+			!strcasecmp(hostname, "localhost.localdomain") ||
+			!strcasecmp(hostname, "localhost.localdomain."))
+		return true;
+
+	if (str_has_suffix(hostname, ".localhost") ||
+			str_has_suffix(hostname, ".localhost.") ||
+			str_has_suffix(hostname, ".localhost.localdomain") ||
+			str_has_suffix(hostname, ".localhost.localdomain."))
+		return true;
+
+	return false;
+}
