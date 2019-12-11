@@ -120,6 +120,7 @@ struct l_dhcp_lease {
 	uint32_t t2;
 	uint32_t router;
 	uint32_t *dns;
+	char *domain_name;
 };
 
 struct l_dhcp_lease *_dhcp_lease_new(void);
