@@ -858,8 +858,11 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 		return -EINVAL;
 
 	lease = _dhcp_lease_parse_options(&iter);
-	if (!lease)
+	if (!lease) {
+		CLIENT_DEBUG("Failed to parse DHCP options.");
+
 		return -ENOMSG;
+	}
 
 	lease->address = ack->yiaddr;
 
