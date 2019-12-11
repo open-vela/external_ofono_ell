@@ -178,7 +178,8 @@ unit_tests = unit/test-unit \
 			unit/test-ecc \
 			unit/test-ecdh \
 			unit/test-time \
-			unit/test-path
+			unit/test-path \
+			unit/test-net
 
 dbus_tests = unit/test-hwdb \
 			unit/test-dbus \
@@ -303,6 +304,8 @@ unit_test_ecdh_LDFLAGS = -Wl,-wrap,l_getrandom
 unit_test_time_LDADD = ell/libell-private.la
 
 unit_test_path_LDADD = ell/libell-private.la
+
+unit_test_net_LDADD = ell/libell-private.la
 
 if MAINTAINER_MODE
 noinst_LTLIBRARIES += unit/example-plugin.la
