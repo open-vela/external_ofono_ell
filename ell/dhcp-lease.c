@@ -104,7 +104,7 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 			}
 			break;
 		case L_DHCP_OPTION_DOMAIN_NAME:
-			if (l < 1 && l > 253)
+			if (l < 1 || l > 253)
 				goto error;
 
 			/* Disallow embedded NUL bytes. */
