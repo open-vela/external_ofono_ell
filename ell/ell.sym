@@ -225,6 +225,7 @@ global:
 	l_dhcp_lease_get_broadcast;
 	l_dhcp_lease_get_server_id;
 	l_dhcp_lease_get_dns;
+	l_dhcp_lease_get_domain_name;
 	l_dhcp_lease_get_t1;
 	l_dhcp_lease_get_t2;
 	l_dhcp_lease_get_lifetime;
