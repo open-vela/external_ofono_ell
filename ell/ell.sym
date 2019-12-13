@@ -346,6 +346,8 @@ global:
 	/* net */
 	l_net_get_mac_address;
 	l_net_get_name;
+	l_net_hostname_is_root;
+	l_net_hostname_is_localhost;
 	/* netlink */
 	l_netlink_new;
 	l_netlink_destroy;
