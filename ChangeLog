@@ -1,3 +1,7 @@
+ver 0.27:
+	Fix issue with data overflow and multiple PEMs.
+	Fix issue with handling DHCP lease expiration.
+
 ver 0.26:
 	Fix issue with memory leak and TLS certificates.
 	Fix issue with buffer size and TLS PRF handling.
