@@ -301,6 +301,9 @@ LIB_EXPORT uint32_t l_dbus_proxy_method_call(struct l_dbus_proxy *proxy,
 {
 	struct method_call_request *req;
 
+	if (unlikely(!proxy))
+		return 0;
+
 	req = l_new(struct method_call_request, 1);
 	req->proxy = proxy;
 	req->setup = setup;
