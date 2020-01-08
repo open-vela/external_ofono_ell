@@ -36,8 +36,11 @@ extern "C" {
 #endif
 
 #define l_container_of(ptr, type, member) ({				\
+_Pragma("GCC diagnostic push")						\
+_Pragma("GCC diagnostic ignored \"-Wcast-align\"")			\
 		const __typeof__(((type *) 0)->member) *__mptr = (ptr);	\
 		(type *)((char *) __mptr - offsetof(type, member));	\
+_Pragma("GCC diagnostic pop")						\
 	})
 
 #define likely(x)   __builtin_expect(!!(x), 1)
