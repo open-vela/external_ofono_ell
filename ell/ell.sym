@@ -395,6 +395,7 @@ global:
 	l_ringbuf_printf;
 	l_ringbuf_vprintf;
 	l_ringbuf_read;
+	l_ringbuf_append;
 	/* settings */
 	l_settings_new;
 	l_settings_free;
