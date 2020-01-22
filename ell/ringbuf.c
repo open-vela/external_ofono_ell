@@ -321,7 +321,7 @@ LIB_EXPORT int l_ringbuf_printf(struct l_ringbuf *ringbuf,
 LIB_EXPORT int l_ringbuf_vprintf(struct l_ringbuf *ringbuf,
 						const char *format, va_list ap)
 {
-	size_t avail, offset, end;
+	size_t avail;
 	char *str;
 	int len;
 
@@ -342,27 +342,9 @@ LIB_EXPORT int l_ringbuf_vprintf(struct l_ringbuf *ringbuf,
 		return -1;
 	}
 
-	/* Determine possible length of string before wrapping */
-	offset = ringbuf->in & (ringbuf->size - 1);
-	end = minsize((size_t) len, ringbuf->size - offset);
-	memcpy(ringbuf->buffer + offset, str, end);
-
-	if (ringbuf->in_tracing)
-		ringbuf->in_tracing(ringbuf->buffer + offset, end,
-							ringbuf->in_data);
-
-	if (len - end > 0) {
-		/* Put the remainder of string at the beginning */
-		memcpy(ringbuf->buffer, str + end, len - end);
-
-		if (ringbuf->in_tracing)
-			ringbuf->in_tracing(ringbuf->buffer, len - end,
-							ringbuf->in_data);
-	}
+	len = l_ringbuf_append(ringbuf, str, (size_t) len);
 
 	l_free(str);
-
-	ringbuf->in += len;
 
 	return len;
 }
@@ -419,4 +401,54 @@ LIB_EXPORT ssize_t l_ringbuf_read(struct l_ringbuf *ringbuf, int fd)
 	ringbuf->in += consumed;
 
 	return consumed;
+}
+
+/**
+ * l_ringbuf_append:
+ * @ringbuf: Ring Buffer object
+ * @data: data to be appended
+ * @len: data length
+ *
+ * Appends data to the ring buffer.
+ *
+ * Returns: Number of appended bytes or -1 if the append failed.
+ **/
+ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf, void *data, size_t len)
+{
+	size_t avail;
+	size_t offset;
+	size_t end;
+	size_t left;
+
+	if (!ringbuf || data == NULL)
+		return -1;
+
+	/* Determine how much can actually be appended */
+	avail = ringbuf->size - ringbuf->in + ringbuf->out;
+
+	if (!avail)
+		return -1;
+
+	/* Determine how much to append before wrapping */
+	offset = ringbuf->in & (ringbuf->size - 1);
+	end = minsize(len, ringbuf->size - offset);
+	memcpy(ringbuf->buffer + offset, data, end);
+
+	if (ringbuf->in_tracing)
+		ringbuf->in_tracing(ringbuf->buffer + offset, end,
+						ringbuf->in_data);
+
+	left = minsize(avail - end, len - end);
+
+	if (left > 0) {
+		memcpy(ringbuf->buffer, data + end, left);
+
+		if (ringbuf->in_tracing)
+			ringbuf->in_tracing(ringbuf->buffer, left,
+						ringbuf->in_data);
+	}
+
+	ringbuf->in += end + left;
+
+	return (end + left);
 }
