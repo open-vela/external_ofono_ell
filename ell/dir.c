@@ -169,6 +169,8 @@ static void process_event(struct watch_desc *desc, const char *pathname,
 		handle_callback(desc, pathname, L_DIR_WATCH_EVENT_REMOVED);
 	} else if (mask & (IN_MOVED_TO)) {
 		handle_callback(desc, pathname, L_DIR_WATCH_EVENT_CREATED);
+	} else if (mask & (IN_ATTRIB)) {
+		handle_callback(desc, pathname, L_DIR_WATCH_EVENT_ATTRIB);
 	}
 }
 

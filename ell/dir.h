@@ -34,6 +34,7 @@ enum l_dir_watch_event {
 	L_DIR_WATCH_EVENT_REMOVED,
 	L_DIR_WATCH_EVENT_MODIFIED,
 	L_DIR_WATCH_EVENT_ACCESSED,
+	L_DIR_WATCH_EVENT_ATTRIB,
 };
 
 typedef void (*l_dir_watch_event_func_t) (const char *filename,
