@@ -139,6 +139,9 @@ static void event_callback(const char *pathname, enum l_dir_watch_event event,
 	case L_DIR_WATCH_EVENT_ACCESSED:
 		str = "ACCESSED";
 		break;
+	case L_DIR_WATCH_EVENT_ATTRIB:
+		str = "ATTRIB";
+		break;
 	default:
 		str = "UNKNOWN";
 		break;
