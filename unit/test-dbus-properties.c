@@ -280,9 +280,11 @@ static bool test_path_getter(struct l_dbus *dbus,
 
 static void setup_test_interface(struct l_dbus_interface *interface)
 {
-	l_dbus_interface_property(interface, "String", 0, "s",
+	l_dbus_interface_property(interface, "String",
+					L_DBUS_PROPERTY_FLAG_AUTO_EMIT, "s",
 					test_string_getter, test_string_setter);
-	l_dbus_interface_property(interface, "Integer", 0, "u",
+	l_dbus_interface_property(interface, "Integer",
+					L_DBUS_PROPERTY_FLAG_AUTO_EMIT, "u",
 					test_int_getter, test_int_setter);
 	l_dbus_interface_property(interface, "Readonly", 0, "s",
 					test_string_getter, NULL);
