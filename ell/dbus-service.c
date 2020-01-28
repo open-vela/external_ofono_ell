@@ -1230,9 +1230,10 @@ bool _dbus_object_tree_property_changed(struct l_dbus *dbus,
 	return true;
 }
 
-static void pending_property_set_done(struct l_dbus *dbus,
+static void pending_property_set_done_common(struct l_dbus *dbus,
 					struct l_dbus_message *message,
-					struct l_dbus_message *reply)
+					struct l_dbus_message *reply,
+					bool auto_emit)
 {
 	const char *member;
 	const char *interface_name;
@@ -1260,12 +1261,27 @@ static void pending_property_set_done(struct l_dbus *dbus,
 							&variant))
 		goto done;
 
-	_dbus_object_tree_property_changed(dbus,
+	if (auto_emit)
+		_dbus_object_tree_property_changed(dbus,
 					l_dbus_message_get_path(message),
 					interface_name, property_name);
 done:
 	l_dbus_message_unref(message);
 	l_dbus_message_unref(reply);
+}
+
+static void pending_property_set_done_emit(struct l_dbus *dbus,
+					struct l_dbus_message *message,
+					struct l_dbus_message *reply)
+{
+	pending_property_set_done_common(dbus, message, reply, true);
+}
+
+static void pending_property_set_done(struct l_dbus *dbus,
+					struct l_dbus_message *message,
+					struct l_dbus_message *reply)
+{
+	pending_property_set_done_common(dbus, message, reply, false);
 }
 
 static struct l_dbus_message *old_set_property(struct l_dbus *dbus,
@@ -1278,6 +1294,7 @@ static struct l_dbus_message *old_set_property(struct l_dbus *dbus,
 	struct l_dbus_message_iter variant;
 	struct _dbus_object_tree *tree = _dbus_get_tree(dbus);
 	struct l_dbus_message *reply;
+	l_dbus_property_complete_cb_t complete_cb;
 
 	interface = l_hashmap_lookup(tree->interfaces,
 					l_dbus_message_get_interface(message));
@@ -1305,11 +1322,16 @@ static struct l_dbus_message *old_set_property(struct l_dbus *dbus,
 						"Property %s is read-only",
 						property_name);
 
+	if (property->flags & L_DBUS_PROPERTY_FLAG_AUTO_EMIT)
+		complete_cb = pending_property_set_done_emit;
+	else
+		complete_cb = pending_property_set_done;
+
 	reply = property->setter(dbus, l_dbus_message_ref(message), &variant,
-					pending_property_set_done, user_data);
+					complete_cb, user_data);
 
 	if (reply)
-		pending_property_set_done(dbus, message, reply);
+		complete_cb(dbus, message, reply);
 
 	return NULL;
 }
@@ -1863,6 +1885,7 @@ static struct l_dbus_message *properties_set(struct l_dbus *dbus,
 	struct _dbus_object_tree *tree = _dbus_get_tree(dbus);
 	const struct object_node *object;
 	struct l_dbus_message *reply;
+	l_dbus_property_complete_cb_t complete_cb;
 
 	if (!l_dbus_message_get_arguments(message, "ssv", &interface_name,
 						&property_name, &variant))
@@ -1907,12 +1930,16 @@ static struct l_dbus_message *properties_set(struct l_dbus *dbus,
 						"Object has no interface %s",
 						interface_name);
 
+	if (property->flags & L_DBUS_PROPERTY_FLAG_AUTO_EMIT)
+		complete_cb = pending_property_set_done_emit;
+	else
+		complete_cb = pending_property_set_done;
+
 	reply = property->setter(dbus, l_dbus_message_ref(message), &variant,
-					pending_property_set_done,
-					instance->user_data);
+					complete_cb, instance->user_data);
 
 	if (reply)
-		pending_property_set_done(dbus, message, reply);
+		complete_cb(dbus, message, reply);
 
 	return NULL;
 }
