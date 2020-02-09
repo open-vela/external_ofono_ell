@@ -1,3 +1,8 @@
+ver 0.28:
+	Fix issue with NULL check of D-Bus proxy for method calls.
+	Add support for emitting D-Bus property changes on demand.
+	Add support for reporting file attribute changes.
+
 ver 0.27:
 	Fix issue with data overflow and multiple PEMs.
 	Fix issue with handling DHCP lease expiration.
