@@ -413,8 +413,8 @@ LIB_EXPORT ssize_t l_ringbuf_read(struct l_ringbuf *ringbuf, int fd)
  *
  * Returns: Number of appended bytes or -1 if the append failed.
  **/
-ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf, const void *data,
-								size_t len)
+LIB_EXPORT ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf,
+						const void *data, size_t len)
 {
 	size_t avail;
 	size_t offset;

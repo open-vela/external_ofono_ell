@@ -58,8 +58,8 @@ int l_ringbuf_vprintf(struct l_ringbuf *ringbuf, const char *format,
 					va_list ap);
 ssize_t l_ringbuf_read(struct l_ringbuf *ringbuf, int fd);
 
-ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf, const void *data,
-								size_t len);
+ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf,
+					const void *data, size_t len);
 
 #ifdef __cplusplus
 }
