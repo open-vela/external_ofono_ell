@@ -68,6 +68,50 @@ static size_t rta_add_data(void *rta_buf, unsigned short type, void *data,
 	return RTA_SPACE(data_len);
 }
 
+static void l_rtnl_route_extract(const struct rtmsg *rtmsg, uint32_t len,
+				int family, uint32_t *ifindex, char **dst,
+				char **gateway,	char **src)
+{
+	struct rtattr *attr;
+	char buf[INET6_ADDRSTRLEN];
+
+	for (attr = RTM_RTA(rtmsg); RTA_OK(attr, len);
+						attr = RTA_NEXT(attr, len)) {
+		switch (attr->rta_type) {
+		case RTA_DST:
+			if (!dst)
+				break;
+
+			inet_ntop(family, RTA_DATA(attr), buf, sizeof(buf));
+			*dst = l_strdup(buf);
+
+			break;
+		case RTA_GATEWAY:
+			if (!gateway)
+				break;
+
+			inet_ntop(family, RTA_DATA(attr), buf, sizeof(buf));
+			*gateway = l_strdup(buf);
+
+			break;
+		case RTA_PREFSRC:
+			if (!src)
+				break;
+
+			inet_ntop(family, RTA_DATA(attr), buf, sizeof(buf));
+			*src = l_strdup(buf);
+
+			break;
+		case RTA_OIF:
+			if (!ifindex)
+				break;
+
+			*ifindex = *((uint32_t *) RTA_DATA(attr));
+			break;
+		}
+	}
+}
+
 uint32_t l_rtnl_set_linkmode_and_operstate(struct l_netlink *rtnl, int ifindex,
 					uint8_t linkmode, uint8_t operstate,
 					l_netlink_command_func_t cb,
@@ -294,44 +338,7 @@ void l_rtnl_route4_extract(const struct rtmsg *rtmsg, uint32_t len,
 				uint32_t *ifindex, char **dst, char **gateway,
 				char **src)
 {
-	struct in_addr in_addr;
-	struct rtattr *attr;
-
-	for (attr = RTM_RTA(rtmsg); RTA_OK(attr, len);
-						attr = RTA_NEXT(attr, len)) {
-		switch (attr->rta_type) {
-		case RTA_DST:
-			if (!dst)
-				break;
-
-			in_addr = *((struct in_addr *) RTA_DATA(attr));
-			*dst = l_strdup(inet_ntoa(in_addr));
-
-			break;
-		case RTA_GATEWAY:
-			if (!gateway)
-				break;
-
-			in_addr = *((struct in_addr *) RTA_DATA(attr));
-			*gateway = l_strdup(inet_ntoa(in_addr));
-
-			break;
-		case RTA_PREFSRC:
-			if (!src)
-				break;
-
-			in_addr = *((struct in_addr *) RTA_DATA(attr));
-			*src = l_strdup(inet_ntoa(in_addr));
-
-			break;
-		case RTA_OIF:
-			if (!ifindex)
-				break;
-
-			*ifindex = *((uint32_t *) RTA_DATA(attr));
-			break;
-		}
-	}
+	l_rtnl_route_extract(rtmsg, len, AF_INET, ifindex, dst, gateway, src);
 }
 
 uint32_t l_rtnl_route4_dump(struct l_netlink *rtnl,
@@ -558,6 +565,27 @@ uint32_t l_rtnl_ifaddr6_delete(struct l_netlink *rtnl, int ifindex,
 {
 	return l_rtnl_ifaddr6_change(rtnl, RTM_DELADDR, ifindex, prefix_len,
 						ip, cb, user_data, destroy);
+}
+
+void l_rtnl_route6_extract(const struct rtmsg *rtmsg, uint32_t len,
+				uint32_t *ifindex, char **dst, char **gateway,
+				char **src)
+{
+	l_rtnl_route_extract(rtmsg, len, AF_INET6, ifindex, dst, gateway, src);
+}
+
+uint32_t l_rtnl_route6_dump(struct l_netlink *rtnl,
+				l_netlink_command_func_t cb, void *user_data,
+				l_netlink_destroy_func_t destroy)
+{
+	struct rtmsg rtmsg;
+
+	memset(&rtmsg, 0, sizeof(struct rtmsg));
+	rtmsg.rtm_family = AF_INET6;
+
+	return l_netlink_send(rtnl, RTM_GETROUTE, NLM_F_DUMP, &rtmsg,
+					sizeof(struct rtmsg), cb, user_data,
+					destroy);
 }
 
 static uint32_t l_rtnl_route6_change(struct l_netlink *rtnl,
