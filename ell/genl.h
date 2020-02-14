@@ -85,6 +85,11 @@ struct l_genl_attr {
 
 struct l_genl_msg* l_genl_msg_new(uint8_t cmd);
 struct l_genl_msg *l_genl_msg_new_sized(uint8_t cmd, uint32_t size);
+struct l_genl_msg *l_genl_msg_new_from_data(const void *data, size_t size);
+
+const void *l_genl_msg_to_data(struct l_genl_msg *msg, uint16_t type,
+				uint16_t flags, uint32_t seq, uint32_t pid,
+				size_t *out_size);
 
 struct l_genl_msg *l_genl_msg_ref(struct l_genl_msg *msg);
 void l_genl_msg_unref(struct l_genl_msg *msg);
