@@ -192,7 +192,7 @@ void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 	}
 }
 
-uint32_t l_rtnl_ifaddr4_get(struct l_netlink *rtnl, l_netlink_command_func_t cb,
+uint32_t l_rtnl_ifaddr4_dump(struct l_netlink *rtnl, l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
@@ -476,7 +476,7 @@ void l_rtnl_ifaddr6_extract(const struct ifaddrmsg *ifa, int len, char **ip)
 	}
 }
 
-uint32_t l_rtnl_ifaddr6_get(struct l_netlink *rtnl,
+uint32_t l_rtnl_ifaddr6_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy)
 {
