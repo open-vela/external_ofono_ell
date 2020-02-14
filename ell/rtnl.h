@@ -46,35 +46,35 @@ uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex, bool powered,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
 
-void l_rtnl_ifaddr_extract(const struct ifaddrmsg *ifa, int bytes,
+void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				char **label, char **ip, char **broadcast);
-uint32_t l_rtnl_ifaddr_get(struct l_netlink *rtnl, l_netlink_command_func_t cb,
+uint32_t l_rtnl_ifaddr4_get(struct l_netlink *rtnl, l_netlink_command_func_t cb,
 				void *user_data,
 				l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_ifaddr_add(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_ifaddr4_add(struct l_netlink *rtnl, int ifindex,
 				uint8_t prefix_len, const char *ip,
 				const char *broadcast,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_ifaddr_delete(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_ifaddr4_delete(struct l_netlink *rtnl, int ifindex,
 				uint8_t prefix_len, const char *ip,
 				const char *broadcast,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
 
-void l_rtnl_route_extract_ipv4(const struct rtmsg *rtmsg, uint32_t len,
+void l_rtnl_route4_extract(const struct rtmsg *rtmsg, uint32_t len,
 				uint32_t *ifindex, char **dst, char **gateway,
 				char **src);
-uint32_t l_rtnl_route_dump_ipv4(struct l_netlink *rtnl,
+uint32_t l_rtnl_route4_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_route_ipv4_add_connected(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_route4_add_connected(struct l_netlink *rtnl, int ifindex,
 					uint8_t dst_len, const char *dst,
 					const char *src, uint8_t proto,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_route_ipv4_add_gateway(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_route4_add_gateway(struct l_netlink *rtnl, int ifindex,
 					const char *gateway, const char *src,
 					uint32_t priority_offset,
 					uint8_t proto,
@@ -82,29 +82,29 @@ uint32_t l_rtnl_route_ipv4_add_gateway(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
 
-void l_rtnl_ifaddr_ipv6_extract(const struct ifaddrmsg *ifa, int bytes,
+void l_rtnl_ifaddr6_extract(const struct ifaddrmsg *ifa, int bytes,
 								char **ip);
-uint32_t l_rtnl_ifaddr_ipv6_get(struct l_netlink *rtnl,
+uint32_t l_rtnl_ifaddr6_get(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb,
 				void *user_data,
 				l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_ifaddr_ipv6_add(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_ifaddr6_add(struct l_netlink *rtnl, int ifindex,
 				uint8_t prefix_len, const char *ip,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_ifaddr_ipv6_delete(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_ifaddr6_delete(struct l_netlink *rtnl, int ifindex,
 					uint8_t prefix_len, const char *ip,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_route_ipv6_add_gateway(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_route6_add_gateway(struct l_netlink *rtnl, int ifindex,
 					const char *gateway,
 					uint32_t priority_offset,
 					uint8_t proto,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
-uint32_t l_rtnl_route_ipv6_delete_gateway(struct l_netlink *rtnl, int ifindex,
+uint32_t l_rtnl_route6_delete_gateway(struct l_netlink *rtnl, int ifindex,
 					const char *gateway,
 					uint32_t priority_offset,
 					uint8_t proto,
