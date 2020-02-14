@@ -258,6 +258,8 @@ global:
 	l_genl_request_family;
 	l_genl_msg_new;
 	l_genl_msg_new_sized;
+	l_genl_msg_new_from_data;
+	l_genl_msg_to_data;
 	l_genl_msg_ref;
 	l_genl_msg_unref;
 	l_genl_msg_get_command;

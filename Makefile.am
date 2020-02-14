@@ -84,7 +84,6 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/checksum.c \
 			ell/netlink-private.h \
 			ell/netlink.c \
-			ell/genl-private.h \
 			ell/genl.c \
 			ell/rtnl.c \
 			ell/dbus-private.h \
