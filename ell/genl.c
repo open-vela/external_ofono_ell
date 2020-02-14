@@ -832,8 +832,8 @@ static bool can_write_data(struct l_io *io, void *user_data)
 {
 	struct l_genl *genl = user_data;
 	struct genl_request *request;
-	struct nlmsghdr *nlmsg;
-	struct genlmsghdr *genlmsg;
+	const void *data;
+	size_t size;
 	ssize_t bytes_written;
 
 	request = l_queue_pop_head(genl->request_queue);
@@ -841,22 +841,10 @@ static bool can_write_data(struct l_io *io, void *user_data)
 		return false;
 
 	request->seq = get_next_id(&genl->next_seq);
+	data = msg_as_bytes(request->msg, request->type, request->flags,
+				request->seq, genl->pid, &size);
 
-	nlmsg = request->msg->data;
-
-	nlmsg->nlmsg_len = request->msg->len;
-	nlmsg->nlmsg_type = request->type;
-	nlmsg->nlmsg_flags = request->flags;
-	nlmsg->nlmsg_seq = request->seq;
-	nlmsg->nlmsg_pid = genl->pid;
-
-	genlmsg = request->msg->data + NLMSG_HDRLEN;
-
-	genlmsg->cmd = request->msg->cmd;
-	genlmsg->version = request->msg->version;
-
-	bytes_written = send(genl->fd, request->msg->data,
-						request->msg->len, 0);
+	bytes_written = send(genl->fd, data, size, 0);
 	if (bytes_written < 0) {
 		l_queue_push_head(genl->request_queue, request);
 		return false;
