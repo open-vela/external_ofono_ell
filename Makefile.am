@@ -34,6 +34,7 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/checksum.h \
 			ell/netlink.h \
 			ell/genl.h \
+			ell/rtnl.h \
 			ell/dbus.h \
 			ell/dbus-service.h \
 			ell/dbus-client.h \
@@ -85,6 +86,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/netlink.c \
 			ell/genl-private.h \
 			ell/genl.c \
+			ell/rtnl.c \
 			ell/dbus-private.h \
 			ell/dbus.c \
 			ell/dbus-message.c \
