@@ -52,6 +52,7 @@
 #include <ell/net.h>
 #include <ell/netlink.h>
 #include <ell/genl.h>
+#include <ell/rtnl.h>
 #include <ell/dbus.h>
 #include <ell/dbus-service.h>
 #include <ell/dbus-client.h>
