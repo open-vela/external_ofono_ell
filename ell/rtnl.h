@@ -63,8 +63,8 @@ uint32_t l_rtnl_ifaddr4_delete(struct l_netlink *rtnl, int ifindex,
 				l_netlink_destroy_func_t destroy);
 
 void l_rtnl_route4_extract(const struct rtmsg *rtmsg, uint32_t len,
-				uint32_t *ifindex, char **dst, char **gateway,
-				char **src);
+				uint32_t *table, uint32_t *ifindex,
+				char **dst, char **gateway, char **src);
 uint32_t l_rtnl_route4_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
@@ -98,8 +98,8 @@ uint32_t l_rtnl_ifaddr6_delete(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
 void l_rtnl_route6_extract(const struct rtmsg *rtmsg, uint32_t len,
-				uint32_t *ifindex, char **dst, char **gateway,
-				char **src);
+				uint32_t *table, uint32_t *ifindex,
+				char **dst, char **gateway, char **src);
 uint32_t l_rtnl_route6_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);

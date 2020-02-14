@@ -69,12 +69,14 @@ static size_t rta_add_data(void *rta_buf, unsigned short type, void *data,
 }
 
 static void l_rtnl_route_extract(const struct rtmsg *rtmsg, uint32_t len,
-				int family, uint32_t *ifindex, char **dst,
-				char **gateway,	char **src)
+				int family, uint32_t *table, uint32_t *ifindex,
+				uint32_t *priority, uint8_t *pref,
+				char **dst, char **gateway, char **src)
 {
 	struct rtattr *attr;
 	char buf[INET6_ADDRSTRLEN];
 
+	/* Not extracted at the moment: RTA_CACHEINFO for IPv6 */
 	for (attr = RTM_RTA(rtmsg); RTA_OK(attr, len);
 						attr = RTA_NEXT(attr, len)) {
 		switch (attr->rta_type) {
@@ -101,6 +103,24 @@ static void l_rtnl_route_extract(const struct rtmsg *rtmsg, uint32_t len,
 			inet_ntop(family, RTA_DATA(attr), buf, sizeof(buf));
 			*src = l_strdup(buf);
 
+			break;
+		case RTA_TABLE:
+			if (!table)
+				break;
+
+			*table = *((uint32_t *) RTA_DATA(attr));
+			break;
+		case RTA_PRIORITY:
+			if (!priority)
+				break;
+
+			*priority = *((uint32_t *) RTA_DATA(attr));
+			break;
+		case RTA_PREF:
+			if (!pref)
+				break;
+
+			*pref = *((uint8_t *) RTA_DATA(attr));
 			break;
 		case RTA_OIF:
 			if (!ifindex)
@@ -335,10 +355,11 @@ uint32_t l_rtnl_ifaddr4_delete(struct l_netlink *rtnl, int ifindex,
 }
 
 void l_rtnl_route4_extract(const struct rtmsg *rtmsg, uint32_t len,
-				uint32_t *ifindex, char **dst, char **gateway,
-				char **src)
+				uint32_t *table, uint32_t *ifindex,
+				char **dst, char **gateway, char **src)
 {
-	l_rtnl_route_extract(rtmsg, len, AF_INET, ifindex, dst, gateway, src);
+	l_rtnl_route_extract(rtmsg, len, AF_INET, table, ifindex,
+				NULL, NULL, dst, gateway, src);
 }
 
 uint32_t l_rtnl_route4_dump(struct l_netlink *rtnl,
@@ -568,10 +589,11 @@ uint32_t l_rtnl_ifaddr6_delete(struct l_netlink *rtnl, int ifindex,
 }
 
 void l_rtnl_route6_extract(const struct rtmsg *rtmsg, uint32_t len,
-				uint32_t *ifindex, char **dst, char **gateway,
-				char **src)
+				uint32_t *table, uint32_t *ifindex,
+				char **dst, char **gateway, char **src)
 {
-	l_rtnl_route_extract(rtmsg, len, AF_INET6, ifindex, dst, gateway, src);
+	l_rtnl_route_extract(rtmsg, len, AF_INET6, table, ifindex,
+				NULL, NULL, dst, gateway, src);
 }
 
 uint32_t l_rtnl_route6_dump(struct l_netlink *rtnl,
