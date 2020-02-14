@@ -139,7 +139,7 @@ static void test_route4_dump(struct l_netlink *rtnl, void *user_data)
 					NULL, route4_dump_destroy_cb));
 }
 
-static void ifaddr4_get_cb(int error,
+static void ifaddr4_dump_cb(int error,
 				uint16_t type, const void *data,
 				uint32_t len, void *user_data)
 {
@@ -158,18 +158,18 @@ static void ifaddr4_get_cb(int error,
 	l_free(broadcast);
 }
 
-static void ifaddr4_get_destroy_cb(void *user_data)
+static void ifaddr4_dump_destroy_cb(void *user_data)
 {
 	test_next();
 }
 
-static void test_ifaddr4_get(struct l_netlink *rntl, void *user_data)
+static void test_ifaddr4_dump(struct l_netlink *rntl, void *user_data)
 {
-	test_assert(l_rtnl_ifaddr4_get(rtnl, ifaddr4_get_cb,
-					NULL, ifaddr4_get_destroy_cb));
+	test_assert(l_rtnl_ifaddr4_dump(rtnl, ifaddr4_dump_cb,
+					NULL, ifaddr4_dump_destroy_cb));
 }
 
-static void ifaddr6_get_cb(int error,
+static void ifaddr6_dump_cb(int error,
 				uint16_t type, const void *data,
 				uint32_t len, void *user_data)
 {
@@ -186,15 +186,15 @@ static void ifaddr6_get_cb(int error,
 	l_free(ip);
 }
 
-static void ifaddr6_get_destroy_cb(void *user_data)
+static void ifaddr6_dump_destroy_cb(void *user_data)
 {
 	test_next();
 }
 
-static void test_ifaddr6_get(struct l_netlink *rntl, void *user_data)
+static void test_ifaddr6_dump(struct l_netlink *rntl, void *user_data)
 {
-	test_assert(l_rtnl_ifaddr6_get(rtnl, ifaddr6_get_cb,
-					NULL, ifaddr6_get_destroy_cb));
+	test_assert(l_rtnl_ifaddr6_dump(rtnl, ifaddr6_dump_cb,
+					NULL, ifaddr6_dump_destroy_cb));
 }
 
 static void test_run(void)
@@ -211,8 +211,8 @@ int main(int argc, char *argv[])
 		return -1;
 
 	test_add("Dump IPv4 routing table", test_route4_dump, NULL);
-	test_add("Get IPv4 address", test_ifaddr4_get, NULL);
-	test_add("Get IPv6 address", test_ifaddr6_get, NULL);
+	test_add("Dump IPv4 addresses", test_ifaddr4_dump, NULL);
+	test_add("Dump IPv6 addresses", test_ifaddr6_dump, NULL);
 
 	l_log_set_stderr();
 
