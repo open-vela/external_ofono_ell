@@ -139,6 +139,37 @@ static void test_route4_dump(struct l_netlink *rtnl, void *user_data)
 					NULL, route4_dump_destroy_cb));
 }
 
+static void route6_dump_cb(int error,
+			uint16_t type, const void *data,
+			uint32_t len, void *user_data)
+{
+	const struct rtmsg *rtmsg = data;
+	char *dst = NULL, *gateway = NULL, *src = NULL;
+	uint32_t idx;
+
+	test_assert(!error);
+	test_assert(type == RTM_NEWROUTE);
+
+	l_rtnl_route6_extract(rtmsg, len, &idx, &dst, &gateway, &src);
+
+	l_info("idx %d dst %s gateway %s src %s", idx, dst, gateway, src);
+
+	l_free(dst);
+	l_free(gateway);
+	l_free(src);
+}
+
+static void route6_dump_destroy_cb(void *user_data)
+{
+	test_next();
+}
+
+static void test_route6_dump(struct l_netlink *rtnl, void *user_data)
+{
+	test_assert(l_rtnl_route6_dump(rtnl, route6_dump_cb,
+					NULL, route6_dump_destroy_cb));
+}
+
 static void ifaddr4_dump_cb(int error,
 				uint16_t type, const void *data,
 				uint32_t len, void *user_data)
@@ -211,6 +242,7 @@ int main(int argc, char *argv[])
 		return -1;
 
 	test_add("Dump IPv4 routing table", test_route4_dump, NULL);
+	test_add("Dump IPv6 routing table", test_route6_dump, NULL);
 	test_add("Dump IPv4 addresses", test_ifaddr4_dump, NULL);
 	test_add("Dump IPv6 addresses", test_ifaddr6_dump, NULL);
 
