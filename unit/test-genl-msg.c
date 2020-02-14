@@ -29,8 +29,6 @@
 #include <linux/genetlink.h>
 #include <ell/ell.h>
 
-#include "ell/genl-private.h"
-
 static bool do_print = false;
 
 static void do_debug(const char *str, void *user_data)
@@ -61,7 +59,7 @@ static void parse_set_station(const void *data)
 	const void *payload;
 
 	nlmsg = (struct nlmsghdr *) set_station_request;
-	msg = _genl_msg_create(nlmsg);
+	msg = l_genl_msg_new_from_data(nlmsg, sizeof(set_station_request));
 	assert(msg);
 
 	assert(l_genl_msg_get_command(msg) == 18);
@@ -113,7 +111,7 @@ static void build_set_station(const void *data)
 	assert(l_genl_msg_append_attr(msg, 6, 6, mac));
 	assert(l_genl_msg_append_attr(msg, 67, 8, flags));
 
-	raw = _genl_msg_as_bytes(msg, 0x17, 0x05, 0x550d538b, 3604, &size);
+	raw = l_genl_msg_to_data(msg, 0x17, 0x05, 0x550d538b, 3604, &size);
 
 	if (do_print) {
 		l_util_hexdump(false, raw, size, do_debug, "[MSG] ");
@@ -157,7 +155,8 @@ static void parse_set_rekey_offload(const void *data)
 	const void *payload;
 
 	nlmsg = (struct nlmsghdr *) set_rekey_offload_request;
-	msg = _genl_msg_create(nlmsg);
+	msg = l_genl_msg_new_from_data(nlmsg,
+					sizeof(set_rekey_offload_request));
 	assert(msg);
 
 	assert(l_genl_msg_get_command(msg) == 79);
@@ -230,7 +229,7 @@ static void build_set_rekey_offload(const void *data)
 	assert(l_genl_msg_append_attr(msg, 3, 8, replay_counter));
 	assert(l_genl_msg_leave_nested(msg));
 
-	raw = _genl_msg_as_bytes(msg, 0x1b, 0x05, 0x53e1a359, 0xe74002ba,
+	raw = l_genl_msg_to_data(msg, 0x1b, 0x05, 0x53e1a359, 0xe74002ba,
 					&size);
 	if (do_print) {
 		l_util_hexdump(false, raw, size, do_debug, "[MSG] ");
@@ -285,7 +284,7 @@ static void parse_libnl_nested(const void *data)
 	const void *payload;
 
 	nlmsg = (struct nlmsghdr *) libnl_nested;
-	msg = _genl_msg_create(nlmsg);
+	msg = l_genl_msg_new_from_data(nlmsg, sizeof(libnl_nested));
 	assert(msg);
 
 	assert(l_genl_msg_get_command(msg) == 1);
@@ -353,7 +352,7 @@ static void build_libnl_nested(const void *data)
 	assert(l_genl_msg_leave_nested(msg));
 	assert(l_genl_msg_leave_nested(msg));
 
-	raw = _genl_msg_as_bytes(msg, 0x15, 0x05, 0x55130572, 0x0c406877,
+	raw = l_genl_msg_to_data(msg, 0x15, 0x05, 0x55130572, 0x0c406877,
 					&size);
 	if (do_print) {
 		l_util_hexdump(false, raw, size, do_debug, "[MSG] ");
