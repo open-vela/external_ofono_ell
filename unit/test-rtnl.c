@@ -114,14 +114,16 @@ static void route4_dump_cb(int error,
 {
 	const struct rtmsg *rtmsg = data;
 	char *dst = NULL, *gateway = NULL, *src = NULL;
-	uint32_t idx;
+	uint32_t table, ifindex;
 
 	test_assert(!error);
 	test_assert(type == RTM_NEWROUTE);
 
-	l_rtnl_route4_extract(rtmsg, len, &idx, &dst, &gateway, &src);
+	l_rtnl_route4_extract(rtmsg, len, &table, &ifindex,
+				&dst, &gateway, &src);
 
-	l_info("idx %d dst %s gateway %s src %s", idx, dst, gateway, src);
+	l_info("table %d ifindex %d dst %s gateway %s src %s",
+		table, ifindex, dst, gateway, src);
 
 	l_free(dst);
 	l_free(gateway);
@@ -145,14 +147,16 @@ static void route6_dump_cb(int error,
 {
 	const struct rtmsg *rtmsg = data;
 	char *dst = NULL, *gateway = NULL, *src = NULL;
-	uint32_t idx;
+	uint32_t table, ifindex;
 
 	test_assert(!error);
 	test_assert(type == RTM_NEWROUTE);
 
-	l_rtnl_route6_extract(rtmsg, len, &idx, &dst, &gateway, &src);
+	l_rtnl_route6_extract(rtmsg, len, &table, &ifindex,
+				&dst, &gateway, &src);
 
-	l_info("idx %d dst %s gateway %s src %s", idx, dst, gateway, src);
+	l_info("table %d ifindex %d dst %s gateway %s src %s",
+		table, ifindex, dst, gateway, src);
 
 	l_free(dst);
 	l_free(gateway);
