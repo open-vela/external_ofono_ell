@@ -167,6 +167,7 @@ unit_tests = unit/test-unit \
 			unit/test-settings \
 			unit/test-netlink \
 			unit/test-genl-msg \
+			unit/test-rtnl \
 			unit/test-siphash \
 			unit/test-cipher \
 			unit/test-random \
@@ -248,6 +249,8 @@ unit_test_settings_LDADD = ell/libell-private.la
 unit_test_netlink_LDADD = ell/libell-private.la
 
 unit_test_genl_msg_LDADD = ell/libell-private.la
+
+unit_test_rtnl_LDADD = ell/libell-private.la
 
 unit_test_dbus_LDADD = ell/libell-private.la
 

@@ -32,6 +32,7 @@ unit/test-checksum
 unit/test-settings
 unit/test-netlink
 unit/test-genl-msg
+unit/test-rtnl
 unit/test-dbus
 unit/test-dbus-message
 unit/test-dbus-message-fds
