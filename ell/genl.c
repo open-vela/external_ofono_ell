@@ -1800,7 +1800,7 @@ LIB_EXPORT struct l_genl_family *l_genl_family_new(struct l_genl *genl,
 	if (!entry)
 		return NULL;
 
-	family = family_alloc(genl, info->id);
+	family = family_alloc(l_genl_ref(genl), info->id);
 
 	return family;
 }
@@ -2059,4 +2059,5 @@ LIB_EXPORT void l_genl_family_free(struct l_genl_family *family)
 	}
 
 	l_free(family);
+	l_genl_unref(genl);
 }
