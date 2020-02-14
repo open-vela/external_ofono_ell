@@ -108,7 +108,7 @@ static void test_next()
 	} while (0)
 
 
-static void route_dump_ipv4_cb(int error,
+static void route4_dump_cb(int error,
 			uint16_t type, const void *data,
 			uint32_t len, void *user_data)
 {
@@ -119,7 +119,7 @@ static void route_dump_ipv4_cb(int error,
 	test_assert(!error);
 	test_assert(type == RTM_NEWROUTE);
 
-	l_rtnl_route_extract_ipv4(rtmsg, len, &idx, &dst, &gateway, &src);
+	l_rtnl_route4_extract(rtmsg, len, &idx, &dst, &gateway, &src);
 
 	l_info("idx %d dst %s gateway %s src %s", idx, dst, gateway, src);
 
@@ -128,18 +128,18 @@ static void route_dump_ipv4_cb(int error,
 	l_free(src);
 }
 
-static void route_dump_ipv4_destroy_cb(void *user_data)
+static void route4_dump_destroy_cb(void *user_data)
 {
 	test_next();
 }
 
-static void test_route_dump_ipv4(struct l_netlink *rtnl, void *user_data)
+static void test_route4_dump(struct l_netlink *rtnl, void *user_data)
 {
-	test_assert(l_rtnl_route_dump_ipv4(rtnl, route_dump_ipv4_cb,
-					NULL, route_dump_ipv4_destroy_cb));
+	test_assert(l_rtnl_route4_dump(rtnl, route4_dump_cb,
+					NULL, route4_dump_destroy_cb));
 }
 
-static void ifaddr_get_cb(int error,
+static void ifaddr4_get_cb(int error,
 				uint16_t type, const void *data,
 				uint32_t len, void *user_data)
 {
@@ -149,7 +149,7 @@ static void ifaddr_get_cb(int error,
 	test_assert(!error);
 	test_assert(type == RTM_NEWADDR);
 
-	l_rtnl_ifaddr_extract(ifa, len, &label, &ip, &broadcast);
+	l_rtnl_ifaddr4_extract(ifa, len, &label, &ip, &broadcast);
 
 	l_info("label %s ip %s broadcast %s", label, ip, broadcast);
 
@@ -158,18 +158,18 @@ static void ifaddr_get_cb(int error,
 	l_free(broadcast);
 }
 
-static void ifaddr_get_destroy_cb(void *user_data)
+static void ifaddr4_get_destroy_cb(void *user_data)
 {
 	test_next();
 }
 
-static void test_ifaddr_get(struct l_netlink *rntl, void *user_data)
+static void test_ifaddr4_get(struct l_netlink *rntl, void *user_data)
 {
-	test_assert(l_rtnl_ifaddr_get(rtnl, ifaddr_get_cb,
-					NULL, ifaddr_get_destroy_cb));
+	test_assert(l_rtnl_ifaddr4_get(rtnl, ifaddr4_get_cb,
+					NULL, ifaddr4_get_destroy_cb));
 }
 
-static void ifaddr_ipv6_get_cb(int error,
+static void ifaddr6_get_cb(int error,
 				uint16_t type, const void *data,
 				uint32_t len, void *user_data)
 {
@@ -179,22 +179,22 @@ static void ifaddr_ipv6_get_cb(int error,
 	test_assert(!error);
 	test_assert(type == RTM_NEWADDR);
 
-	l_rtnl_ifaddr_ipv6_extract(ifa, len, &ip);
+	l_rtnl_ifaddr6_extract(ifa, len, &ip);
 
 	l_info("ip %s", ip);
 
 	l_free(ip);
 }
 
-static void ifaddr_ipv6_get_destroy_cb(void *user_data)
+static void ifaddr6_get_destroy_cb(void *user_data)
 {
 	test_next();
 }
 
-static void test_ifaddr_ipv6_get(struct l_netlink *rntl, void *user_data)
+static void test_ifaddr6_get(struct l_netlink *rntl, void *user_data)
 {
-	test_assert(l_rtnl_ifaddr_ipv6_get(rtnl, ifaddr_ipv6_get_cb,
-					NULL, ifaddr_ipv6_get_destroy_cb));
+	test_assert(l_rtnl_ifaddr6_get(rtnl, ifaddr6_get_cb,
+					NULL, ifaddr6_get_destroy_cb));
 }
 
 static void test_run(void)
@@ -210,9 +210,9 @@ int main(int argc, char *argv[])
 	if (!l_main_init())
 		return -1;
 
-	test_add("Dump IPv4 routing table", test_route_dump_ipv4, NULL);
-	test_add("Get IPv4 address", test_ifaddr_get, NULL);
-	test_add("Get IPv6 address", test_ifaddr_ipv6_get, NULL);
+	test_add("Dump IPv4 routing table", test_route4_dump, NULL);
+	test_add("Get IPv4 address", test_ifaddr4_get, NULL);
+	test_add("Get IPv6 address", test_ifaddr6_get, NULL);
 
 	l_log_set_stderr();
 
