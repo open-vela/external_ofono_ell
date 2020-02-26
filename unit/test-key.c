@@ -569,6 +569,15 @@ static void test_key_crypto(const void *data)
 
 	privkey = l_pem_load_private_key(CERTDIR "cert-client-key-pkcs8.pem",
 						NULL, NULL);
+	if (!privkey) {
+		l_info("* Some kernel versions do not automatically load\n"
+			"* the pkcs8_key_parser module. If the system running\n"
+			"* test has not loaded this module, a failure here is\n"
+			"* likely. Running \"modprobe pkcs8_key_parser\" may\n"
+			"* correct this issue.\n");
+		exit(1);
+	}
+
 	assert(privkey);
 	success = l_key_get_info(privkey, rsa, hash, &keybits, &is_public);
 	assert(success);
