@@ -562,8 +562,18 @@ static void test_tls_with_ver(const struct tls_conn_test *test,
 			l_pem_load_private_key(test->server_key_path,
 						test->server_key_passphrase,
 						NULL);
-		assert(server_cert);
+		if (!server_key) {
+			l_info("* Some kernel versions do not automatically\n"
+				"* load the pkcs8_key_parser module. If the\n"
+				"* system running test has not loaded this\n"
+				"* module, a failure here is likely. Running\n"
+				"* \"modprobe pkcs8_key_parser\" may correct\n"
+				"* this issue.\n");
+			exit(1);
+		}
+
 		assert(server_key);
+		assert(server_cert);
 
 		assert(l_tls_set_auth_data(s[0].tls, server_cert, server_key));
 	}
