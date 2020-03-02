@@ -162,7 +162,8 @@ LIB_EXPORT uint64_t l_path_get_mtime(const char *path)
 	if (ret < 0)
 		return L_TIME_INVALID;
 
-	return sb.st_mtim.tv_sec * 1000000 + sb.st_mtim.tv_nsec / 1000;
+	return (uint64_t) sb.st_mtim.tv_sec * 1000000 +
+		sb.st_mtim.tv_nsec / 1000;
 }
 
 /**
