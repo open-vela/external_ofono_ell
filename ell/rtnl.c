@@ -167,6 +167,7 @@ uint32_t l_rtnl_set_linkmode_and_operstate(struct l_netlink *rtnl, int ifindex,
 
 uint32_t l_rtnl_set_mac(struct l_netlink *rtnl, int ifindex,
 					const uint8_t addr[static 6],
+					bool power_up,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
@@ -183,6 +184,11 @@ uint32_t l_rtnl_set_mac(struct l_netlink *rtnl, int ifindex,
 
 	rtmmsg->ifi_family = AF_UNSPEC;
 	rtmmsg->ifi_index = ifindex;
+
+	if (power_up) {
+		rtmmsg->ifi_change = IFF_UP;
+		rtmmsg->ifi_flags = IFF_UP;
+	}
 
 	rta_buf = (void *) rtmmsg + NLMSG_ALIGN(sizeof(struct ifinfomsg));
 
