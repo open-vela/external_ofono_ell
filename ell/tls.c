@@ -680,7 +680,8 @@ static const struct asn1_oid dn_common_name_oid =
 
 #define SAN_DNS_NAME_ID ASN1_CONTEXT_IMPLICIT(2)
 
-static bool tls_cert_domains_match_mask(struct l_cert *cert, char **mask)
+static bool tls_cert_domains_match_mask(struct l_tls *tls, struct l_cert *cert,
+						char **mask)
 {
 	const uint8_t *san, *dn, *end;
 	size_t san_len, dn_len;
@@ -714,10 +715,15 @@ static bool tls_cert_domains_match_mask(struct l_cert *cert, char **mask)
 
 			/* Type is implicitly IA5STRING */
 
-			for (i = mask; *i; i++)
+			for (i = mask; *i; i++) {
+				TLS_DEBUG("Trying to match DNSName: '%.*s'"
+						" against mask: '%s'",
+						(int) len, value, *i);
+
 				if (tls_domain_match_mask((const char *) value,
 							len, *i, strlen(*i)))
 					return true;
+			}
 
 			san = value + len;
 			dns_name_present = true;
@@ -782,9 +788,13 @@ static bool tls_cert_domains_match_mask(struct l_cert *cert, char **mask)
 	if (unlikely(!cn))
 		return false;
 
-	for (i = mask; *i; i++)
+	for (i = mask; *i; i++) {
+		TLS_DEBUG("Trying to match CN: '%.*s' against mask: '%s'",
+				(int) cn_len, cn, *i);
+
 		if (tls_domain_match_mask(cn, cn_len, *i, strlen(*i)))
 			return true;
+	}
 
 	return false;
 }
@@ -1946,7 +1956,7 @@ static void tls_handle_certificate(struct l_tls *tls,
 		goto done;
 	}
 
-	if (tls->subject_mask && !tls_cert_domains_match_mask(leaf,
+	if (tls->subject_mask && !tls_cert_domains_match_mask(tls, leaf,
 							tls->subject_mask)) {
 		char *mask = l_strjoinv(tls->subject_mask, '|');
 
