@@ -43,7 +43,7 @@ LIB_EXPORT uint64_t l_time_now(void)
 
 	clock_gettime(CLOCK_BOOTTIME, &now);
 
-	return now.tv_sec * 1000000 + now.tv_nsec / 1000;
+	return (uint64_t) now.tv_sec * 1000000 + now.tv_nsec / 1000;
 }
 
 /**
