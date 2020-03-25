@@ -1,3 +1,7 @@
+ver 0.29:
+	Fix issue with time overflow on 32-bit systems.
+	Add support for RTNL helper functionality.
+
 ver 0.28:
 	Fix issue with NULL check of D-Bus proxy for method calls.
 	Add support for emitting D-Bus property changes on demand.
