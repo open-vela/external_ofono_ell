@@ -1,3 +1,6 @@
+ver 0.30:
+	Fix issue with missing export of RTNL helper functions.
+
 ver 0.29:
 	Fix issue with time overflow on 32-bit systems.
 	Add support for RTNL helper functionality.
