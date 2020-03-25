@@ -998,7 +998,7 @@ LIB_EXPORT bool l_settings_get_int(const struct l_settings *settings,
 
 	errno = 0;
 
-	t = r = strtol(value, &endp, 10);
+	t = r = strtol(value, &endp, 0);
 	if (*endp != '\0')
 		goto error;
 
@@ -1045,7 +1045,7 @@ LIB_EXPORT bool l_settings_get_uint(const struct l_settings *settings,
 
 	errno = 0;
 
-	t = r = strtoul(value, &endp, 10);
+	t = r = strtoul(value, &endp, 0);
 	if (*endp != '\0')
 		goto error;
 
@@ -1091,7 +1091,7 @@ LIB_EXPORT bool l_settings_get_int64(const struct l_settings *settings,
 
 	errno = 0;
 
-	r = strtoll(value, &endp, 10);
+	r = strtoll(value, &endp, 0);
 	if (*endp != '\0')
 		goto error;
 
@@ -1137,7 +1137,7 @@ LIB_EXPORT bool l_settings_get_uint64(const struct l_settings *settings,
 
 	errno = 0;
 
-	r = strtoull(value, &endp, 10);
+	r = strtoull(value, &endp, 0);
 	if (*endp != '\0')
 		goto error;
 
