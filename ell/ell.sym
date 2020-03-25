@@ -543,6 +543,26 @@ global:
 	l_gpio_reader_new;
 	l_gpio_reader_free;
 	l_gpio_reader_get;
+	/* rtnl */
+	l_rtnl_set_linkmode_and_operstate;
+	l_rtnl_set_mac;
+	l_rtnl_set_powered;
+	l_rtnl_ifaddr4_extract;
+	l_rtnl_ifaddr4_dump;
+	l_rtnl_ifaddr4_add;
+	l_rtnl_ifaddr4_delete;
+	l_rtnl_route4_extract;
+	l_rtnl_route4_dump;
+	l_rtnl_route4_add_connected;
+	l_rtnl_route4_add_gateway;
+	l_rtnl_ifaddr6_extract;
+	l_rtnl_ifaddr6_dump;
+	l_rtnl_ifaddr6_add;
+	l_rtnl_ifaddr6_delete;
+	l_rtnl_route6_extract;
+	l_rtnl_route6_dump;
+	l_rtnl_route6_add_gateway;
+	l_rtnl_route6_delete_gateway;
 local:
 	*;
 };
