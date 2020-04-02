@@ -153,7 +153,7 @@ const char *_dhcp_option_to_string(uint8_t option)
 		return "End";
 	default:
 		return "unknown";
-	};
+	}
 }
 
 bool _dhcp_message_iter_init(struct dhcp_message_iter *iter,
@@ -768,7 +768,7 @@ static void dhcp_client_timeout_resend(struct l_timeout *timeout,
 	case DHCP_STATE_REBOOTING:
 	case DHCP_STATE_BOUND:
 		break;
-	};
+	}
 
 	if (next_timeout)
 		l_timeout_modify_ms(timeout, dhcp_fuzz_secs(next_timeout));

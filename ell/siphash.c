@@ -134,5 +134,5 @@ void _siphash24(uint8_t out[8], const uint8_t *in, size_t inlen,
 	SIPROUND;
 	SIPROUND;
 	b = v0 ^ v1 ^ v2  ^ v3;
-	U64TO8_LE(out, b);
+	U64TO8_LE(out, b)
 }

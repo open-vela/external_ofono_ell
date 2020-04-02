@@ -414,7 +414,7 @@ static struct l_dbus_proxy *dbus_proxy_new(struct l_dbus_client *client,
 	proxy->interface = l_strdup(interface);
 	proxy->path = l_strdup(path);
 	proxy->properties = l_queue_new();
-	proxy->pending_calls = l_queue_new();;
+	proxy->pending_calls = l_queue_new();
 
 	l_queue_push_tail(client->proxies, proxy);
 
