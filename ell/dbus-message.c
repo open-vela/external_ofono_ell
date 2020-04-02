@@ -397,7 +397,7 @@ LIB_EXPORT struct l_dbus_message *l_dbus_message_ref(struct l_dbus_message *mess
 	if (unlikely(!message))
 		return NULL;
 
-	__sync_fetch_and_add(&message->refcount, 1);
+	__atomic_fetch_add(&message->refcount, 1, __ATOMIC_SEQ_CST);
 
 	return message;
 }
@@ -409,7 +409,7 @@ LIB_EXPORT void l_dbus_message_unref(struct l_dbus_message *message)
 	if (unlikely(!message))
 		return;
 
-	if (__sync_sub_and_fetch(&message->refcount, 1))
+	if (__atomic_sub_fetch(&message->refcount, 1, __ATOMIC_SEQ_CST))
 		return;
 
 	for (i = 0; i < message->num_fds; i++)
