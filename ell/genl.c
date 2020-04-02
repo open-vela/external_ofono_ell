@@ -1166,7 +1166,7 @@ LIB_EXPORT struct l_genl *l_genl_ref(struct l_genl *genl)
 	if (unlikely(!genl))
 		return NULL;
 
-	__sync_fetch_and_add(&genl->ref_count, 1);
+	__atomic_fetch_add(&genl->ref_count, 1, __ATOMIC_SEQ_CST);
 
 	return genl;
 }
@@ -1176,7 +1176,7 @@ LIB_EXPORT void l_genl_unref(struct l_genl *genl)
 	if (unlikely(!genl))
 		return;
 
-	if (__sync_sub_and_fetch(&genl->ref_count, 1))
+	if (__atomic_sub_fetch(&genl->ref_count, 1, __ATOMIC_SEQ_CST))
 		return;
 
 	if (genl->discovery) {
@@ -1583,7 +1583,7 @@ LIB_EXPORT struct l_genl_msg *l_genl_msg_ref(struct l_genl_msg *msg)
 	if (unlikely(!msg))
 		return NULL;
 
-	__sync_fetch_and_add(&msg->ref_count, 1);
+	__atomic_fetch_add(&msg->ref_count, 1, __ATOMIC_SEQ_CST);
 
 	return msg;
 }
@@ -1593,7 +1593,7 @@ LIB_EXPORT void l_genl_msg_unref(struct l_genl_msg *msg)
 	if (unlikely(!msg))
 		return;
 
-	if (__sync_sub_and_fetch(&msg->ref_count, 1))
+	if (__atomic_sub_fetch(&msg->ref_count, 1, __ATOMIC_SEQ_CST))
 		return;
 
 	l_free(msg->error_msg);

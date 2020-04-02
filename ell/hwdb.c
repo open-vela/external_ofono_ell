@@ -178,7 +178,7 @@ LIB_EXPORT struct l_hwdb *l_hwdb_ref(struct l_hwdb *hwdb)
 	if (!hwdb)
 		return NULL;
 
-	__sync_fetch_and_add(&hwdb->ref_count, 1);
+	__atomic_fetch_add(&hwdb->ref_count, 1, __ATOMIC_SEQ_CST);
 
 	return hwdb;
 }
@@ -188,7 +188,7 @@ LIB_EXPORT void l_hwdb_unref(struct l_hwdb *hwdb)
 	if (!hwdb)
 		return;
 
-	if (__sync_sub_and_fetch(&hwdb->ref_count, 1))
+	if (__atomic_sub_fetch(&hwdb->ref_count, 1, __ATOMIC_SEQ_CST))
 		return;
 
 	munmap(hwdb->addr, hwdb->size);
