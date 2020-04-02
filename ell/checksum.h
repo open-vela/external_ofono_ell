@@ -64,7 +64,7 @@ ssize_t l_checksum_get_digest(struct l_checksum *checksum,
 char *l_checksum_get_string(struct l_checksum *checksum);
 
 bool l_checksum_is_supported(enum l_checksum_type type, bool check_hmac);
-bool l_checksum_cmac_aes_supported();
+bool l_checksum_cmac_aes_supported(void);
 
 ssize_t l_checksum_digest_length(enum l_checksum_type type);
 

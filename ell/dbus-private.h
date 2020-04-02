@@ -189,7 +189,7 @@ struct _dbus_signal *_dbus_interface_find_signal(struct l_dbus_interface *i,
 struct _dbus_property *_dbus_interface_find_property(struct l_dbus_interface *i,
 						const char *property);
 
-struct _dbus_object_tree *_dbus_object_tree_new();
+struct _dbus_object_tree *_dbus_object_tree_new(void);
 void _dbus_object_tree_free(struct _dbus_object_tree *tree);
 
 struct object_node *_dbus_object_tree_makepath(struct _dbus_object_tree *tree,
