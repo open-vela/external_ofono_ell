@@ -40,7 +40,8 @@ char **l_strv_append(char **str_array, const char *str);
 char **l_strv_append_printf(char **str_array, const char *format, ...)
 					__attribute__((format(printf, 2, 3)));
 char **l_strv_append_vprintf(char **str_array, const char *format,
-							va_list args);
+							va_list args)
+					__attribute__((format(printf, 2, 0)));
 char **l_strv_copy(char **str_array);
 
 #ifdef __cplusplus

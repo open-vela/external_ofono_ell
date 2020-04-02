@@ -114,7 +114,8 @@ struct l_dbus_message *l_dbus_message_new_method_return(
 struct l_dbus_message *l_dbus_message_new_error_valist(
 					struct l_dbus_message *method_call,
 					const char *name,
-					const char *format, va_list args);
+					const char *format, va_list args)
+					__attribute__((format(printf, 3, 0)));
 struct l_dbus_message *l_dbus_message_new_error(
 					struct l_dbus_message *method_call,
 					const char *name,

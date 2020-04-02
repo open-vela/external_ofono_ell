@@ -46,7 +46,8 @@ struct l_hwdb_entry {
 struct l_hwdb_entry *l_hwdb_lookup(struct l_hwdb *hwdb, const char *format, ...)
 					__attribute__((format(printf, 2, 3)));
 struct l_hwdb_entry *l_hwdb_lookup_valist(struct l_hwdb *hwdb,
-					const char *format, va_list args);
+					const char *format, va_list args)
+					__attribute__((format(printf, 2, 0)));
 void l_hwdb_lookup_free(struct l_hwdb_entry *entries);
 
 typedef void (*l_hwdb_foreach_func_t)(const char *modalias,

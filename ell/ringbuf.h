@@ -55,7 +55,8 @@ size_t l_ringbuf_avail(struct l_ringbuf *ringbuf);
 int l_ringbuf_printf(struct l_ringbuf *ringbuf, const char *format, ...)
 					__attribute__((format(printf, 2, 3)));
 int l_ringbuf_vprintf(struct l_ringbuf *ringbuf, const char *format,
-					va_list ap);
+					va_list ap)
+					__attribute__((format(printf, 2, 0)));
 ssize_t l_ringbuf_read(struct l_ringbuf *ringbuf, int fd);
 
 ssize_t l_ringbuf_append(struct l_ringbuf *ringbuf,
