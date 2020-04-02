@@ -139,6 +139,7 @@ LIB_EXPORT void l_log_set_null(void)
 	log_func = log_null;
 }
 
+__attribute__((format(printf, 5, 0)))
 static void log_stderr(int priority, const char *file, const char *line,
 			const char *func, const char *format, va_list ap)
 {
@@ -157,6 +158,7 @@ LIB_EXPORT void l_log_set_stderr(void)
 	log_func = log_stderr;
 }
 
+__attribute__((format(printf, 5, 0)))
 static void log_syslog(int priority, const char *file, const char *line,
 			const char *func, const char *format, va_list ap)
 {
@@ -205,6 +207,7 @@ LIB_EXPORT void l_log_set_syslog(void)
 	log_func = log_syslog;
 }
 
+__attribute__((format(printf, 5, 0)))
 static void log_journal(int priority, const char *file, const char *line,
 			const char *func, const char *format, va_list ap)
 {

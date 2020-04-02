@@ -280,7 +280,8 @@ char *l_strdup(const char *str);
 char *l_strndup(const char *str, size_t max);
 char *l_strdup_printf(const char *format, ...)
 			__attribute__((format(printf, 1, 2)));
-char *l_strdup_vprintf(const char *format, va_list args);
+char *l_strdup_vprintf(const char *format, va_list args)
+			__attribute__((format(printf, 1, 0)));
 
 size_t l_strlcpy(char* dst, const char *src, size_t len);
 

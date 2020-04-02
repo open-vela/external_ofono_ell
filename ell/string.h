@@ -41,7 +41,8 @@ struct l_string *l_string_append_fixed(struct l_string *dest, const char *src,
 					size_t max);
 
 void l_string_append_vprintf(struct l_string *dest,
-					const char *format, va_list args);
+					const char *format, va_list args)
+					__attribute__((format(printf, 2, 0)));
 void l_string_append_printf(struct l_string *dest, const char *format, ...)
 					__attribute__((format(printf, 2, 3)));
 
