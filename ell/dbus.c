@@ -1496,7 +1496,7 @@ LIB_EXPORT bool l_dbus_register_object(struct l_dbus *dbus, const char *path,
 	va_list args;
 	const char *interface;
 	void *if_user_data;
-	bool r = true;;
+	bool r = true;
 
 	if (unlikely(!dbus))
 		return false;
