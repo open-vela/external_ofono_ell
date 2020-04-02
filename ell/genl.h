@@ -97,6 +97,7 @@ void l_genl_msg_unref(struct l_genl_msg *msg);
 uint8_t l_genl_msg_get_command(struct l_genl_msg *msg);
 uint8_t l_genl_msg_get_version(struct l_genl_msg *msg);
 int l_genl_msg_get_error(struct l_genl_msg *msg);
+const char *l_genl_msg_get_extended_error(struct l_genl_msg *msg);
 
 bool l_genl_msg_append_attr(struct l_genl_msg *msg, uint16_t type,
 					uint16_t len, const void *data);
