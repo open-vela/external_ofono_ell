@@ -32,7 +32,7 @@ extern "C" {
 #include <stdint.h>
 
 bool l_getrandom(void *buf, size_t len);
-bool l_getrandom_is_supported();
+bool l_getrandom_is_supported(void);
 
 uint32_t l_getrandom_uint32(void);
 

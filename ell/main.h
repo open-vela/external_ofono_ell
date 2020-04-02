@@ -42,7 +42,7 @@ typedef void (*l_main_signal_cb_t) (uint32_t signo, void *user_data);
 
 int l_main_run_with_signal(l_main_signal_cb_t callback, void *user_data);
 
-int l_main_get_epoll_fd();
+int l_main_get_epoll_fd(void);
 
 #ifdef __cplusplus
 }
