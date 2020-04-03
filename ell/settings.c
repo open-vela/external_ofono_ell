@@ -885,17 +885,13 @@ static bool set_value(struct l_settings *settings, const char *group_name,
 	if (!validate_group_name(group_name)) {
 		l_util_debug(settings->debug_handler, settings->debug_data,
 				"Invalid group name %s", group_name);
-		l_free(value);
-
-		return false;
+		goto error;
 	}
 
 	if (!validate_key(key)) {
 		l_util_debug(settings->debug_handler, settings->debug_data,
 				"Invalid key %s", key);
-		l_free(value);
-
-		return false;
+		goto error;
 	}
 
 	group = l_queue_find(settings->groups, group_match, group_name);
@@ -919,10 +915,16 @@ add_pair:
 		return true;
 	}
 
+	explicit_bzero(pair->value, strlen(pair->value));
 	l_free(pair->value);
 	pair->value = value;
 
 	return true;
+
+error:
+	explicit_bzero(value, strlen(value));
+	l_free(value);
+	return false;
 }
 
 LIB_EXPORT bool l_settings_set_value(struct l_settings *settings,
