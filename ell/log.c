@@ -369,7 +369,6 @@ LIB_EXPORT void l_debug_add_section(struct l_debug_desc *start,
 					struct l_debug_desc *end)
 {
 	const struct l_queue_entry *entry;
-	const struct debug_section *section;
 	struct debug_section *new_section;
 
 	if (!debug_sections) {
@@ -379,7 +378,7 @@ LIB_EXPORT void l_debug_add_section(struct l_debug_desc *start,
 
 	for (entry = l_queue_get_entries(debug_sections); entry;
 					entry = entry->next) {
-		section = entry->data;
+		const struct debug_section *section = entry->data;
 
 		if (section->start == start && section->end == end)
 			return;
@@ -406,7 +405,6 @@ LIB_EXPORT void l_debug_enable_full(const char *pattern,
 					struct l_debug_desc *end)
 {
 	const struct l_queue_entry *entry;
-	const struct debug_section *section;
 
 	if (!pattern)
 		return;
@@ -417,7 +415,8 @@ LIB_EXPORT void l_debug_enable_full(const char *pattern,
 
 	for (entry = l_queue_get_entries(debug_sections); entry;
 					entry = entry->next) {
-		section = entry->data;
+		const struct debug_section *section = entry->data;
+
 		debug_enable(section->start, section->end);
 	}
 }
@@ -430,11 +429,11 @@ LIB_EXPORT void l_debug_enable_full(const char *pattern,
 LIB_EXPORT void l_debug_disable(void)
 {
 	const struct l_queue_entry *entry;
-	const struct debug_section *section;
 
 	for (entry = l_queue_get_entries(debug_sections); entry;
 					entry = entry->next) {
-		section = entry->data;
+		const struct debug_section *section = entry->data;
+
 		debug_disable(section->start, section->end);
 	}
 
