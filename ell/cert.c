@@ -454,7 +454,8 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	struct l_cert *cert;
 	struct l_key *prev_key = NULL;
 	int verified = 0;
-	bool ca_match;
+	int ca_match = 0;
+	int i = 0;
 	static char error_buf[200];
 
 	if (unlikely(!chain || !chain->leaf))
@@ -464,8 +465,13 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	if (!verify_ring)
 		RETURN_ERROR("Can't create verify keyring");
 
+	for (cert = chain->ca; cert; cert = cert->issued, i++)
+		if (cert_is_in_set(cert, ca_certs)) {
+			ca_match = i + 1;
+			break;
+		}
+
 	cert = chain->ca;
-	ca_match = cert_is_in_set(cert, ca_certs);
 
 	/*
 	 * For TLS compatibility the trusted root CA certificate is
@@ -549,14 +555,22 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 
 	if (!prev_key) {
 		int total = 0;
+		char str[100];
 
 		for (cert = chain->ca; cert; cert = cert->issued, total++);
-		RETURN_ERROR("Linking certificate %i / %i failed, root %s"
-				"verified against trusted CA(s) and the "
-				"following %i top certificates verified ok",
-				verified + 1, total,
-				ca_certs && (ca_match || verified) ? "" :
-				"not ", verified ? verified - 1 : 0);
+
+		if (ca_match)
+			snprintf(str, sizeof(str), "%i / %i matched a trusted "
+					"certificate, root not verified",
+					ca_match, total);
+		else
+			snprintf(str, sizeof(str), "root %sverified against "
+					"trusted CA(s)",
+					ca_certs && !ca_match && verified ? "" :
+					"not ");
+
+		RETURN_ERROR("Linking certificate %i / %i failed, %s",
+				verified + 1, total, str);
 	}
 
 	l_key_free(prev_key);
