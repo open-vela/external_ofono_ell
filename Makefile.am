@@ -209,12 +209,14 @@ cert_files = unit/cert-chain.pem \
 			unit/cert-client-key-v2-des.pem \
 			unit/cert-client-key-v2-des-ede3.pem \
 			unit/cert-client-key-v2-aes128.pem \
-			unit/cert-client-key-v2-aes256.pem
+			unit/cert-client-key-v2-aes256.pem \
+			unit/cert-no-keyid.pem
 
 cert_checks = unit/cert-intca \
 			unit/cert-entity-int \
 			unit/cert-server \
-			unit/cert-client
+			unit/cert-client \
+			unit/cert-no-keyid
 
 if MAINTAINER_MODE
 noinst_PROGRAMS += $(unit_tests) $(dbus_tests) $(cert_tests)
@@ -498,6 +500,29 @@ unit/cert-entity-int.pem: unit/cert-entity-int.csr unit/cert-intca.pem unit/genc
 
 unit/cert-entity-int: unit/cert-entity-int.pem unit/cert-chain.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-chain.pem $<
+
+unit/cert-ca2.pem: unit/cert-ca-key.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl req -x509 -new -nodes -extensions ca_no_akid_ext \
+			-config $(srcdir)/unit/gencerts.cnf \
+			-subj '/O=International Union of Example Organizations/CN=Certificate issuer guy/emailAddress=ca-no-akid@mail.example' \
+			-key $< -sha256 -days 10000 -out $@
+
+unit/cert-no-keyid.csr: unit/cert-client-key.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl req -new \
+			-config $(srcdir)/unit/gencerts.cnf \
+			-subj '/O=Baz Example Organization/CN=Baz Example Organization/emailAddress=baz@mail.example' \
+			-key $< -out $@
+
+unit/cert-no-keyid.pem: unit/cert-no-keyid.csr unit/cert-ca2.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl x509 -req -extensions no_keyid_ext \
+			-extfile $(srcdir)/unit/gencerts.cnf \
+			-in $< -CA $(builddir)/unit/cert-ca2.pem \
+			-CAkey $(builddir)/unit/cert-ca-key.pem \
+			-CAserial $(builddir)/unit/cert-ca2.srl \
+			-CAcreateserial -sha256 -days 10000 -out $@ $($(AM_V_P)_redirect_openssl)
+
+unit/cert-no-keyid: unit/cert-no-keyid.pem unit/cert-ca2.pem
+	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca2.pem $<
 
 unit/key-plaintext.h: unit/plaintext.txt
 	$(AM_V_GEN)xxd -i < $< > $@

@@ -23,3 +23,10 @@ basicConstraints = CA:FALSE
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer:always
 subjectAltName = DNS:foo.int.example,DNS:foo.int.com
+
+[ ca_no_akid_ext ]
+basicConstraints = CA:TRUE
+
+[ no_keyid_ext ]
+basicConstraints = CA:FALSE
+authorityKeyIdentifier = issuer:always
