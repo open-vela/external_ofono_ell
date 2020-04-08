@@ -230,9 +230,6 @@ static void test_certificates(const void *data)
 	struct l_queue *wrongca;
 	struct l_queue *twocas;
 	struct l_certchain *chain;
-	struct l_certchain *chain2;
-	struct l_certchain *chain3;
-	struct l_certchain *chain4;
 
 	cacert = l_pem_load_certificate_list(CERTDIR "cert-ca.pem");
 	assert(cacert && !l_queue_isempty(cacert));
@@ -251,46 +248,72 @@ static void test_certificates(const void *data)
 	assert(l_certchain_verify(chain, NULL, NULL));
 	assert(l_certchain_verify(chain, twocas, NULL));
 
-	chain2 = l_pem_load_certificate_chain(CERTDIR "cert-chain.pem");
-	assert(chain2);
+	l_certchain_free(chain);
 
-	assert(!l_certchain_verify(chain2, wrongca, NULL));
-	assert(l_certchain_verify(chain2, cacert, NULL));
-	assert(l_certchain_verify(chain2, NULL, NULL));
-	assert(l_certchain_verify(chain2, twocas, NULL));
+	chain = l_pem_load_certificate_chain(CERTDIR "cert-chain.pem");
+	assert(chain);
 
-	chain3 = certchain_new_from_leaf(
-			load_cert_file(CERTDIR "cert-server.pem"));
-	certchain_link_issuer(chain3,
-			load_cert_file(CERTDIR "cert-entity-int.pem"));
-	certchain_link_issuer(chain3,
-			load_cert_file(CERTDIR "cert-intca.pem"));
-	certchain_link_issuer(chain3,
-			load_cert_file(CERTDIR "cert-ca.pem"));
-	assert(chain3);
-
-	assert(!l_certchain_verify(chain3, wrongca, NULL));
-	assert(!l_certchain_verify(chain3, cacert, NULL));
-	assert(!l_certchain_verify(chain3, NULL, NULL));
-	assert(!l_certchain_verify(chain3, twocas, NULL));
-
-	chain4 = certchain_new_from_leaf(
-			load_cert_file(CERTDIR "cert-entity-int.pem"));
-	certchain_link_issuer(chain4,
-			load_cert_file(CERTDIR "cert-intca.pem"));
-	certchain_link_issuer(chain4,
-			load_cert_file(CERTDIR "cert-ca.pem"));
-	assert(chain4);
-
-	assert(!l_certchain_verify(chain4, wrongca, NULL));
-	assert(l_certchain_verify(chain4, cacert, NULL));
-	assert(l_certchain_verify(chain4, NULL, NULL));
-	assert(l_certchain_verify(chain4, twocas, NULL));
+	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(l_certchain_verify(chain, cacert, NULL));
+	assert(l_certchain_verify(chain, NULL, NULL));
+	assert(l_certchain_verify(chain, twocas, NULL));
 
 	l_certchain_free(chain);
-	l_certchain_free(chain2);
-	l_certchain_free(chain3);
-	l_certchain_free(chain4);
+
+	chain = certchain_new_from_leaf(
+			load_cert_file(CERTDIR "cert-server.pem"));
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-entity-int.pem"));
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-intca.pem"));
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-ca.pem"));
+	assert(chain);
+
+	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(!l_certchain_verify(chain, cacert, NULL));
+	assert(!l_certchain_verify(chain, NULL, NULL));
+	assert(!l_certchain_verify(chain, twocas, NULL));
+
+	l_certchain_free(chain);
+
+	chain = certchain_new_from_leaf(
+			load_cert_file(CERTDIR "cert-entity-int.pem"));
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-intca.pem"));
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-ca.pem"));
+	assert(chain);
+
+	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(l_certchain_verify(chain, cacert, NULL));
+	assert(l_certchain_verify(chain, NULL, NULL));
+	assert(l_certchain_verify(chain, twocas, NULL));
+
+	l_certchain_free(chain);
+	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
+
+	cacert = l_pem_load_certificate_list(CERTDIR "cert-ca2.pem");
+	assert(cacert && !l_queue_isempty(cacert));
+
+	chain = certchain_new_from_leaf(
+			load_cert_file(CERTDIR "cert-no-keyid.pem"));
+	assert(chain);
+
+	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(l_certchain_verify(chain, cacert, NULL));
+	assert(l_certchain_verify(chain, NULL, NULL));
+	assert(!l_certchain_verify(chain, twocas, NULL));
+
+	certchain_link_issuer(chain,
+			load_cert_file(CERTDIR "cert-ca2.pem"));
+
+	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(l_certchain_verify(chain, cacert, NULL));
+	assert(l_certchain_verify(chain, NULL, NULL));
+	assert(!l_certchain_verify(chain, twocas, NULL));
+
+	l_certchain_free(chain);
 	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(wrongca, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(twocas, (l_queue_destroy_func_t) l_cert_free);
