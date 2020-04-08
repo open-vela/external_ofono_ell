@@ -228,6 +228,7 @@ static void test_certificates(const void *data)
 {
 	struct l_queue *cacert;
 	struct l_queue *wrongca;
+	struct l_queue *wrongca2;
 	struct l_queue *twocas;
 	struct l_certchain *chain;
 
@@ -236,6 +237,9 @@ static void test_certificates(const void *data)
 
 	wrongca = l_pem_load_certificate_list(CERTDIR "cert-intca.pem");
 	assert(wrongca && !l_queue_isempty(wrongca));
+
+	wrongca2 = l_pem_load_certificate_list(CERTDIR "cert-server.pem");
+	assert(wrongca2 && !l_queue_isempty(wrongca2));
 
 	twocas = l_pem_load_certificate_list(CERTDIR "cert-chain.pem");
 	assert(twocas);
@@ -253,7 +257,7 @@ static void test_certificates(const void *data)
 	chain = l_pem_load_certificate_chain(CERTDIR "cert-chain.pem");
 	assert(chain);
 
-	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(!l_certchain_verify(chain, wrongca2, NULL));
 	assert(l_certchain_verify(chain, cacert, NULL));
 	assert(l_certchain_verify(chain, NULL, NULL));
 	assert(l_certchain_verify(chain, twocas, NULL));
@@ -285,7 +289,7 @@ static void test_certificates(const void *data)
 			load_cert_file(CERTDIR "cert-ca.pem"));
 	assert(chain);
 
-	assert(!l_certchain_verify(chain, wrongca, NULL));
+	assert(!l_certchain_verify(chain, wrongca2, NULL));
 	assert(l_certchain_verify(chain, cacert, NULL));
 	assert(l_certchain_verify(chain, NULL, NULL));
 	assert(l_certchain_verify(chain, twocas, NULL));
@@ -316,6 +320,7 @@ static void test_certificates(const void *data)
 	l_certchain_free(chain);
 	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(wrongca, (l_queue_destroy_func_t) l_cert_free);
+	l_queue_destroy(wrongca2, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(twocas, (l_queue_destroy_func_t) l_cert_free);
 }
 
