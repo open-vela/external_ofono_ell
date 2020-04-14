@@ -1,3 +1,7 @@
+ver 0.31:
+	Fix issue with verification of the second certificate in chain.
+	Fix issue with handling trusted CA matching in verification.
+
 ver 0.30:
 	Fix issue with missing export of RTNL helper functions.
 
