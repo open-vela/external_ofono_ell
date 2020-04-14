@@ -265,6 +265,7 @@ global:
 	l_genl_msg_get_command;
 	l_genl_msg_get_version;
 	l_genl_msg_get_error;
+	l_genl_msg_get_extended_error;
 	l_genl_msg_append_attr;
 	l_genl_msg_append_attrv;
 	l_genl_msg_enter_nested;
