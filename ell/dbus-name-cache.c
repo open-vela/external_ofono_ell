@@ -48,7 +48,6 @@ struct service_watch {
 	l_dbus_destroy_func_t destroy;
 	void *user_data;
 	unsigned int id;
-	bool removed;
 	struct service_watch *next;
 };
 
@@ -241,7 +240,7 @@ static bool service_watch_remove(const void *key, void *value, void *user_data)
 	struct service_watch **watch, *tmp;
 
 	for (watch = &entry->watches; *watch;) {
-		if (!(*watch)->removed) {
+		if ((*watch)->id) {
 			watch = &(*watch)->next;
 			continue;
 		}
@@ -278,9 +277,12 @@ static void service_watch_mark(const void *key, void *value, void *user_data)
 	struct service_watch *watch;
 	unsigned int *id = user_data;
 
+	if (!*id)
+		return;
+
 	for (watch = entry->watches; watch; watch = watch->next)
 		if (watch->id == *id) {
-			watch->removed = true;
+			watch->id = 0;
 			watch->connect_func = NULL;
 			watch->disconnect_func = NULL;
 
