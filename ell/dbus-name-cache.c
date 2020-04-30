@@ -283,6 +283,12 @@ static void service_watch_mark(const void *key, void *value, void *user_data)
 			watch->removed = true;
 			watch->connect_func = NULL;
 			watch->disconnect_func = NULL;
+
+			if (watch->destroy) {
+				watch->destroy(watch->user_data);
+				watch->destroy = NULL;
+			}
+
 			*id = 0;
 			break;
 		}
