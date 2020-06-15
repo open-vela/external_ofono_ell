@@ -1,3 +1,6 @@
+ver 0.32:
+	Fix issue with handling D-Bus watch removal.
+
 ver 0.31:
 	Fix issue with verification of the second certificate in chain.
 	Fix issue with handling trusted CA matching in verification.
