@@ -356,7 +356,10 @@ LIB_EXPORT void l_hashmap_destroy(struct l_hashmap *hashmap,
  * @key: key pointer
  * @value: value pointer
  *
- * Insert new @value entry with @key.
+ * Insert new @value entry with @key.  Note that entries with a duplicate key
+ * are allowed.  If a duplicate entry in inserted, it will be added in order
+ * of insertion.  @l_hashmap_lookup and @l_hashmap_remove will remove the
+ * first matching entry.
  *
  * Returns: #true when value has been added and #false in case of failure
  **/
