@@ -60,6 +60,9 @@ void l_hashmap_destroy(struct l_hashmap *hashmap,
 
 bool l_hashmap_insert(struct l_hashmap *hashmap,
 			const void *key, void *value);
+bool l_hashmap_replace(struct l_hashmap *hashmap,
+					const void *key, void *value,
+					void **old_value);
 void *l_hashmap_remove(struct l_hashmap *hashmap, const void *key);
 void *l_hashmap_lookup(struct l_hashmap *hashmap, const void *key);
 
