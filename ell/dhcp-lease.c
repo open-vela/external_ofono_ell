@@ -151,7 +151,7 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 		lease->t1 = lease->lifetime / 2;
 
 	if (!lease->t2)
-		lease->t2 = lease->lifetime * 7 / 8;
+		lease->t2 = lease->lifetime / 8 * 7;
 
 	if (lease->t1 > lease->t2)
 		goto error;
