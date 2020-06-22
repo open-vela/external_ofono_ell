@@ -76,6 +76,7 @@ global:
 	l_hashmap_set_key_free_function;
 	l_hashmap_destroy;
 	l_hashmap_insert;
+	l_hashmap_replace;
 	l_hashmap_remove;
 	l_hashmap_lookup;
 	l_hashmap_foreach;

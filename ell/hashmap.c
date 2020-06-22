@@ -403,6 +403,83 @@ done:
 }
 
 /**
+ * l_hashmap_replace:
+ * @hashmap: hash table object
+ * @key: key pointer
+ * @value: value pointer
+ * @old_value: old value that has been replaced.
+ *
+ * Replace the first entry with @key by @value or insert a new @value entry
+ * with @key.  If the entry was replaced, then the old value is returned
+ * in @old_value, otherwise @old_value is assigned a #NULL.
+ *
+ * Returns: #true when value has been added and #false in case of failure
+ **/
+LIB_EXPORT bool l_hashmap_replace(struct l_hashmap *hashmap,
+					const void *key, void *value,
+					void **old_value)
+{
+	struct entry *entry;
+	struct entry *head;
+	unsigned int hash;
+	void *key_new;
+
+	if (unlikely(!hashmap))
+		return false;
+
+	key_new = get_key_new(hashmap, key);
+	hash = hashmap->hash_func(key_new);
+	head = &hashmap->buckets[hash % NBUCKETS];
+
+	if (!head->next) {
+		head->key = key_new;
+		head->value = value;
+		head->hash = hash;
+		head->next = head;
+		goto done;
+	}
+
+	for (entry = head;; entry = entry->next) {
+		if (entry->hash != hash)
+			goto next;
+
+		if (hashmap->compare_func(key, entry->key))
+			goto next;
+
+		if (old_value)
+			*old_value = entry->value;
+
+		entry->value = value;
+		free_key(hashmap, key_new);
+
+		return true;
+
+next:
+		if (entry->next == head)
+			break;
+	}
+
+	entry = l_new(struct entry, 1);
+	entry->key = key_new;
+	entry->value = value;
+	entry->hash = hash;
+	entry->next = head;
+
+	while (head->next != entry->next)
+		head = head->next;
+
+	head->next = entry;
+
+done:
+	if (old_value)
+		*old_value = NULL;
+
+	hashmap->entries++;
+
+	return true;
+}
+
+/**
  * l_hashmap_remove:
  * @hashmap: hash table object
  * @key: key pointer
