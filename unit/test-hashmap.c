@@ -182,6 +182,34 @@ static void test_duplicate(const void *test_data)
 	l_hashmap_destroy(hashmap, NULL);
 };
 
+static void test_replace(const void *test_data)
+{
+	struct l_hashmap *hashmap;
+	int one = 1;
+	int two = 2;
+	int three = 3;
+	void *old_value;
+
+	hashmap = l_hashmap_string_new();
+	assert(hashmap);
+
+	assert(l_hashmap_replace(hashmap, "one", &one, &old_value));
+	assert(old_value == NULL);
+
+	assert(l_hashmap_replace(hashmap, "two", &two, &old_value));
+	assert(old_value == NULL);
+
+	assert(l_hashmap_size(hashmap) == 2);
+	assert(l_hashmap_replace(hashmap, "one", &three, &old_value));
+	assert(l_hashmap_size(hashmap) == 2);
+	assert(old_value == &one);
+
+	assert(l_hashmap_lookup(hashmap, "two") == &two);
+	assert(l_hashmap_lookup(hashmap, "one") == &three);
+
+	l_hashmap_destroy(hashmap, NULL);
+};
+
 static unsigned int always_0(const void *p)
 {
 	return 0;
@@ -278,6 +306,7 @@ int main(int argc, char *argv[])
 	l_test_add("Pointer Test", test_ptr, NULL);
 	l_test_add("String Test", test_str, NULL);
 	l_test_add("Duplicate Test", test_duplicate, NULL);
+	l_test_add("Replace Test", test_replace, NULL);
 	l_test_add("Foreach Remove Test", test_foreach_remove, NULL);
 
 	return l_test_run();
