@@ -52,6 +52,7 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/dir.h \
 			ell/net.h \
 			ell/dhcp.h \
+			ell/dhcp6.h \
 			ell/cert.h \
 			ell/ecc.h \
 			ell/ecdh.h \
@@ -122,6 +123,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/dhcp.c \
 			ell/dhcp-transport.c \
 			ell/dhcp-lease.c \
+			ell/dhcp6.c \
 			ell/cert.c \
 			ell/cert-private.h \
 			ell/ecc-private.h \

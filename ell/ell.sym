@@ -241,6 +241,13 @@ global:
 	l_dhcp_client_stop;
 	l_dhcp_client_set_event_handler;
 	l_dhcp_client_set_debug;
+	/* dhcp6 */
+	l_dhcp6_client_new;
+	l_dhcp6_client_destroy;
+	l_dhcp6_client_set_address;
+	l_dhcp6_client_set_debug;
+	l_dhcp6_client_start;
+	l_dhcp6_client_stop;
 	/* dir */
 	l_dir_watch_new;
 	l_dir_watch_destroy;

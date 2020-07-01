@@ -57,6 +57,7 @@
 #include <ell/dbus-service.h>
 #include <ell/dbus-client.h>
 #include <ell/dhcp.h>
+#include <ell/dhcp6.h>
 #include <ell/cert.h>
 #include <ell/ecc.h>
 #include <ell/ecdh.h>
