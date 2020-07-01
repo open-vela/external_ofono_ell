@@ -31,6 +31,7 @@
 
 #include "ell/net.h"
 #include "ell/private.h"
+#include "ell/dhcp6-private.h"
 #include "ell/dhcp6.h"
 
 #define CLIENT_DEBUG(fmt, args...)					\
@@ -50,6 +51,8 @@ struct l_dhcp6_client {
 	enum dhcp6_state state;
 
 	uint32_t ifindex;
+
+	struct dhcp6_transport *transport;
 
 	uint8_t addr[6];
 	uint8_t addr_len;
@@ -149,5 +152,21 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 	if (unlikely(!client))
 		return false;
 
+	return true;
+}
+
+bool _dhcp6_client_set_transport(struct l_dhcp6_client *client,
+					struct dhcp6_transport *transport)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	if (client->transport)
+		_dhcp6_transport_free(client->transport);
+
+	client->transport = transport;
 	return true;
 }
