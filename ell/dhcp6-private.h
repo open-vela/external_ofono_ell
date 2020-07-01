@@ -20,6 +20,8 @@
  *
  */
 
+struct l_dhcp6_client;
+
 enum {
 	DHCP6_PORT_SERVER = 547,
 	DHCP6_PORT_CLIENT = 546,
@@ -44,3 +46,6 @@ void _dhcp6_transport_free(struct dhcp6_transport *transport);
 void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
 					dhcp6_transport_rx_cb_t rx_cb,
 					void *userdata);
+
+bool _dhcp6_client_set_transport(struct l_dhcp6_client *client,
+					struct dhcp6_transport *transport);
