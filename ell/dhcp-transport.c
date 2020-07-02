@@ -271,7 +271,7 @@ static int kernel_udp_socket_open(const char *ifname,
 		.filter = filter
 	};
 
-	s = socket(AF_INET, SOCK_DGRAM, 0);
+	s = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s < 0)
 		return -errno;
 
