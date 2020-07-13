@@ -246,6 +246,7 @@ global:
 	l_dhcp6_client_destroy;
 	l_dhcp6_client_set_address;
 	l_dhcp6_client_set_debug;
+	l_dhcp6_client_add_request_option;
 	l_dhcp6_client_start;
 	l_dhcp6_client_stop;
 	/* dir */
