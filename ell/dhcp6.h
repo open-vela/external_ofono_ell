@@ -31,6 +31,36 @@ extern "C" {
 
 struct l_dhcp6_client;
 
+enum l_dhcp6_option {
+	L_DHCP6_OPTION_CLIENT_ID		= 1,
+	L_DHCP6_OPTION_SERVER_ID		= 2,
+	L_DHCP6_OPTION_IA_NA			= 3,
+	L_DHCP6_OPTION_IA_TA			= 4,
+	L_DHCP6_OPTION_IA_ADDR			= 5,
+	L_DHCP6_OPTION_REQUEST_OPTION		= 6,
+	L_DHCP6_OPTION_PREFERENCE		= 7,
+	L_DHCP6_OPTION_ELAPSED_TIME		= 8,
+	L_DHCP6_OPTION_RELAY_MSG		= 9,
+	L_DHCP6_OPTION_AUTH			= 11,
+	L_DHCP6_OPTION_UNICAST			= 12,
+	L_DHCP6_OPTION_STATUS_CODE		= 13,
+	L_DHCP6_OPTION_RAPID_COMMIT		= 14,
+	L_DHCP6_OPTION_USER_CLASS		= 15,
+	L_DHCP6_OPTION_VENDOR_CLASS		= 16,
+	L_DHCP6_OPTION_INTERFACE_ID		= 18,
+	L_DHCP6_OPTION_RECONF_MSG		= 19,
+	L_DHCP6_OPTION_RECONF_ACCEPT		= 20,
+	L_DHCP6_OPTION_DNS_SERVERS		= 23,
+	L_DHCP6_OPTION_DOMAIN_LIST		= 24,
+	L_DHCP6_OPTION_IA_PD			= 25,
+	L_DHCP6_OPTION_IA_PREFIX		= 26,
+	L_DHCP6_OPTION_SNTP_SERVERS		= 31,
+	L_DHCP6_OPTION_INF_RT			= 32,
+	L_DHCP6_OPTION_NTP_SERVER		= 56,
+	L_DHCP6_OPTION_SOL_MAX_RT		= 82,
+	L_DHCP6_OPTION_INF_MAX_RT		= 83,
+};
+
 typedef void (*l_dhcp6_debug_cb_t)(const char *str, void *user_data);
 typedef void (*l_dhcp6_destroy_cb_t)(void *userdata);
 
@@ -42,6 +72,9 @@ bool l_dhcp6_client_set_address(struct l_dhcp6_client *client, uint8_t type,
 bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 				l_dhcp6_debug_cb_t function,
 				void *user_data, l_dhcp6_destroy_cb_t destroy);
+
+bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
+						enum l_dhcp6_option option);
 
 bool l_dhcp6_client_start(struct l_dhcp6_client *client);
 bool l_dhcp6_client_stop(struct l_dhcp6_client *client);

@@ -30,6 +30,7 @@
 #include <errno.h>
 
 #include "ell/net.h"
+#include "ell/uintset.h"
 #include "ell/private.h"
 #include "ell/dhcp6-private.h"
 #include "ell/dhcp6.h"
@@ -50,6 +51,8 @@ enum dhcp6_state {
 struct l_dhcp6_client {
 	enum dhcp6_state state;
 
+	struct l_uintset *request_options;
+
 	uint32_t ifindex;
 
 	struct dhcp6_transport *transport;
@@ -62,6 +65,44 @@ struct l_dhcp6_client {
 	l_dhcp6_destroy_cb_t debug_destroy;
 	void *debug_data;
 };
+
+static void client_enable_option(struct l_dhcp6_client *client,
+						enum l_dhcp6_option option)
+{
+	size_t i;
+
+	static const struct {
+		enum l_dhcp6_option option;
+	} options_to_ignore[] = {
+		{ L_DHCP6_OPTION_CLIENT_ID },
+		{ L_DHCP6_OPTION_SERVER_ID },
+		{ L_DHCP6_OPTION_IA_NA },
+		{ L_DHCP6_OPTION_IA_TA },
+		{ L_DHCP6_OPTION_IA_PD },
+		{ L_DHCP6_OPTION_IA_ADDR },
+		{ L_DHCP6_OPTION_IA_PREFIX },
+		{ L_DHCP6_OPTION_REQUEST_OPTION },
+		{ L_DHCP6_OPTION_ELAPSED_TIME },
+		{ L_DHCP6_OPTION_PREFERENCE },
+		{ L_DHCP6_OPTION_RELAY_MSG },
+		{ L_DHCP6_OPTION_AUTH },
+		{ L_DHCP6_OPTION_UNICAST },
+		{ L_DHCP6_OPTION_STATUS_CODE },
+		{ L_DHCP6_OPTION_RAPID_COMMIT },
+		{ L_DHCP6_OPTION_USER_CLASS },
+		{ L_DHCP6_OPTION_VENDOR_CLASS },
+		{ L_DHCP6_OPTION_INTERFACE_ID },
+		{ L_DHCP6_OPTION_RECONF_MSG },
+		{ L_DHCP6_OPTION_RECONF_ACCEPT },
+		{ }
+	};
+
+	for (i = 0; options_to_ignore[i].option; i++)
+		if (options_to_ignore[i].option == option)
+			return;
+
+	l_uintset_put(client->request_options, option);
+}
 
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const struct dhcp6_message *message, size_t len)
@@ -137,6 +178,10 @@ LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 	client->state = DHCP6_STATE_INIT;
 	client->ifindex = ifindex;
 
+	client->request_options = l_uintset_new(256);
+	client_enable_option(client, L_DHCP6_OPTION_DOMAIN_LIST);
+	client_enable_option(client, L_DHCP6_OPTION_DNS_SERVERS);
+
 	return client;
 }
 
@@ -147,6 +192,7 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 
 	l_dhcp6_client_stop(client);
 
+	l_uintset_free(client->request_options);
 	l_free(client);
 }
 
@@ -188,6 +234,20 @@ LIB_EXPORT bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 	client->debug_handler = function;
 	client->debug_destroy = destroy;
 	client->debug_data = user_data;
+
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
+						enum l_dhcp6_option option)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client_enable_option(client, option);
 
 	return true;
 }
