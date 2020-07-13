@@ -27,6 +27,21 @@ enum {
 	DHCP6_PORT_CLIENT = 546,
 };
 
+/* RFC 8415, Figure 2 */
+struct dhcp6_message {
+	union {
+		uint8_t msg_type;
+		__be32 transaction_id;
+	};
+	uint8_t options[];
+} __attribute__ ((packed));
+
+struct dhcp6_option_iter {
+	const uint8_t *options;
+	uint16_t pos;
+	uint16_t max;
+};
+
 typedef void (*dhcp6_transport_rx_cb_t)(const void *, size_t, void *);
 
 struct dhcp6_transport {
@@ -46,6 +61,12 @@ void _dhcp6_transport_free(struct dhcp6_transport *transport);
 void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
 					dhcp6_transport_rx_cb_t rx_cb,
 					void *userdata);
+
+bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
+				const struct dhcp6_message *message,
+				size_t len);
+bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
+				uint16_t *len, const void **data);
 
 bool _dhcp6_client_set_transport(struct l_dhcp6_client *client,
 					struct dhcp6_transport *transport);

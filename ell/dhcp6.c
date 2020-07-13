@@ -63,6 +63,71 @@ struct l_dhcp6_client {
 	void *debug_data;
 };
 
+bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
+				const struct dhcp6_message *message, size_t len)
+{
+	if (!message)
+		return false;
+
+	if (len < sizeof(struct dhcp6_message))
+		return false;
+
+	memset(iter, 0, sizeof(*iter));
+	iter->max = len - sizeof(struct dhcp6_message);
+	iter->options = message->options;
+
+	return true;
+}
+
+static bool option_next(struct dhcp6_option_iter *iter,
+				uint16_t *t, uint16_t *l, const void **v)
+{
+	uint16_t type;
+	uint16_t len;
+
+	while (iter->pos + 4 <= iter->max) {
+		type = l_get_be16(iter->options + iter->pos);
+		len = l_get_be16(iter->options + iter->pos + 2);
+
+		if (iter->pos + 4 + len > iter->max)
+			return false;
+
+		*t = type;
+		*l = len;
+		*v = &iter->options[iter->pos + 4];
+
+		iter->pos += 4 + len;
+		return true;
+	}
+
+	return false;
+}
+
+bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
+				uint16_t *len, const void **data)
+{
+	bool r;
+	uint16_t t;
+	uint16_t l;
+	const void *v;
+
+	r = option_next(iter, &t, &l, &v);
+
+	if (!r)
+		return false;
+
+	if (type)
+		*type = t;
+
+	if (len)
+		*len = l;
+
+	if (data)
+		*data = v;
+
+	return true;
+}
+
 LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 {
 	struct l_dhcp6_client *client;
