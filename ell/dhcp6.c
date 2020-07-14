@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <time.h>
 
+#include "ell/time.h"
 #include "ell/net.h"
 #include "ell/uintset.h"
 #include "ell/private.h"
@@ -39,6 +40,196 @@
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
+
+enum dhcp6_message_type {
+	DHCP6_MESSAGE_TYPE_SOLICIT = 1,
+	DHCP6_MESSAGE_TYPE_ADVERTISE = 2,
+	DHCP6_MESSAGE_TYPE_REQUEST = 3,
+	DHCP6_MESSAGE_TYPE_CONFIRM = 4,
+	DHCP6_MESSAGE_TYPE_RENEW = 5,
+	DHCP6_MESSAGE_TYPE_REBIND = 6,
+	DHCP6_MESSAGE_TYPE_REPLY = 7,
+	DHCP6_MESSAGE_TYPE_RELEASE = 8,
+	DHCP6_MESSAGE_TYPE_DECLINE = 9,
+	DHCP6_MESSAGE_TYPE_RECONFIGURE = 10,
+	DHCP6_MESSAGE_TYPE_INFORMATION_REQUEST = 11,
+	DHCP6_MESSAGE_TYPE_RELAY_FORW = 12,
+	DHCP6_MESSAGE_TYPE_RELAY_REPL = 13,
+};
+
+struct dhcp6_message_builder {
+	uint16_t options_capacity;
+	uint16_t options_pos;
+	uint16_t option_start;
+	struct dhcp6_message *message;
+};
+
+static inline size_t next_size(size_t s)
+{
+	static const size_t mask = (size_t) (-1LL) << 8;
+	return (s & mask) + 256;
+}
+
+static uint8_t *option_reserve(struct dhcp6_message_builder *builder,
+								size_t len)
+{
+	uint8_t *p;
+	size_t options_end;
+
+	options_end = builder->options_pos + len;
+
+	if (options_end > builder->options_capacity) {
+		builder->options_capacity =
+			next_size(sizeof(struct dhcp6_message) + options_end);
+		builder->message =
+			l_realloc(builder->message, builder->options_capacity);
+	}
+
+	p = builder->message->options + builder->options_pos;
+	builder->options_pos = options_end;
+
+	return p;
+}
+
+static bool option_start(struct dhcp6_message_builder *builder,
+						enum l_dhcp6_option type)
+{
+	static const size_t option_header_len = 4;
+
+	if (builder->option_start)
+		return false;
+
+	builder->option_start = builder->options_pos;
+	l_put_be16(type, option_reserve(builder, option_header_len));
+	return true;
+}
+
+static bool option_finalize(struct dhcp6_message_builder *builder)
+{
+	uint8_t *p;
+	uint16_t len;
+
+	if (!builder->option_start)
+		return false;
+
+	len = builder->options_pos - builder->option_start - 4;
+	p = builder->message->options + builder->option_start;
+	l_put_be16(len, p + 2);
+	builder->option_start = 0;
+
+	return true;
+}
+
+static struct dhcp6_message_builder *dhcp6_message_builder_new(
+						enum dhcp6_message_type type,
+						uint32_t transaction_id,
+						uint16_t options_capacity)
+{
+	struct dhcp6_message_builder *builder;
+
+	builder = l_new(struct dhcp6_message_builder, 1);
+
+	builder->message =
+		(struct dhcp6_message *) l_new(uint8_t,
+						sizeof(struct dhcp6_message) +
+						options_capacity);
+	builder->message->transaction_id = L_CPU_TO_BE32(transaction_id);
+	builder->message->msg_type = type;
+	builder->options_capacity = options_capacity;
+
+	return builder;
+}
+
+static struct dhcp6_message *dhcp6_message_builder_free(
+					struct dhcp6_message_builder *builder,
+					bool free_message, size_t *out_size)
+{
+	struct dhcp6_message *ret;
+
+	if (free_message) {
+		memset(builder->message, 0,
+			sizeof(struct dhcp6_message) + builder->options_pos);
+		l_free(builder->message);
+		builder->message = NULL;
+	}
+
+	ret = builder->message;
+
+	if (out_size)
+		*out_size = sizeof(struct dhcp6_message) + builder->options_pos;
+
+	l_free(builder);
+
+	return ret;
+}
+
+static void option_append_client_id(struct dhcp6_message_builder *builder,
+					const struct duid *duid,
+					uint16_t duid_len)
+{
+	option_start(builder, L_DHCP6_OPTION_CLIENT_ID);
+	memcpy(option_reserve(builder, duid_len), duid, duid_len);
+	option_finalize(builder);
+}
+
+static void option_append_server_id(struct dhcp6_message_builder *builder,
+					const uint8_t *duid,
+					uint16_t duid_len)
+{
+	option_start(builder, L_DHCP6_OPTION_SERVER_ID);
+	memcpy(option_reserve(builder, duid_len), duid, duid_len);
+	option_finalize(builder);
+}
+
+static void option_append_elapsed_time(struct dhcp6_message_builder *builder,
+					uint64_t transaction_start_t)
+{
+	uint16_t elapsed_time;
+	uint64_t time_diff;
+
+	if (!transaction_start_t) {
+		/*
+		 * Field is set to 0 in the first message in the message
+		 * exchange.
+		 */
+		elapsed_time = 0;
+		goto done;
+	}
+
+	time_diff = l_time_now() - transaction_start_t;
+
+	if (time_diff < UINT16_MAX * L_USEC_PER_MSEC * 10)
+		elapsed_time = l_time_to_msecs(time_diff) / 10;
+	else
+		elapsed_time = UINT16_MAX;
+
+done:
+	option_start(builder, L_DHCP6_OPTION_ELAPSED_TIME);
+	l_put_be16(elapsed_time, option_reserve(builder, 2));
+	option_finalize(builder);
+}
+
+static void option_append_ia_na(struct dhcp6_message_builder *builder)
+{
+	option_start(builder, L_DHCP6_OPTION_IA_NA);
+
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+
+	option_finalize(builder);
+}
+
+static void option_append_ia_pd(struct dhcp6_message_builder *builder)
+{
+	option_start(builder, L_DHCP6_OPTION_IA_PD);
+
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+
+	option_finalize(builder);
+}
 
 enum dhcp6_state {
 	DHCP6_STATE_INIT,
