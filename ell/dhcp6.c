@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/if_arp.h>
 #include <errno.h>
+#include <time.h>
 
 #include "ell/net.h"
 #include "ell/uintset.h"
@@ -50,6 +51,9 @@ enum dhcp6_state {
 
 struct l_dhcp6_client {
 	enum dhcp6_state state;
+
+	struct duid *duid;
+	uint16_t duid_len;
 
 	struct l_uintset *request_options;
 
@@ -102,6 +106,33 @@ static void client_enable_option(struct l_dhcp6_client *client,
 			return;
 
 	l_uintset_put(client->request_options, option);
+}
+
+static void client_duid_generate_addr_plus_time(struct l_dhcp6_client *client)
+{
+	uint16_t duid_len;
+	uint32_t time_stamp;
+	static const time_t JAN_FIRST_2000_IN_SEC = 946684800UL;
+
+	if (client->duid)
+		return;
+
+	duid_len = 2 + 2 + 4 + client->addr_len;
+
+	/*
+	 * The time value is the time that the DUID is generated, represented in
+	 * seconds since midnight (UTC), January 1, 2000, modulo 2^32
+	 */
+	time_stamp = (time(NULL) - JAN_FIRST_2000_IN_SEC) & 0xFFFFFFFFU;
+
+	client->duid = l_malloc(duid_len);
+	client->duid_len = duid_len;
+
+	client->duid->type = L_CPU_TO_BE16(DUID_TYPE_LINK_LAYER_ADDR_PLUS_TIME);
+	l_put_be16(client->addr_type, client->duid->identifier);
+	l_put_be32(time_stamp, client->duid->identifier + 2);
+	memcpy(client->duid->identifier + 2 + 4, client->addr,
+							client->addr_len);
 }
 
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
@@ -193,6 +224,7 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 	l_dhcp6_client_stop(client);
 
 	l_uintset_free(client->request_options);
+	l_free(client->duid);
 	l_free(client);
 }
 
@@ -268,6 +300,8 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 
 		l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, ETH_ALEN);
 	}
+
+	client_duid_generate_addr_plus_time(client);
 
 	return true;
 }

@@ -27,6 +27,19 @@ enum {
 	DHCP6_PORT_CLIENT = 546,
 };
 
+/* RFC 8415, Section 11.1 */
+enum duid_type {
+	DUID_TYPE_LINK_LAYER_ADDR_PLUS_TIME	= 1,
+	DUID_TYPE_ENTERPRISE_NUMBER		= 2,
+	DUID_TYPE_LINK_LAYER_ADDR		= 3,
+	DUID_TYPE_UNIVERSALLY_UNIQUE_ID		= 4,
+};
+
+struct duid {
+	__be16 type;
+	uint8_t identifier[];
+} __attribute__ ((packed));
+
 /* RFC 8415, Figure 2 */
 struct dhcp6_message {
 	union {
