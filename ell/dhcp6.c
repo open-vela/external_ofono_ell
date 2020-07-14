@@ -30,8 +30,10 @@
 #include <errno.h>
 #include <time.h>
 
+#include "ell/random.h"
 #include "ell/time.h"
 #include "ell/net.h"
+#include "ell/timeout.h"
 #include "ell/uintset.h"
 #include "ell/private.h"
 #include "ell/dhcp6-private.h"
@@ -40,6 +42,28 @@
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
+#define CLIENT_ENTER_STATE(s)						\
+	l_util_debug(client->debug_handler, client->debug_data,		\
+			"%s:%i Entering state: " #s,			\
+			__func__, __LINE__);				\
+	client->state = (s)
+
+/*
+ * RFC8415: Table 1 - Transmission and Retransmission Parameters
+ */
+#define SOL_MAX_DELAY	1
+#define SOL_TIMEOUT	1
+#define SOL_MAX_RT	3600
+#define INF_MAX_DELAY	1
+#define INF_TIMEOUT	1
+#define INF_MAX_RT	3600
+#define REQ_MAX_RC	10
+#define REQ_TIMEOUT	1
+#define REQ_MAX_RT	30
+#define REN_TIMEOUT	10
+#define REN_MAX_RT	600
+#define REL_TIMEOUT	1
+#define REL_MAX_RC	4
 
 enum dhcp6_message_type {
 	DHCP6_MESSAGE_TYPE_SOLICIT = 1,
@@ -243,6 +267,9 @@ enum dhcp6_state {
 struct l_dhcp6_client {
 	enum dhcp6_state state;
 
+	uint32_t transaction_id;
+	uint64_t transaction_start_t;
+
 	struct duid *duid;
 	uint16_t duid_len;
 
@@ -252,6 +279,8 @@ struct l_dhcp6_client {
 
 	struct dhcp6_transport *transport;
 
+	struct l_timeout *timeout_send;
+
 	uint8_t addr[6];
 	uint8_t addr_len;
 	uint8_t addr_type;
@@ -259,7 +288,44 @@ struct l_dhcp6_client {
 	l_dhcp6_debug_cb_t debug_handler;
 	l_dhcp6_destroy_cb_t debug_destroy;
 	void *debug_data;
+
+	uint8_t ia_to_request;
 };
+
+static void request_options_foreach(uint32_t opt, void *user_data)
+{
+	struct dhcp6_message_builder *builder = user_data;
+
+	l_put_be16(opt, option_reserve(builder, 2));
+}
+
+static void option_append_option_request(struct dhcp6_message_builder *builder,
+					const struct l_uintset *request_options,
+					enum dhcp6_state state)
+{
+	option_start(builder, L_DHCP6_OPTION_REQUEST_OPTION);
+
+	switch (state) {
+	case DHCP6_STATE_SOLICITING:
+		l_put_be16(L_DHCP6_OPTION_SOL_MAX_RT,
+						option_reserve(builder, 2));
+		break;
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		l_put_be16(L_DHCP6_OPTION_INF_RT, option_reserve(builder, 2));
+		l_put_be16(L_DHCP6_OPTION_INF_MAX_RT,
+						option_reserve(builder, 2));
+		break;
+	case DHCP6_STATE_INIT:
+	case DHCP6_STATE_REQUESTING:
+	case DHCP6_STATE_RENEWING:
+	case DHCP6_STATE_RELEASING:
+		break;
+	}
+
+	l_uintset_foreach((void *) request_options, request_options_foreach,
+								builder);
+	option_finalize(builder);
+}
 
 static void client_enable_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
@@ -324,6 +390,38 @@ static void client_duid_generate_addr_plus_time(struct l_dhcp6_client *client)
 	l_put_be32(time_stamp, client->duid->identifier + 2);
 	memcpy(client->duid->identifier + 2 + 4, client->addr,
 							client->addr_len);
+}
+
+static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
+{
+	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
+	struct dhcp6_message_builder *builder;
+	L_AUTO_FREE_VAR(struct dhcp6_message *, solicit);
+	size_t solicit_len;
+	int error;
+
+	CLIENT_DEBUG("");
+
+	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_SOLICIT,
+						client->transaction_id, 128);
+
+	option_append_client_id(builder, client->duid, client->duid_len);
+	option_append_elapsed_time(builder, client->transaction_start_t);
+
+	if (client->ia_to_request & DHCP6_LEASE_TYPE_IA_NA)
+		option_append_ia_na(builder);
+
+	if (client->ia_to_request & DHCP6_LEASE_TYPE_IA_PD)
+		option_append_ia_pd(builder);
+
+	option_append_option_request(builder, client->request_options,
+						DHCP6_STATE_SOLICITING);
+
+	solicit = dhcp6_message_builder_free(builder, false, &solicit_len);
+
+	error = client->transport->send(client->transport, &all_nodes,
+							solicit, solicit_len);
+	return error;
 }
 
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
@@ -391,6 +489,39 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 	return true;
 }
 
+static void dhcp6_client_timeout_send(struct l_timeout *timeout,
+								void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	CLIENT_DEBUG("");
+
+	switch (client->state) {
+	case DHCP6_STATE_INIT:
+		return;
+	case DHCP6_STATE_SOLICITING:
+		if (dhcp6_client_send_solicit(client) < 0)
+			goto error;
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		break;
+	case DHCP6_STATE_REQUESTING:
+		break;
+	case DHCP6_STATE_RENEWING:
+		break;
+	case DHCP6_STATE_RELEASING:
+		break;
+	}
+
+	if (!client->transaction_start_t)
+		/* Set after the first successfully sent message. */
+		client->transaction_start_t = l_time_now();
+
+	return;
+
+error:
+	l_dhcp6_client_stop(client);
+}
+
 LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 {
 	struct l_dhcp6_client *client;
@@ -414,8 +545,11 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 
 	l_dhcp6_client_stop(client);
 
+	_dhcp6_transport_free(client->transport);
 	l_uintset_free(client->request_options);
 	l_free(client->duid);
+	l_timeout_remove(client->timeout_send);
+
 	l_free(client);
 }
 
@@ -475,8 +609,18 @@ LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 	return true;
 }
 
+static uint64_t pick_delay_interval(uint32_t min_secs, uint32_t max_secs)
+{
+	uint64_t min_ms = min_secs * 1000ULL;
+	uint64_t max_ms = max_secs * 1000ULL;
+
+	return l_getrandom_uint32() % (max_ms + 1 - min_ms) + min_ms;
+}
+
 LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 {
+	uint32_t delay;
+
 	if (unlikely(!client))
 		return false;
 
@@ -494,6 +638,30 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 
 	client_duid_generate_addr_plus_time(client);
 
+	if (!client->transport) {
+		client->transport =
+			_dhcp6_default_transport_new(client->ifindex,
+							DHCP6_PORT_CLIENT);
+
+		if (!client->transport)
+			return false;
+	}
+
+	if (client->transport->open)
+		if (client->transport->open(client->transport) < 0)
+			return false;
+
+	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
+
+	CLIENT_ENTER_STATE(DHCP6_STATE_SOLICITING);
+	delay = pick_delay_interval(0, SOL_MAX_DELAY);
+
+	client->ia_to_request = DHCP6_LEASE_TYPE_IA_NA | DHCP6_LEASE_TYPE_IA_PD;
+
+	client->timeout_send = l_timeout_create_ms(delay,
+						dhcp6_client_timeout_send,
+						client, NULL);
+
 	return true;
 }
 
@@ -501,6 +669,15 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 {
 	if (unlikely(!client))
 		return false;
+
+	l_timeout_remove(client->timeout_send);
+	client->timeout_send = NULL;
+
+	if (client->transport && client->transport->close)
+		client->transport->close(client->transport);
+
+	client->transaction_start_t = 0;
+	CLIENT_ENTER_STATE(DHCP6_STATE_INIT);
 
 	return true;
 }
