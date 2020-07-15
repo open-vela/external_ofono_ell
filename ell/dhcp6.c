@@ -331,6 +331,13 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 	option_finalize(builder);
 }
 
+static void option_append_reconfigure_accept(
+					struct dhcp6_message_builder *builder)
+{
+	option_start(builder, L_DHCP6_OPTION_RECONF_ACCEPT);
+	option_finalize(builder);
+}
+
 static void client_enable_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
 {
@@ -455,6 +462,34 @@ static int dhcp6_client_send_request(struct l_dhcp6_client *client)
 	error = client->transport->send(client->transport, &all_nodes,
 							request, request_len);
 
+	return error;
+}
+
+static int dhcp6_client_send_information_request(struct l_dhcp6_client *client)
+{
+	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
+	struct dhcp6_message_builder *builder;
+	L_AUTO_FREE_VAR(struct dhcp6_message *, information_request);
+	size_t information_request_len;
+	int error;
+
+	CLIENT_DEBUG("");
+
+	builder = dhcp6_message_builder_new(
+					DHCP6_MESSAGE_TYPE_INFORMATION_REQUEST,
+					client->transaction_id, 128);
+
+	option_append_elapsed_time(builder, client->transaction_start_t);
+	option_append_option_request(builder, client->request_options,
+					DHCP6_STATE_REQUESTING_INFORMATION);
+	option_append_reconfigure_accept(builder);
+
+	information_request = dhcp6_message_builder_free(builder, false,
+						&information_request_len);
+
+	error = client->transport->send(client->transport, &all_nodes,
+						information_request,
+						information_request_len);
 	return error;
 }
 
@@ -683,6 +718,10 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 		set_retransmission_delay(client, SOL_TIMEOUT, SOL_MAX_RT, 0);
 		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
+		if (dhcp6_client_send_information_request(client) < 0)
+			goto error;
+
+		set_retransmission_delay(client, INF_TIMEOUT, INF_MAX_RT, 0);
 		break;
 	case DHCP6_STATE_REQUESTING:
 		if (dhcp6_client_send_request(client) < 0)
