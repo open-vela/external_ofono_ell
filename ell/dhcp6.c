@@ -493,6 +493,16 @@ static int dhcp6_client_send_information_request(struct l_dhcp6_client *client)
 	return error;
 }
 
+static int dhcp6_client_send_renew(struct l_dhcp6_client *client)
+{
+	return 0;
+}
+
+static int dhcp6_client_send_release(struct l_dhcp6_client *client)
+{
+	return 0;
+}
+
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const struct dhcp6_message *message, size_t len)
 {
@@ -733,8 +743,18 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 
 		break;
 	case DHCP6_STATE_RENEWING:
+		if (dhcp6_client_send_renew(client) < 0)
+			goto error;
+
+		set_retransmission_delay(client, REN_TIMEOUT, REN_MAX_RT, 0);
 		break;
 	case DHCP6_STATE_RELEASING:
+		if (dhcp6_client_send_release(client) < 0)
+			goto error;
+
+		set_retransmission_delay(client, REL_TIMEOUT, 0, REL_MAX_RC);
+		client->attempt += 1;
+
 		break;
 	}
 
