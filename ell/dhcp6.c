@@ -279,6 +279,9 @@ struct l_dhcp6_client {
 
 	struct dhcp6_transport *transport;
 
+	uint64_t attempt_delay;
+	uint8_t attempt;
+
 	struct l_timeout *timeout_send;
 
 	uint8_t addr[6];
@@ -489,6 +492,44 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 	return true;
 }
 
+static uint64_t fuzz_msecs(uint64_t ms)
+{
+        return ms - ms / 10 +
+			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
+						ms / 10 / L_MSEC_PER_SEC;
+}
+
+static void set_retransmission_delay(struct l_dhcp6_client *client,
+					uint32_t irt_sec, uint32_t mrt_sec,
+					uint8_t mrc)
+{
+	uint64_t irt_ms;
+	uint64_t mrt_ms;
+
+	if (mrc && mrc < client->attempt)
+		return;
+
+	/* TODO add check for duration */
+
+	irt_ms = irt_sec * L_MSEC_PER_SEC;
+	mrt_ms = mrt_sec * L_MSEC_PER_SEC;
+
+	if (!client->attempt_delay) {
+		client->attempt_delay = fuzz_msecs(irt_ms);
+
+		if (client->state == DHCP6_STATE_SOLICITING)
+			client->attempt_delay += irt_ms / 10;
+	} else {
+		if (mrt_ms && client->attempt_delay > mrt_ms)
+			client->attempt_delay = fuzz_msecs(mrt_ms);
+		else
+			client->attempt_delay +=
+					fuzz_msecs(client->attempt_delay);
+	}
+
+	l_timeout_modify_ms(client->timeout_send, client->attempt_delay);
+}
+
 static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 								void *user_data)
 {
@@ -502,6 +543,9 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 	case DHCP6_STATE_SOLICITING:
 		if (dhcp6_client_send_solicit(client) < 0)
 			goto error;
+
+		set_retransmission_delay(client, SOL_TIMEOUT, SOL_MAX_RT, 0);
+		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
 		break;
 	case DHCP6_STATE_REQUESTING:
