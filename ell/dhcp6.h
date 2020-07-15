@@ -61,6 +61,17 @@ enum l_dhcp6_option {
 	L_DHCP6_OPTION_INF_MAX_RT		= 83,
 };
 
+enum l_dhcp6_client_event {
+	L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED = 0,
+	L_DHCP6_CLIENT_EVENT_IP_CHANGED,
+	L_DHCP6_CLIENT_EVENT_LEASE_EXPIRED,
+	L_DHCP6_CLIENT_EVENT_LEASE_RENEWED,
+	L_DHCP6_CLIENT_EVENT_NO_LEASE,
+};
+
+typedef void (*l_dhcp6_client_event_cb_t)(struct l_dhcp6_client *client,
+						enum l_dhcp6_client_event event,
+						void *userdata);
 typedef void (*l_dhcp6_debug_cb_t)(const char *str, void *user_data);
 typedef void (*l_dhcp6_destroy_cb_t)(void *userdata);
 
@@ -72,6 +83,10 @@ bool l_dhcp6_client_set_address(struct l_dhcp6_client *client, uint8_t type,
 bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 				l_dhcp6_debug_cb_t function,
 				void *user_data, l_dhcp6_destroy_cb_t destroy);
+bool l_dhcp6_client_set_event_handler(struct l_dhcp6_client *client,
+					l_dhcp6_client_event_cb_t handler,
+					void *userdata,
+					l_dhcp6_destroy_cb_t destroy);
 bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless);
 

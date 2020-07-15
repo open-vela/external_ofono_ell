@@ -285,6 +285,10 @@ struct l_dhcp6_client {
 	struct l_timeout *timeout_send;
 	struct l_dhcp6_lease *lease;
 
+	l_dhcp6_client_event_cb_t event_handler;
+	void *event_data;
+	l_dhcp6_destroy_cb_t event_destroy;
+
 	uint8_t addr[6];
 	uint8_t addr_len;
 	uint8_t addr_type;
@@ -853,6 +857,9 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 
 	l_dhcp6_client_stop(client);
 
+	if (client->event_destroy)
+		client->event_destroy(client->event_data);
+
 	_dhcp6_transport_free(client->transport);
 	l_uintset_free(client->request_options);
 	l_free(client->duid);
@@ -899,6 +906,24 @@ LIB_EXPORT bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 	client->debug_handler = function;
 	client->debug_destroy = destroy;
 	client->debug_data = user_data;
+
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp6_client_set_event_handler(struct l_dhcp6_client *client,
+					l_dhcp6_client_event_cb_t handler,
+					void *userdata,
+					l_dhcp6_destroy_cb_t destroy)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (client->event_destroy)
+		client->event_destroy(client->event_data);
+
+	client->event_handler = handler;
+	client->event_data = userdata;
+	client->event_destroy = destroy;
 
 	return true;
 }
