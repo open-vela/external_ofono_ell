@@ -428,6 +428,36 @@ static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 	return error;
 }
 
+static int dhcp6_client_send_request(struct l_dhcp6_client *client)
+{
+	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
+	struct dhcp6_message_builder *builder;
+	L_AUTO_FREE_VAR(struct dhcp6_message *, request);
+	size_t request_len;
+	int error;
+
+	CLIENT_DEBUG("");
+
+	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_REQUEST,
+						client->transaction_id, 128);
+
+	option_append_server_id(builder, client->lease->server_id,
+						client->lease->server_id_len);
+	option_append_client_id(builder, client->duid, client->duid_len);
+	option_append_elapsed_time(builder, client->transaction_start_t);
+
+	/* Request the SOL_MAX_RT option and other options. */
+	option_append_option_request(builder, client->request_options,
+						DHCP6_STATE_SOLICITING);
+
+	request = dhcp6_message_builder_free(builder, false, &request_len);
+
+	error = client->transport->send(client->transport, &all_nodes,
+							request, request_len);
+
+	return error;
+}
+
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const struct dhcp6_message *message, size_t len)
 {
@@ -655,6 +685,13 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 	case DHCP6_STATE_REQUESTING_INFORMATION:
 		break;
 	case DHCP6_STATE_REQUESTING:
+		if (dhcp6_client_send_request(client) < 0)
+			goto error;
+
+		set_retransmission_delay(client, REQ_TIMEOUT, REQ_MAX_RT,
+								REQ_MAX_RC);
+		client->attempt += 1;
+
 		break;
 	case DHCP6_STATE_RENEWING:
 		break;
