@@ -72,6 +72,8 @@ bool l_dhcp6_client_set_address(struct l_dhcp6_client *client, uint8_t type,
 bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 				l_dhcp6_debug_cb_t function,
 				void *user_data, l_dhcp6_destroy_cb_t destroy);
+bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
+								bool stateless);
 
 bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option);

@@ -293,6 +293,8 @@ struct l_dhcp6_client {
 	l_dhcp6_destroy_cb_t debug_destroy;
 	void *debug_data;
 
+	bool stateless : 1;
+
 	uint8_t ia_to_request;
 };
 
@@ -901,6 +903,20 @@ LIB_EXPORT bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 	return true;
 }
 
+LIB_EXPORT bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
+								bool stateless)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client->stateless = stateless;
+
+	return true;
+}
+
 LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
 {
@@ -963,10 +979,16 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 
 	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
 
-	CLIENT_ENTER_STATE(DHCP6_STATE_SOLICITING);
-	delay = pick_delay_interval(0, SOL_MAX_DELAY);
+	if (client->stateless) {
+		CLIENT_ENTER_STATE(DHCP6_STATE_REQUESTING_INFORMATION);
+		delay = pick_delay_interval(0, INF_MAX_DELAY);
+	} else {
+		CLIENT_ENTER_STATE(DHCP6_STATE_SOLICITING);
+		delay = pick_delay_interval(0, SOL_MAX_DELAY);
 
-	client->ia_to_request = DHCP6_LEASE_TYPE_IA_NA | DHCP6_LEASE_TYPE_IA_PD;
+		client->ia_to_request = DHCP6_LEASE_TYPE_IA_NA |
+							DHCP6_LEASE_TYPE_IA_PD;
+	}
 
 	client->timeout_send = l_timeout_create_ms(delay,
 						dhcp6_client_timeout_send,
