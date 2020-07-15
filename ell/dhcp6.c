@@ -283,6 +283,7 @@ struct l_dhcp6_client {
 	uint8_t attempt;
 
 	struct l_timeout *timeout_send;
+	struct l_dhcp6_lease *lease;
 
 	uint8_t addr[6];
 	uint8_t addr_len;
