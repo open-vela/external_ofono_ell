@@ -619,6 +619,46 @@ static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
 	return 0;
 }
 
+static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
+					const struct dhcp6_message *reply,
+					size_t len)
+{
+	struct dhcp6_option_iter iter;
+	uint16_t opt_type;
+	uint16_t opt_len;
+	const void *opt_value;
+	bool duid_verified = false;
+
+	if (!_dhcp6_option_iter_init(&iter, reply, len))
+		return -EBADMSG;
+
+	while (_dhcp6_option_iter_next(&iter, &opt_type,
+						&opt_len, &opt_value)) {
+		switch (opt_type) {
+		case L_DHCP6_OPTION_CLIENT_ID:
+			if (duid_verified) {
+				CLIENT_DEBUG("Reply message has multiple "
+						"Client Identifier options.");
+				return -EINVAL;
+			}
+
+			if (!verify_duid(client, opt_value, opt_len)) {
+				CLIENT_DEBUG("Reply message has an invalid "
+						"Client Identifier option.");
+				return -EINVAL;
+			}
+
+			duid_verified = true;
+			break;
+
+		case L_DHCP6_OPTION_SERVER_ID:
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static void dhcp6_client_rx_message(const void *data, size_t len,
 								void *userdata)
 {
@@ -661,12 +701,32 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		return;
 
 	case DHCP6_STATE_REQUESTING_INFORMATION:
+		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+			return;
+
+		if (dhcp6_client_receive_reply(client, message, len) < 0)
+			return;
+
 		break;
 	case DHCP6_STATE_REQUESTING:
+		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+			return;
+
+		if (dhcp6_client_receive_reply(client, message, len) < 0)
+			return;
+
+		client->attempt = 0;
 		break;
 	case DHCP6_STATE_RENEWING:
+		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+			return;
+
 		break;
 	case DHCP6_STATE_RELEASING:
+		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+			return;
+
+		client->attempt = 0;
 		break;
 	}
 
