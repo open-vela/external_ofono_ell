@@ -492,6 +492,111 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 	return true;
 }
 
+static inline bool verify_duid(struct l_dhcp6_client *client,
+				const uint8_t *duid, uint16_t duid_len)
+{
+	if ((client->duid_len != duid_len) || memcmp(client->duid, duid,
+								duid_len))
+		return false;
+
+	return true;
+}
+
+static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
+					const struct dhcp6_message *advertise,
+					size_t len)
+{
+	struct dhcp6_option_iter iter;
+	uint16_t opt_type;
+	uint16_t opt_len;
+	const void *opt_value;
+	bool duid_verified = false;
+
+	if (!_dhcp6_option_iter_init(&iter, advertise, len))
+		return -EBADMSG;
+
+	while (_dhcp6_option_iter_next(&iter, &opt_type,
+						&opt_len, &opt_value)) {
+		switch (opt_type) {
+		case L_DHCP6_OPTION_CLIENT_ID:
+			if (duid_verified) {
+				CLIENT_DEBUG("Advertise message has multiple "
+						"Client Identifier options.");
+
+				return -EINVAL;
+			}
+
+			if (!verify_duid(client, opt_value, opt_len)) {
+				CLIENT_DEBUG("Advertise message has invalid "
+						"Client Identifier.");
+				return -EINVAL;
+			}
+
+			duid_verified = true;
+			break;
+
+		case L_DHCP6_OPTION_SERVER_ID:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static void dhcp6_client_rx_message(const void *data, size_t len,
+								void *userdata)
+{
+	struct l_dhcp6_client *client = userdata;
+	const struct dhcp6_message *message = data;
+
+	CLIENT_DEBUG("");
+
+	if (len < sizeof(struct dhcp6_message))
+		return;
+
+	switch (message->msg_type) {
+        case DHCP6_MESSAGE_TYPE_ADVERTISE:
+        case DHCP6_MESSAGE_TYPE_REPLY:
+        case DHCP6_MESSAGE_TYPE_RECONFIGURE:
+                break;
+	default:
+		/* Discard invalid message types */
+		return;
+	}
+
+	if ((message->transaction_id & L_CPU_TO_BE32(0x00FFFFFFU)) !=
+					L_CPU_TO_BE32(client->transaction_id))
+		return;
+
+	switch (client->state) {
+	case DHCP6_STATE_INIT:
+		return;
+	case DHCP6_STATE_SOLICITING:
+		if (message->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
+			return;
+	
+		if (dhcp6_client_receive_advertise(client, message, len) < 0)
+			return;
+
+		/*
+		 * Continue collecting advertisements for the duration
+		 * of RT
+		 */
+		return;
+
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		break;
+	case DHCP6_STATE_REQUESTING:
+		break;
+	case DHCP6_STATE_RENEWING:
+		break;
+	case DHCP6_STATE_RELEASING:
+		break;
+	}
+
+	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
+}
+
 static uint64_t fuzz_msecs(uint64_t ms)
 {
         return ms - ms / 10 +
@@ -694,6 +799,10 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 	if (client->transport->open)
 		if (client->transport->open(client->transport) < 0)
 			return false;
+
+	_dhcp6_transport_set_rx_callback(client->transport,
+						dhcp6_client_rx_message,
+						client);
 
 	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
 
