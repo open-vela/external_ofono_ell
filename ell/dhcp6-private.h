@@ -93,3 +93,10 @@ enum dhcp6_lease_type {
 	DHCP6_LEASE_TYPE_IA_NA		= 2,
 	DHCP6_LEASE_TYPE_IA_PD		= 4,
 };
+
+struct l_dhcp6_lease {
+	enum dhcp6_lease_type type;
+
+	uint8_t *server_id;
+	size_t server_id_len;
+};
