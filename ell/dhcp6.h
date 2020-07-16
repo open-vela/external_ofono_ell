@@ -30,6 +30,7 @@ extern "C" {
 #include <stdbool.h>
 
 struct l_dhcp6_client;
+struct l_dhcp6_lease;
 
 enum l_dhcp6_option {
 	L_DHCP6_OPTION_CLIENT_ID		= 1,
@@ -99,6 +100,9 @@ bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 
 bool l_dhcp6_client_start(struct l_dhcp6_client *client);
 bool l_dhcp6_client_stop(struct l_dhcp6_client *client);
+
+char *l_dhcp6_lease_get_address(const struct l_dhcp6_lease *lease);
+char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease);
 
 #ifdef __cplusplus
 }
