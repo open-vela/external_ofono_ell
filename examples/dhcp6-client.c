@@ -62,14 +62,15 @@ int main(int argc, char *argv[])
 	uint8_t mac[6];
 
 	if (argc < 2) {
-		l_info("Usage: %s <interface index>\n", argv[0]);
+		fprintf(stderr, "Usage: %s <interface index>\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 
 	ifindex = atoi(argv[1]);
 
 	if (!l_net_get_mac_address(ifindex, mac)) {
-		printf("Unable to get address from interface %d\n", ifindex);
+		fprintf(stderr, "Unable to get address from interface %d\n",
+				ifindex);
 		return EXIT_FAILURE;
 	}
 
