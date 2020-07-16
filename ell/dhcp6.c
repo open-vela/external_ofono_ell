@@ -81,6 +81,117 @@ enum dhcp6_message_type {
 	DHCP6_MESSAGE_TYPE_RELAY_REPL = 13,
 };
 
+static const char *message_type_to_string(uint8_t t)
+{
+	switch (t) {
+	case DHCP6_MESSAGE_TYPE_SOLICIT:
+		return "Solicit";
+	case DHCP6_MESSAGE_TYPE_ADVERTISE:
+		return "Advertise";
+	case DHCP6_MESSAGE_TYPE_REQUEST:
+		return "Request";
+	case DHCP6_MESSAGE_TYPE_CONFIRM:
+		return "Confirm";
+	case DHCP6_MESSAGE_TYPE_RENEW:
+		return "Renew";
+	case DHCP6_MESSAGE_TYPE_REBIND:
+		return "Rebind";
+	case DHCP6_MESSAGE_TYPE_REPLY:
+		return "Reply";
+	case DHCP6_MESSAGE_TYPE_RELEASE:
+		return "Release";
+	case DHCP6_MESSAGE_TYPE_DECLINE:
+		return "Decline";
+	case DHCP6_MESSAGE_TYPE_RECONFIGURE:
+		return "Reconfigure";
+	case DHCP6_MESSAGE_TYPE_INFORMATION_REQUEST:
+		return "Information-request";
+	case DHCP6_MESSAGE_TYPE_RELAY_FORW:
+		return "Relay-forward";
+	case DHCP6_MESSAGE_TYPE_RELAY_REPL:
+		return "Relay-reply";
+	default:
+		break;
+	}
+
+	return "Unknown";
+}
+
+static const char *option_to_string(uint16_t o)
+{
+	switch (o) {
+	case L_DHCP6_OPTION_CLIENT_ID:
+		return "CLIENTID";
+	case L_DHCP6_OPTION_SERVER_ID:
+		return "SERVERID";
+	case L_DHCP6_OPTION_IA_NA:
+		return "IA_NA";
+	case L_DHCP6_OPTION_IA_TA:
+		return "IA_TA";
+	case L_DHCP6_OPTION_IA_PD:
+		return "IA_PD";
+	case L_DHCP6_OPTION_REQUEST_OPTION:
+		return "ORO";
+	case L_DHCP6_OPTION_ELAPSED_TIME:
+		return "ELAPSED_TIME";
+	case L_DHCP6_OPTION_PREFERENCE:
+		return "PREFERENCE";
+	case L_DHCP6_OPTION_STATUS_CODE:
+		return "STATUS_CODE";
+	case L_DHCP6_OPTION_RAPID_COMMIT:
+		return "RAPID_COMMIT";
+	case L_DHCP6_OPTION_USER_CLASS:
+		return "USER_CLASS";
+	case L_DHCP6_OPTION_VENDOR_CLASS:
+		return "VENDOR_CLASS";
+	case L_DHCP6_OPTION_VENDOR_OPTS:
+		return "VENDOR_OPTS";
+	case L_DHCP6_OPTION_DNS_SERVERS:
+		return "DNS_SERVERS";
+	case L_DHCP6_OPTION_DOMAIN_LIST:
+		return "DOMAIN_LIST";
+	case L_DHCP6_OPTION_SNTP_SERVERS:
+		return "SNTP_SERVERS";
+	case L_DHCP6_OPTION_INF_RT:
+		return "INF_RT";
+	case L_DHCP6_OPTION_NTP_SERVER:
+		return "NTP_SERVER";
+	case L_DHCP6_OPTION_SOL_MAX_RT:
+		return "SOL_MAX_RT";
+	case L_DHCP6_OPTION_INF_MAX_RT:
+		return "INF_MAX_RT";
+	default:
+		break;
+	}
+
+	return NULL;
+}
+
+/* RFC 8415, Section 21.13, Table 3 */
+static const char *status_to_string(uint16_t status)
+{
+	switch (status) {
+	case 0:
+		return "Success";
+	case 1:
+		return "UnspecFail";
+	case 2:
+		return "NoAddrsAvail";
+	case 3:
+		return "NoBinding";
+	case 4:
+		return "NotOnLink";
+	case 5:
+		return "UseMulticast";
+	case 6:
+		return "NoPrefixAvail";
+	default:
+		break;
+	}
+
+	return "Unknown";
+}
+
 struct dhcp6_message_builder {
 	uint16_t options_capacity;
 	uint16_t options_pos;
@@ -569,53 +680,137 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 	return true;
 }
 
-static inline bool verify_duid(struct l_dhcp6_client *client,
-				const uint8_t *duid, uint16_t duid_len)
+static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
+					const struct dhcp6_message *message,
+					size_t len)
 {
-	if ((client->duid_len != duid_len) || memcmp(client->duid, duid,
-								duid_len))
-		return false;
+	struct dhcp6_option_iter iter;
+	uint16_t t;
+	uint16_t l;
+	const void *v;
+	bool duid_verified = false;
+	bool server_id_present = false;
+	const char *mstr = message_type_to_string(message->msg_type);
 
-	return true;
+	CLIENT_DEBUG("Validating %s", mstr);
+
+	if (!_dhcp6_option_iter_init(&iter, message, len))
+		return -EBADMSG;
+
+	/* Check for duplicate options and reject the message if it has any */
+	while (_dhcp6_option_iter_next(&iter, &t, &l, &v)) {
+		struct dhcp6_option_iter seek;
+		uint16_t duplicate;
+
+		/*
+		 * Refer to RFC 8415, Section 24, Table 4 for what we consider
+		 * singleton options.  Note that some implementation still
+		 * send multiple non-singleton options
+		 * (for example, STATUS_CODE), so we allow these for
+		 * interoperability.  We mandate IA_NA, IA_TA and IA_PD to be
+		 * singletons
+		 */
+		switch (t) {
+		case L_DHCP6_OPTION_CLIENT_ID:
+		case L_DHCP6_OPTION_SERVER_ID:
+		case L_DHCP6_OPTION_IA_NA:
+		case L_DHCP6_OPTION_IA_TA:
+		case L_DHCP6_OPTION_IA_PD:
+		case L_DHCP6_OPTION_REQUEST_OPTION:
+		case L_DHCP6_OPTION_ELAPSED_TIME:
+		case L_DHCP6_OPTION_PREFERENCE:
+		case L_DHCP6_OPTION_RAPID_COMMIT:
+		case L_DHCP6_OPTION_USER_CLASS:
+		case L_DHCP6_OPTION_DNS_SERVERS:
+		case L_DHCP6_OPTION_DOMAIN_LIST:
+		case L_DHCP6_OPTION_SNTP_SERVERS:
+		case L_DHCP6_OPTION_INF_RT:
+		case L_DHCP6_OPTION_NTP_SERVER:
+		case L_DHCP6_OPTION_SOL_MAX_RT:
+		case L_DHCP6_OPTION_INF_MAX_RT:
+			break;
+		case L_DHCP6_OPTION_STATUS_CODE:
+		case L_DHCP6_OPTION_VENDOR_CLASS:
+		case L_DHCP6_OPTION_VENDOR_OPTS:
+		default:
+			/* Multiples allowed */
+			continue;
+		}
+
+		memcpy(&seek, &iter, sizeof(struct dhcp6_option_iter));
+
+		while (_dhcp6_option_iter_next(&seek, &duplicate, NULL, NULL)) {
+			const char *s;
+
+			if (duplicate != t)
+				continue;
+
+			s = option_to_string(t);
+			if (s)
+				CLIENT_DEBUG("Reject %s: Multiple %s options",
+						mstr, s);
+			else
+				CLIENT_DEBUG("Reject %s: Multiple %u options",
+						mstr, t);
+
+			return -EBADMSG;
+		}
+	}
+
+	_dhcp6_option_iter_init(&iter, message, len);
+
+	while (_dhcp6_option_iter_next(&iter, &t, &l, &v)) {
+		switch (t) {
+		case L_DHCP6_OPTION_CLIENT_ID:
+			if (client->duid_len != l ||
+					memcmp(client->duid, v, l)) {
+				CLIENT_DEBUG("Message %s - invalid option: %s",
+						mstr, option_to_string(t));
+				return -EINVAL;
+			}
+
+			duid_verified = true;
+			break;
+		case L_DHCP6_OPTION_STATUS_CODE:
+			if (l != 2)
+				return -EBADMSG;
+
+			if (l_get_be16(v) > 0) {
+				CLIENT_DEBUG("Message %s - Status %s", mstr,
+					status_to_string(l_get_be16(v)));
+				return -EINVAL;
+			}
+			break;
+		case L_DHCP6_OPTION_SERVER_ID:
+			server_id_present = true;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (!duid_verified) {
+		CLIENT_DEBUG("Message %s - no client id option found", mstr);
+		return -EBADMSG;
+	}
+
+	if (!server_id_present) {
+		CLIENT_DEBUG("Message %s has no server id", mstr);
+		return -EBADMSG;
+	}
+
+	return 0;
 }
 
 static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
 					const struct dhcp6_message *advertise,
 					size_t len)
 {
-	struct dhcp6_option_iter iter;
-	uint16_t opt_type;
-	uint16_t opt_len;
-	const void *opt_value;
-	bool duid_verified = false;
+	int r;
 
-	if (!_dhcp6_option_iter_init(&iter, advertise, len))
-		return -EBADMSG;
-
-	while (_dhcp6_option_iter_next(&iter, &opt_type,
-						&opt_len, &opt_value)) {
-		switch (opt_type) {
-		case L_DHCP6_OPTION_CLIENT_ID:
-			if (duid_verified) {
-				CLIENT_DEBUG("Advertise message has multiple "
-						"Client Identifier options.");
-
-				return -EINVAL;
-			}
-
-			if (!verify_duid(client, opt_value, opt_len)) {
-				CLIENT_DEBUG("Advertise message has invalid "
-						"Client Identifier.");
-				return -EINVAL;
-			}
-
-			duid_verified = true;
-			break;
-
-		case L_DHCP6_OPTION_SERVER_ID:
-			break;
-		}
-	}
+	r = dhcp6_client_validate_message(client, advertise, len);
+	if (r < 0)
+		return r;
 
 	return 0;
 }
@@ -624,38 +819,11 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 					const struct dhcp6_message *reply,
 					size_t len)
 {
-	struct dhcp6_option_iter iter;
-	uint16_t opt_type;
-	uint16_t opt_len;
-	const void *opt_value;
-	bool duid_verified = false;
+	int r;
 
-	if (!_dhcp6_option_iter_init(&iter, reply, len))
-		return -EBADMSG;
-
-	while (_dhcp6_option_iter_next(&iter, &opt_type,
-						&opt_len, &opt_value)) {
-		switch (opt_type) {
-		case L_DHCP6_OPTION_CLIENT_ID:
-			if (duid_verified) {
-				CLIENT_DEBUG("Reply message has multiple "
-						"Client Identifier options.");
-				return -EINVAL;
-			}
-
-			if (!verify_duid(client, opt_value, opt_len)) {
-				CLIENT_DEBUG("Reply message has an invalid "
-						"Client Identifier option.");
-				return -EINVAL;
-			}
-
-			duid_verified = true;
-			break;
-
-		case L_DHCP6_OPTION_SERVER_ID:
-			break;
-		}
-	}
+	r = dhcp6_client_validate_message(client, reply, len);
+	if (r < 0)
+		return r;
 
 	return 0;
 }
