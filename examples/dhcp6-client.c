@@ -63,21 +63,21 @@ int main(int argc, char *argv[])
 
 	if (argc < 2) {
 		l_info("Usage: %s <interface index>\n", argv[0]);
-		exit(0);
+		return EXIT_FAILURE;
 	}
 
 	ifindex = atoi(argv[1]);
 
 	if (!l_net_get_mac_address(ifindex, mac)) {
 		printf("Unable to get address from interface %d\n", ifindex);
-		exit(0);
+		return EXIT_FAILURE;
 	}
-
-	if (!l_main_init())
-		return -1;
 
 	l_log_set_stderr();
 	l_debug_enable("*");
+
+	if (!l_main_init())
+		return EXIT_FAILURE;
 
 	client = l_dhcp6_client_new(ifindex);
 	l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, 6);
@@ -90,5 +90,5 @@ int main(int argc, char *argv[])
 	l_dhcp6_client_destroy(client);
 	l_main_exit();
 
-	return 0;
+	return EXIT_SUCCESS;
 }
