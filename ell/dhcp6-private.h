@@ -90,7 +90,36 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 bool _dhcp6_client_set_transport(struct l_dhcp6_client *client,
 					struct dhcp6_transport *transport);
 
+struct dhcp6_address_info {
+	uint8_t addr[16];
+	uint32_t preferred_lifetime;
+	uint32_t valid_lifetime;
+	uint8_t prefix_len;
+};
+
+struct dhcp6_ia {
+	uint8_t iaid[4];
+	uint32_t t1;
+	uint32_t t2;
+	struct dhcp6_address_info info;
+};
+
 struct l_dhcp6_lease {
 	uint8_t *server_id;
 	size_t server_id_len;
+	uint8_t preference;
+
+	struct dhcp6_ia ia_na;
+	struct dhcp6_ia ia_pd;
+	uint8_t *dns;
+	uint16_t dns_len;
+
+	bool have_na : 1;
+	bool have_pd : 1;
 };
+
+struct l_dhcp6_lease *_dhcp6_lease_new(void);
+void _dhcp6_lease_free(struct l_dhcp6_lease *lease);
+struct l_dhcp6_lease *_dhcp6_lease_parse_options(
+					struct dhcp6_option_iter *iter,
+					const uint8_t expected_iaid[static 4]);

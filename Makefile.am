@@ -126,6 +126,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/dhcp6-private.h \
 			ell/dhcp6.c \
 			ell/dhcp6-transport.c \
+			ell/dhcp6-lease.c \
 			ell/cert.c \
 			ell/cert-private.h \
 			ell/ecc-private.h \
