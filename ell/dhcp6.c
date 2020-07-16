@@ -88,6 +88,8 @@ struct dhcp6_message_builder {
 	struct dhcp6_message *message;
 };
 
+static const size_t OPTION_HEADER_LEN = 4;
+
 static inline size_t next_size(size_t s)
 {
 	static const size_t mask = (size_t) (-1LL) << 8;
@@ -115,33 +117,42 @@ static uint8_t *option_reserve(struct dhcp6_message_builder *builder,
 	return p;
 }
 
-static bool option_start(struct dhcp6_message_builder *builder,
+static void option_start(struct dhcp6_message_builder *builder,
 						enum l_dhcp6_option type)
 {
-	static const size_t option_header_len = 4;
-
-	if (builder->option_start)
-		return false;
-
 	builder->option_start = builder->options_pos;
-	l_put_be16(type, option_reserve(builder, option_header_len));
-	return true;
+	l_put_be16(type, option_reserve(builder, OPTION_HEADER_LEN));
 }
 
-static bool option_finalize(struct dhcp6_message_builder *builder)
+static void option_finalize(struct dhcp6_message_builder *builder)
 {
 	uint8_t *p;
 	uint16_t len;
 
-	if (!builder->option_start)
-		return false;
-
-	len = builder->options_pos - builder->option_start - 4;
+	len = builder->options_pos - builder->option_start - OPTION_HEADER_LEN;
 	p = builder->message->options + builder->option_start;
 	l_put_be16(len, p + 2);
-	builder->option_start = 0;
+}
 
-	return true;
+static void option_append_uint16(struct dhcp6_message_builder *builder,
+					enum l_dhcp6_option type, uint16_t v)
+{
+	uint8_t *p = option_reserve(builder, OPTION_HEADER_LEN + sizeof(v));
+
+	l_put_be16(type, p);
+	l_put_be16(sizeof(v), p + 2);
+	l_put_be16(v, p + OPTION_HEADER_LEN);
+}
+
+static void option_append_bytes(struct dhcp6_message_builder *builder,
+				enum l_dhcp6_option type,
+				const void *bytes, uint16_t len)
+{
+	uint8_t *p = option_reserve(builder, OPTION_HEADER_LEN + len);
+
+	l_put_be16(type, p);
+	l_put_be16(len, p + 2);
+	memcpy(p + OPTION_HEADER_LEN, bytes, len);
 }
 
 static struct dhcp6_message_builder *dhcp6_message_builder_new(
@@ -187,24 +198,6 @@ static struct dhcp6_message *dhcp6_message_builder_free(
 	return ret;
 }
 
-static void option_append_client_id(struct dhcp6_message_builder *builder,
-					const struct duid *duid,
-					uint16_t duid_len)
-{
-	option_start(builder, L_DHCP6_OPTION_CLIENT_ID);
-	memcpy(option_reserve(builder, duid_len), duid, duid_len);
-	option_finalize(builder);
-}
-
-static void option_append_server_id(struct dhcp6_message_builder *builder,
-					const uint8_t *duid,
-					uint16_t duid_len)
-{
-	option_start(builder, L_DHCP6_OPTION_SERVER_ID);
-	memcpy(option_reserve(builder, duid_len), duid, duid_len);
-	option_finalize(builder);
-}
-
 static void option_append_elapsed_time(struct dhcp6_message_builder *builder,
 					uint64_t transaction_start_t)
 {
@@ -228,9 +221,8 @@ static void option_append_elapsed_time(struct dhcp6_message_builder *builder,
 		elapsed_time = UINT16_MAX;
 
 done:
-	option_start(builder, L_DHCP6_OPTION_ELAPSED_TIME);
-	l_put_be16(elapsed_time, option_reserve(builder, 2));
-	option_finalize(builder);
+	option_append_uint16(builder, L_DHCP6_OPTION_ELAPSED_TIME,
+							elapsed_time);
 }
 
 static void option_append_ia_na(struct dhcp6_message_builder *builder)
@@ -422,7 +414,8 @@ static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_SOLICIT,
 						client->transaction_id, 128);
 
-	option_append_client_id(builder, client->duid, client->duid_len);
+	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
+					client->duid, client->duid_len);
 	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	if (client->ia_to_request & DHCP6_LEASE_TYPE_IA_NA)
@@ -454,9 +447,11 @@ static int dhcp6_client_send_request(struct l_dhcp6_client *client)
 	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_REQUEST,
 						client->transaction_id, 128);
 
-	option_append_server_id(builder, client->lease->server_id,
-						client->lease->server_id_len);
-	option_append_client_id(builder, client->duid, client->duid_len);
+	option_append_bytes(builder, L_DHCP6_OPTION_SERVER_ID,
+					client->lease->server_id,
+					client->lease->server_id_len);
+	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
+					client->duid, client->duid_len);
 	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	/* Request the SOL_MAX_RT option and other options. */
