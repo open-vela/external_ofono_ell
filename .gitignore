@@ -74,6 +74,7 @@ examples/https-client-test
 examples/dbus-client
 examples/glib-eventloop
 examples/dhcp-client
+examples/dhcp6-client
 test-suite.log
 tools/certchain-verify
 tools/genl-discover
