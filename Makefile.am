@@ -180,6 +180,7 @@ unit_tests = unit/test-unit \
 			unit/test-uuid \
 			unit/test-pbkdf2 \
 			unit/test-dhcp \
+			unit/test-dhcp6 \
 			unit/test-dir-watch \
 			unit/test-ecc \
 			unit/test-ecdh \
@@ -303,6 +304,8 @@ unit_test_key_DEPENDENCIES = $(cert_files) ell/libell-private.la
 unit_test_uuid_LDADD = ell/libell-private.la
 
 unit_test_dhcp_LDADD = ell/libell-private.la
+
+unit_test_dhcp6_LDADD = ell/libell-private.la
 
 unit_test_dir_watch_LDADD = ell/libell-private.la
 
