@@ -55,6 +55,7 @@ unit/test-uuid
 unit/test-key
 unit/test-pbkdf2
 unit/test-dhcp
+unit/test-dhcp6
 unit/test-dir-watch
 unit/test-ecc
 unit/test-ecdh
