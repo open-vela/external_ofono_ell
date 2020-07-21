@@ -134,8 +134,7 @@ static bool tls_prf_get_bytes(struct l_tls *tls,
 		return tls12_prf(tls->prf_hmac->l_id,
 					secret, secret_len, label,
 					seed, seed_len, buf, len);
-	else
-		return tls10_prf(secret, secret_len, label, seed, seed_len,
+	return tls10_prf(secret, secret_len, label, seed, seed_len,
 					buf, len);
 }
 

@@ -85,7 +85,7 @@ int _vli_cmp(const uint64_t *left, const uint64_t *right, unsigned int ndigits)
 	for (i = ndigits - 1; i >= 0; i--) {
 		if (left[i] > right[i])
 			return 1;
-		else if (left[i] < right[i])
+		if (left[i] < right[i])
 			return -1;
 	}
 
