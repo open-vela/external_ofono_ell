@@ -307,8 +307,7 @@ static inline size_t offset_length(size_t size, size_t n_offsets)
 		return 2;
 	if (size + n_offsets * 4 <= 0xffffffff)
 		return 4;
-	else
-		return 8;
+	return 8;
 }
 
 static inline size_t read_word_le(const void *p, size_t sz) {
@@ -325,10 +324,9 @@ static inline size_t read_word_le(const void *p, size_t sz) {
 
 	if (sz == 2)
 		return le16toh(x.u16);
-	else if (sz == 4)
+	if (sz == 4)
 		return le32toh(x.u32);
-	else
-		return le64toh(x.u64);
+	return le64toh(x.u64);
 }
 
 static inline void write_word_le(void *p, size_t value, size_t sz) {

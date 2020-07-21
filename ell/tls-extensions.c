@@ -742,7 +742,8 @@ ssize_t tls_parse_signature_algorithms(struct l_tls *tls,
 				 tls->pending.cipher_suite->signature->id !=
 				 sig_alg_id))
 			continue;
-		else if (!tls->pending.cipher_suite &&
+
+		if (!tls->pending.cipher_suite &&
 				!memchr(sig_alg_ids, sig_alg_id, sig_alg_cnt))
 			continue;
 

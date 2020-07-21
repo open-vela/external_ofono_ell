@@ -500,9 +500,8 @@ static bool compute_common(struct l_key *base, struct l_key *private,
 	if (result_len > 0) {
 		*len = result_len;
 		return usable_payload;
-	} else {
-		return false;
 	}
+	return false;
 }
 
 LIB_EXPORT bool l_key_compute_dh_public(struct l_key *generator,
@@ -532,13 +531,13 @@ static int be_bignum_compare(const uint8_t *a, size_t a_len,
 				return 1;
 
 		return memcmp(a + i, b, b_len);
-	} else {
-		for (i = 0; i < b_len - a_len; i++)
-			if (b[i])
-				return -1;
-
-		return memcmp(a, b + i, a_len);
 	}
+
+	for (i = 0; i < b_len - a_len; i++)
+		if (b[i])
+			return -1;
+
+	return memcmp(a, b + i, a_len);
 }
 
 /*

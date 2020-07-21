@@ -252,14 +252,13 @@ int main(int argc, char **argv)
 
 	if (strcmp(cmd, "get") == 0)
 		return get(argc, argv);
-	else if (strcmp(cmd, "set") == 0)
+	if (strcmp(cmd, "set") == 0)
 		return set(argc, argv);
-	else if (strcmp(cmd, "find") == 0)
+	if (strcmp(cmd, "find") == 0)
 		return find(argc, argv);
-	else if (strcmp(cmd, "chip") == 0)
+	if (strcmp(cmd, "chip") == 0)
 		return chip(argc, argv);
-	else if (strcmp(cmd, "line") == 0)
+	if (strcmp(cmd, "line") == 0)
 		return line(argc, argv);
-	else
-		return print_usage();
+	return print_usage();
 }

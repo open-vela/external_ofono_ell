@@ -533,10 +533,10 @@ LIB_EXPORT void *l_queue_remove_if(struct l_queue *queue,
 			queue->entries--;
 
 			return data;
-		} else {
-			prev = entry;
-			entry = entry->next;
 		}
+
+		prev = entry;
+		entry = entry->next;
 	}
 
 	return NULL;
