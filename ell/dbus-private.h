@@ -179,7 +179,7 @@ void _dbus_property_introspection(struct _dbus_property *info,
 void _dbus_interface_introspection(struct l_dbus_interface *interface,
 						struct l_string *buf);
 
-struct l_dbus_interface *_dbus_interface_new(const char *interface);
+struct l_dbus_interface *_dbus_interface_new(const char *name);
 void _dbus_interface_free(struct l_dbus_interface *interface);
 
 struct _dbus_method *_dbus_interface_find_method(struct l_dbus_interface *i,

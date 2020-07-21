@@ -83,7 +83,7 @@ uint32_t l_rtnl_route4_add_gateway(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
 
-void l_rtnl_ifaddr6_extract(const struct ifaddrmsg *ifa, int bytes,
+void l_rtnl_ifaddr6_extract(const struct ifaddrmsg *ifa, int len,
 								char **ip);
 uint32_t l_rtnl_ifaddr6_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb,

@@ -74,7 +74,7 @@ struct l_debug_desc {
 
 void l_debug_enable_full(const char *pattern,
 				struct l_debug_desc *start,
-				struct l_debug_desc *stop);
+				struct l_debug_desc *end);
 void l_debug_add_section(struct l_debug_desc *start,
 					struct l_debug_desc *end);
 
