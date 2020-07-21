@@ -23,7 +23,7 @@
 struct asn1_oid;
 
 struct l_certchain *certchain_new_from_leaf(struct l_cert *leaf);
-void certchain_link_issuer(struct l_certchain *chain, struct l_cert *issuer);
+void certchain_link_issuer(struct l_certchain *chain, struct l_cert *ca);
 
 const uint8_t *cert_get_extension(struct l_cert *cert,
 					const struct asn1_oid *ext_id,

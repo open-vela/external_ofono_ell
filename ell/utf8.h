@@ -102,7 +102,7 @@ static inline __attribute__ ((always_inline)) bool l_ascii_isascii(int c)
 }
 
 bool l_utf8_validate(const char *src, size_t len, const char **end);
-size_t l_utf8_strlen(const char *src);
+size_t l_utf8_strlen(const char *str);
 
 int l_utf8_get_codepoint(const char *str, size_t len, wchar_t *cp);
 size_t l_utf8_from_wchar(wchar_t c, char *out_buf);

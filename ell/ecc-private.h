@@ -59,10 +59,10 @@ void _vli_mod_inv(uint64_t *result, const uint64_t *input, const uint64_t *mod,
 			unsigned int ndigits);
 
 void _vli_mod_sub(uint64_t *result, const uint64_t *left, const uint64_t *right,
-		const uint64_t *curve_prime, unsigned int ndigits);
+		const uint64_t *mod, unsigned int ndigits);
 
 void _vli_mod_add(uint64_t *result, const uint64_t *left, const uint64_t *right,
-			const uint64_t *curve_prime, unsigned int ndigits);
+			const uint64_t *mod, unsigned int ndigits);
 
 void _vli_rshift1(uint64_t *vli, unsigned int ndigits);
 
