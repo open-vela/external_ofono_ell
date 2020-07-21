@@ -1320,7 +1320,7 @@ LIB_EXPORT bool l_settings_set_float(struct l_settings *settings,
 {
 	L_AUTO_FREE_VAR(char *, buf);
 
-	buf = l_strdup_printf("%f", in);
+	buf = l_strdup_printf("%f", (double)in);
 
 	return l_settings_set_value(settings, group_name, key, buf);
 }
