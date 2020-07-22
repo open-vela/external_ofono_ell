@@ -402,8 +402,8 @@ struct l_dhcp6_client {
 
 	bool stateless : 1;
 	bool nodelay : 1;
-
-	uint8_t ia_to_request;
+	bool request_pd : 1;
+	bool request_na : 1;
 };
 
 static void request_options_foreach(uint32_t opt, void *user_data)
@@ -530,10 +530,10 @@ static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 					client->duid, client->duid_len);
 	option_append_elapsed_time(builder, client->transaction_start_t);
 
-	if (client->ia_to_request & DHCP6_LEASE_TYPE_IA_NA)
+	if (client->request_na)
 		option_append_ia_na(builder);
 
-	if (client->ia_to_request & DHCP6_LEASE_TYPE_IA_PD)
+	if (client->request_pd)
 		option_append_ia_pd(builder);
 
 	option_append_option_request(builder, client->request_options,
@@ -1006,6 +1006,7 @@ LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 
 	client->state = DHCP6_STATE_INIT;
 	client->ifindex = ifindex;
+	client->request_na = true;
 
 	client->request_options = l_uintset_new(256);
 	client_enable_option(client, L_DHCP6_OPTION_DOMAIN_LIST);
@@ -1194,9 +1195,6 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 	} else {
 		CLIENT_ENTER_STATE(DHCP6_STATE_SOLICITING);
 		delay = pick_delay_interval(0, SOL_MAX_DELAY);
-
-		client->ia_to_request = DHCP6_LEASE_TYPE_IA_NA |
-							DHCP6_LEASE_TYPE_IA_PD;
 	}
 
 	/*
