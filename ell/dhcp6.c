@@ -1172,9 +1172,15 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 			return false;
 	}
 
-	if (client->transport->open)
-		if (client->transport->open(client->transport) < 0)
+	if (client->transport->open) {
+		int r = client->transport->open(client->transport);
+
+		if (r < 0) {
+			CLIENT_DEBUG("Transport failed to open: %s",
+					strerror(-r));
 			return false;
+		}
+	}
 
 	_dhcp6_transport_set_rx_callback(client->transport,
 						dhcp6_client_rx_message,
