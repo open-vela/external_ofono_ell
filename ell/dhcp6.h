@@ -88,6 +88,7 @@ bool l_dhcp6_client_set_event_handler(struct l_dhcp6_client *client,
 					l_dhcp6_client_event_cb_t handler,
 					void *userdata,
 					l_dhcp6_destroy_cb_t destroy);
+bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client, bool nodelay);
 bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless);
 

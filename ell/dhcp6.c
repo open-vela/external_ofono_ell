@@ -401,6 +401,7 @@ struct l_dhcp6_client {
 	void *debug_data;
 
 	bool stateless : 1;
+	bool nodelay : 1;
 
 	uint8_t ia_to_request;
 };
@@ -1091,6 +1092,20 @@ LIB_EXPORT bool l_dhcp6_client_set_event_handler(struct l_dhcp6_client *client,
 	return true;
 }
 
+LIB_EXPORT bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client,
+						bool nodelay)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client->nodelay = nodelay;
+
+	return true;
+}
+
 LIB_EXPORT bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless)
 {
@@ -1178,7 +1193,28 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 							DHCP6_LEASE_TYPE_IA_PD;
 	}
 
-	client->timeout_send = l_timeout_create_ms(delay,
+	/*
+	 * RFC 8415, Section 18.2.1:
+	 * "The first Solicit message from the client on the interface SHOULD
+	 * be delayed by a random amount of time between 0 and SOL_MAX_DELAY.
+	 * This random delay helps desynchronize clients that start a DHCP
+	 * session at the same time, such as after recovery from a power
+	 * failure or after a router outage after seeing that DHCP is
+	 * available in Router Advertisement messages..."
+	 *
+	 * Similar verbiage in Section 18.2.6, except it uses 'MUST':
+	 * "The first Information-request message from the client on the
+	 * interface MUST be delayed by a random amount of time between 0 and
+	 * INF_MAX_DELAY."
+	 *
+	 * In certain situations, like when a WiFi network was just joined,
+	 * there's no point in waiting a random time, so we forgo the wait
+	 * if no delay is requested
+	 */
+	if (client->nodelay)
+		dhcp6_client_timeout_send(NULL, client);
+	else
+		client->timeout_send = l_timeout_create_ms(delay,
 						dhcp6_client_timeout_send,
 						client, NULL);
 
