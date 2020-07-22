@@ -88,15 +88,7 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 bool _dhcp6_client_set_transport(struct l_dhcp6_client *client,
 					struct dhcp6_transport *transport);
 
-enum dhcp6_lease_type {
-	DHCP6_LEASE_TYPE_STATELESS	= 1,
-	DHCP6_LEASE_TYPE_IA_NA		= 2,
-	DHCP6_LEASE_TYPE_IA_PD		= 4,
-};
-
 struct l_dhcp6_lease {
-	enum dhcp6_lease_type type;
-
 	uint8_t *server_id;
 	size_t server_id_len;
 };
