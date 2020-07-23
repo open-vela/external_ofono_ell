@@ -1093,6 +1093,38 @@ LIB_EXPORT bool l_dhcp6_client_set_event_handler(struct l_dhcp6_client *client,
 	return true;
 }
 
+/*
+ * Sets whether Link-Layer Address (LLA) has been randomized for this link or
+ * connection.  If LLA has been randomized, then DUID based on the LLA
+ * is used instead of other DUID generation methods
+ */
+LIB_EXPORT bool l_dhcp6_client_set_lla_randomized(struct l_dhcp6_client *client,
+							bool randomized)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	if (client->duid)
+		return false;
+
+	/*
+	 * RFC 7844, Section 4.3 Client Identifier DHCPv6 Option:
+	 * "When using the anonymity profile in conjunction with randomized
+	 * link-layer addresses, DHCPv6 clients MUST use DUID format
+	 * number 3 -- link-layer address.  The value of the link-layer
+	 * address should be the value currently assigned to the interface.
+	 */
+	client->duid_len = 4 + client->addr_len;
+	client->duid = l_malloc(client->duid_len);
+	client->duid->type = L_CPU_TO_BE16(DUID_TYPE_LINK_LAYER_ADDR);
+	l_put_be16(client->addr_type, client->duid->identifier);
+	memcpy(client->duid->identifier + 2, client->addr, client->addr_len);
+
+	return true;
+}
 LIB_EXPORT bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client,
 						bool nodelay)
 {
