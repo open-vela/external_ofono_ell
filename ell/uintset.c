@@ -471,6 +471,26 @@ LIB_EXPORT void l_uintset_foreach(struct l_uintset *set,
 }
 
 /**
+ * l_uintset_clone:
+ * @original: The set of numbers
+ * @set_b: The set of numbers
+ *
+ * Returns: A newly allocated l_uintset object containing a copy of @original
+ **/
+LIB_EXPORT struct l_uintset *l_uintset_clone(const struct l_uintset *original)
+{
+	struct l_uintset *clone;
+
+	if (unlikely(!original))
+		return NULL;
+
+	clone = l_uintset_new_from_range(original->min, original->max);
+	memcpy(clone->bits, original->bits, original->size); 
+
+	return clone;
+}
+
+/**
  * l_uintset_intersect:
  * @set_a: The set of numbers
  * @set_b: The set of numbers
