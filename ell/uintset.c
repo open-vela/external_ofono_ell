@@ -456,7 +456,7 @@ LIB_EXPORT uint32_t l_uintset_find_min(struct l_uintset *set)
  *
  * Call @function for every given number in @set.
  **/
-LIB_EXPORT void l_uintset_foreach(struct l_uintset *set,
+LIB_EXPORT void l_uintset_foreach(const struct l_uintset *set,
 					l_uintset_foreach_func_t function,
 					void *user_data)
 {
