@@ -569,13 +569,14 @@ static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 
 	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
 					client->duid, client->duid_len);
-	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	if (client->request_na)
 		option_append_ia_na(client, builder);
 
 	option_append_option_request(builder, client->request_options,
 						DHCP6_STATE_SOLICITING);
+
+	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	if (client->request_pd)
 		option_append_ia_pd(client, builder);
@@ -600,16 +601,17 @@ static int dhcp6_client_send_request(struct l_dhcp6_client *client)
 	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_REQUEST,
 						client->transaction_id, 128);
 
+	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
+					client->duid, client->duid_len);
 	option_append_bytes(builder, L_DHCP6_OPTION_SERVER_ID,
 					client->lease->server_id,
 					client->lease->server_id_len);
-	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
-					client->duid, client->duid_len);
-	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	/* Request the SOL_MAX_RT option and other options. */
 	option_append_option_request(builder, client->request_options,
 						DHCP6_STATE_SOLICITING);
+
+	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	request = dhcp6_message_builder_free(builder, false, &request_len);
 
