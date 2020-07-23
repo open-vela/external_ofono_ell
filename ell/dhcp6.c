@@ -396,17 +396,19 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 					const struct l_uintset *request_options,
 					enum dhcp6_state state)
 {
+	struct l_uintset *clone = NULL;
+
 	option_start(builder, L_DHCP6_OPTION_REQUEST_OPTION);
 
 	switch (state) {
 	case DHCP6_STATE_SOLICITING:
-		l_put_be16(L_DHCP6_OPTION_SOL_MAX_RT,
-						option_reserve(builder, 2));
+		clone = l_uintset_clone(request_options);
+		l_uintset_put(clone, L_DHCP6_OPTION_SOL_MAX_RT);
 		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
-		l_put_be16(L_DHCP6_OPTION_INF_RT, option_reserve(builder, 2));
-		l_put_be16(L_DHCP6_OPTION_INF_MAX_RT,
-						option_reserve(builder, 2));
+		clone = l_uintset_clone(request_options);
+		l_uintset_put(clone, L_DHCP6_OPTION_INF_RT);
+		l_uintset_put(clone, L_DHCP6_OPTION_INF_MAX_RT);
 		break;
 	case DHCP6_STATE_INIT:
 	case DHCP6_STATE_REQUESTING:
@@ -415,9 +417,11 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 		break;
 	}
 
-	l_uintset_foreach((void *) request_options, request_options_foreach,
-								builder);
+	l_uintset_foreach(clone ? clone : request_options,
+				request_options_foreach, builder);
 	option_finalize(builder);
+
+	l_uintset_free(clone);
 }
 
 static void option_append_reconfigure_accept(
@@ -510,6 +514,9 @@ static void client_enable_option(struct l_dhcp6_client *client,
 		{ L_DHCP6_OPTION_INTERFACE_ID },
 		{ L_DHCP6_OPTION_RECONF_MSG },
 		{ L_DHCP6_OPTION_RECONF_ACCEPT },
+		{ L_DHCP6_OPTION_INF_RT },
+		{ L_DHCP6_OPTION_SOL_MAX_RT },
+		{ L_DHCP6_OPTION_INF_MAX_RT },
 		{ }
 	};
 
