@@ -52,7 +52,7 @@ uint32_t l_uintset_find_min(struct l_uintset *set);
 uint32_t l_uintset_find_unused_min(struct l_uintset *set);
 uint32_t l_uintset_find_unused(struct l_uintset *set, uint32_t start);
 
-void l_uintset_foreach(struct l_uintset *set,
+void l_uintset_foreach(const struct l_uintset *set,
 			l_uintset_foreach_func_t function, void *user_data);
 
 struct l_uintset *l_uintset_clone(const struct l_uintset *original);
