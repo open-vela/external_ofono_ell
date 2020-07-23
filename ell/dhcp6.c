@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <time.h>
 
+#include "ell/log.h"
 #include "ell/random.h"
 #include "ell/time.h"
 #include "ell/net.h"
@@ -336,28 +337,6 @@ done:
 							elapsed_time);
 }
 
-static void option_append_ia_na(struct dhcp6_message_builder *builder)
-{
-	option_start(builder, L_DHCP6_OPTION_IA_NA);
-
-	l_put_be32(0, option_reserve(builder, 4));
-	l_put_be32(0, option_reserve(builder, 4));
-	l_put_be32(0, option_reserve(builder, 4));
-
-	option_finalize(builder);
-}
-
-static void option_append_ia_pd(struct dhcp6_message_builder *builder)
-{
-	option_start(builder, L_DHCP6_OPTION_IA_PD);
-
-	l_put_be32(0, option_reserve(builder, 4));
-	l_put_be32(0, option_reserve(builder, 4));
-	l_put_be32(0, option_reserve(builder, 4));
-
-	option_finalize(builder);
-}
-
 enum dhcp6_state {
 	DHCP6_STATE_INIT,
 	DHCP6_STATE_SOLICITING,
@@ -448,6 +427,61 @@ static void option_append_reconfigure_accept(
 	option_finalize(builder);
 }
 
+static int option_append_ia_common(struct l_dhcp6_client *client,
+				struct dhcp6_message_builder *builder,
+				enum l_dhcp6_option option)
+{
+	option_start(builder, option);
+
+	/*
+	 * RFC 7844, Section 4.5 recommends:
+	 * "Clients MAY meet the privacy, uniqueness, and stability
+	 * requirements of the IAID by constructing it as the combination of 1
+	 * octet encoding the interface number in the system, and the first 3
+	 * octets of the link-layer address."
+	 *
+	 * For ethernet, the first three octets are the oui of the vendor, so
+	 * we use the last octets instead.  Also, since we currently do not
+	 * request more than one address, we simply use the last 4 octets of
+	 * our link layer address
+	 */
+
+	switch (client->addr_type) {
+	case ARPHRD_ETHER:
+		memcpy(option_reserve(builder, 4), client->addr + 2, 4);
+		break;
+	default:
+		L_WARN_ON(true);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static void option_append_ia_na(struct l_dhcp6_client *client,
+				struct dhcp6_message_builder *builder)
+{
+	if (option_append_ia_common(client, builder, L_DHCP6_OPTION_IA_NA) < 0)
+		return;
+
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+
+	option_finalize(builder);
+}
+
+static void option_append_ia_pd(struct l_dhcp6_client *client,
+				struct dhcp6_message_builder *builder)
+{
+	if (option_append_ia_common(client, builder, L_DHCP6_OPTION_IA_PD) < 0)
+		return;
+
+	l_put_be32(0, option_reserve(builder, 4));
+	l_put_be32(0, option_reserve(builder, 4));
+
+	option_finalize(builder);
+}
+
 static void client_enable_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
 {
@@ -531,13 +565,13 @@ static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	if (client->request_na)
-		option_append_ia_na(builder);
-
-	if (client->request_pd)
-		option_append_ia_pd(builder);
+		option_append_ia_na(client, builder);
 
 	option_append_option_request(builder, client->request_options,
 						DHCP6_STATE_SOLICITING);
+
+	if (client->request_pd)
+		option_append_ia_pd(client, builder);
 
 	solicit = dhcp6_message_builder_free(builder, false, &solicit_len);
 
