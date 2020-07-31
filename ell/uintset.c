@@ -480,12 +480,15 @@ LIB_EXPORT void l_uintset_foreach(const struct l_uintset *set,
 LIB_EXPORT struct l_uintset *l_uintset_clone(const struct l_uintset *original)
 {
 	struct l_uintset *clone;
+	size_t bitmap_size;
 
 	if (unlikely(!original))
 		return NULL;
 
+	bitmap_size = (original->size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+
 	clone = l_uintset_new_from_range(original->min, original->max);
-	memcpy(clone->bits, original->bits, original->size); 
+	memcpy(clone->bits, original->bits, bitmap_size);
 
 	return clone;
 }
