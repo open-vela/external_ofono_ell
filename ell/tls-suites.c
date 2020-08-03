@@ -1096,11 +1096,7 @@ static struct tls_key_exchange_algorithm tls_dhe = {
 	.free_params = tls_free_dhe_params,
 };
 
-static struct tls_bulk_encryption_algorithm tls_rc4 = {
-	.cipher_type = TLS_CIPHER_STREAM,
-	.l_id = L_CIPHER_ARC4,
-	.key_length = 16,
-}, tls_aes128 = {
+static struct tls_bulk_encryption_algorithm tls_aes128 = {
 	.cipher_type = TLS_CIPHER_BLOCK,
 	.l_id = L_CIPHER_AES_CBC,
 	.key_length = 16,
@@ -1134,11 +1130,7 @@ static struct tls_bulk_encryption_algorithm tls_rc4 = {
 	.auth_tag_length = 16,
 };
 
-static struct tls_mac_algorithm tls_md5 = {
-	.id = 1,
-	.hmac_type = L_CHECKSUM_MD5,
-	.mac_length = 16,
-}, tls_sha = {
+static struct tls_mac_algorithm tls_sha = {
 	.id = 2,
 	.hmac_type = L_CHECKSUM_SHA1,
 	.mac_length = 20,
@@ -1152,23 +1144,7 @@ static struct tls_mac_algorithm tls_md5 = {
 	.mac_length = 48,
 };
 
-static struct tls_cipher_suite tls_rsa_with_rc4_128_md5 = {
-	.id = { 0x00, 0x04 },
-	.name = "TLS_RSA_WITH_RC4_128_MD5",
-	.verify_data_length = 12,
-	.encryption = &tls_rc4,
-	.mac = &tls_md5,
-	.signature = &tls_rsa_signature,
-	.key_xchg = &tls_rsa_key_xchg,
-}, tls_rsa_with_rc4_128_sha = {
-	.id = { 0x00, 0x05 },
-	.name = "TLS_RSA_WITH_RC4_128_SHA",
-	.verify_data_length = 12,
-	.encryption = &tls_rc4,
-	.mac = &tls_sha,
-	.signature = &tls_rsa_signature,
-	.key_xchg = &tls_rsa_key_xchg,
-}, tls_rsa_with_3des_ede_cbc_sha = {
+static struct tls_cipher_suite tls_rsa_with_3des_ede_cbc_sha = {
 	.id = { 0x00, 0x0a },
 	.name = "TLS_RSA_WITH_3DES_EDE_CBC_SHA",
 	.verify_data_length = 12,
@@ -1278,14 +1254,6 @@ static struct tls_cipher_suite tls_rsa_with_rc4_128_md5 = {
 	.prf_hmac = L_CHECKSUM_SHA384,
 	.signature = &tls_rsa_signature,
 	.key_xchg = &tls_dhe,
-}, tls_ecdhe_rsa_with_rc4_128_sha = {
-	.id = { 0xc0, 0x11 },
-	.name = "TLS_ECDHE_RSA_WITH_RC4_128_SHA",
-	.verify_data_length = 12,
-	.encryption = &tls_rc4,
-	.mac = &tls_sha,
-	.signature = &tls_rsa_signature,
-	.key_xchg = &tls_ecdhe,
 }, tls_ecdhe_rsa_with_3des_ede_cbc_sha = {
 	.id = { 0xc0, 0x12 },
 	.name = "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA",
@@ -1366,8 +1334,5 @@ struct tls_cipher_suite *tls_cipher_suite_pref[] = {
 	&tls_ecdhe_rsa_with_3des_ede_cbc_sha,
 	&tls_dhe_rsa_with_3des_ede_cbc_sha,
 	&tls_rsa_with_3des_ede_cbc_sha,
-	&tls_ecdhe_rsa_with_rc4_128_sha,
-	&tls_rsa_with_rc4_128_sha,
-	&tls_rsa_with_rc4_128_md5,
 	NULL,
 };
