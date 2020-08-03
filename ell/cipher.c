@@ -149,8 +149,6 @@ static const char *cipher_type_to_name(enum l_cipher_type type)
 		return "cbc(aes)";
 	case L_CIPHER_AES_CTR:
 		return "ctr(aes)";
-	case L_CIPHER_ARC4:
-		return "ecb(arc4)";
 	case L_CIPHER_DES:
 		return "ecb(des)";
 	case L_CIPHER_DES_CBC:
@@ -619,7 +617,11 @@ static void init_supported()
 	strcpy((char *) salg.salg_type, "skcipher");
 
 	for (c = L_CIPHER_AES; c <= L_CIPHER_DES3_EDE_CBC; c++) {
-		strcpy((char *) salg.salg_name, cipher_type_to_name(c));
+		const char *name = cipher_type_to_name(c);
+
+		if (!name)
+			continue;
+		strcpy((char *) salg.salg_name, name);
 
 		if (bind(sk, (struct sockaddr *) &salg, sizeof(salg)) < 0)
 			continue;
