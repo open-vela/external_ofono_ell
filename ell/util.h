@@ -315,6 +315,82 @@ const char *l_util_get_debugfs_path(void);
        while (__result == -1L && errno == EINTR);  \
        __result; }))
 
+/*
+ * Taken from https://github.com/chmike/cst_time_memcmp, adding a volatile to
+ * ensure the compiler does not try to optimize the constant time behavior.
+ * The code has been modified to add comments and project specific code
+ * styling.
+ * This specific piece of code is subject to the following copyright:
+ *
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2015 Christophe Meessen
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * This function performs a secure memory comparison of two buffers of size
+ * bytes, representing an integer (byte order is big endian). It returns
+ * a negative, zero or positif value if a < b, a == b or a > b respectively.
+ */
+static inline int l_secure_memcmp(const void *a, const void *b,
+					size_t size)
+{
+	const volatile uint8_t *aa = a;
+	const volatile uint8_t *bb = b;
+	int res = 0, diff, mask;
+
+	/*
+	 * We will compare all bytes, starting with the less significant. When
+	 * we find a non-zero difference, we update the result accordingly.
+	 */
+	if (size > 0) {
+		/*
+		 * The following couple of lines can be summarized as a
+		 * constant time/memory access version of:
+		 * if (diff != 0) res = diff;
+		 *
+		 * From the previous operation, we know that diff is in
+		 * [-255, 255]
+		 *
+		 * The following figure show the possible value of mask, based
+		 * on different cases of diff:
+		 *
+		 * diff  |   diff-1   |   ~diff    | ((diff-1) & ~diff) |  mask
+		 * ------|------------|------------|--------------------|------
+		 *   < 0 | 0xFFFFFFXX | 0x000000YY |     0x000000ZZ     |   0
+		 *  == 0 | 0xFFFFFFFF | 0xFFFFFFFF |     0xFFFFFFFF     | 0xF..F
+		 *  > 0  | 0x000000XX | 0xFFFFFFYY |     0x000000ZZ     |   0
+		 *
+		 * Hence, the mask allows to keep res when diff == 0, and to
+		 * set res to diff otherwise.
+		*/
+		do {
+			--size;
+			diff = aa[size] - bb[size];
+			mask = (((diff - 1) & ~diff) >> 8);
+			res = (res & mask) | diff;
+		} while (size != 0);
+	}
+
+	return res;
+}
+
 #ifdef __cplusplus
 }
 #endif

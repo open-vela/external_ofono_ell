@@ -603,7 +603,7 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new(
 	_ecc_be2native(c->c, buf, curve->ndigits);
 
 	if (!vli_is_zero_or_one(c->c, curve->ndigits) &&
-				_vli_cmp(c->c, curve->n, curve->ndigits) < 0)
+			secure_memcmp_64(curve->n, c->c, curve->ndigits) > 0)
 		return c;
 
 	l_ecc_scalar_free(c);

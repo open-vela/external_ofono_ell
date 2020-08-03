@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include "ecc.h"
+#include "util.h"
 
 struct l_ecc_curve;
 
@@ -48,6 +49,39 @@ struct l_ecc_scalar {
 	uint64_t c[L_ECC_MAX_DIGITS];
 	const struct l_ecc_curve *curve;
 };
+
+/*
+ * Performs a secure memory comparison of two uint64_t buffers of size bytes
+ * representing an integer. Blobs are ordered in little endian. It returns
+ * a negative, zero or positif value if a < b, a == b or a > b respectively.
+ */
+static inline int secure_memcmp_64(const uint64_t *a, const uint64_t *b,
+					size_t size)
+{
+	uint64_t aa_64, bb_64;
+
+	int res = 0, mask;
+
+	size_t i = 0;
+
+	if (size) {
+		/*
+		 * Arrays store blobs in LE, we will process each blob as a
+		 * byte array of size 8 using l_secure_memcmp. We need to make
+		 * sure to feed a BE byte array to avoid unexpected behavior
+		 * on different architectures.
+		 */
+		do {
+			aa_64 = L_CPU_TO_BE64(a[i]);
+			bb_64 = L_CPU_TO_BE64(b[i]);
+			mask = l_secure_memcmp(&aa_64, &bb_64, 8);
+			res = (mask & res) | mask;
+			i++;
+		} while (i != size);
+	}
+
+	return res;
+}
 
 void _ecc_be2native(uint64_t *dest, const uint64_t *bytes,
 							unsigned int ndigits);
