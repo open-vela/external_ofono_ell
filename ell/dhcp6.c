@@ -659,6 +659,14 @@ static int dhcp6_client_send_release(struct l_dhcp6_client *client)
 	return 0;
 }
 
+void __dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
+				const void *options, size_t len)
+{
+	memset(iter, 0, sizeof(*iter));
+	iter->max = len;
+	iter->options = options;
+}
+
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const struct dhcp6_message *message, size_t len)
 {
@@ -668,9 +676,8 @@ bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 	if (len < sizeof(struct dhcp6_message))
 		return false;
 
-	memset(iter, 0, sizeof(*iter));
-	iter->max = len - sizeof(struct dhcp6_message);
-	iter->options = message->options;
+	__dhcp6_option_iter_init(iter, message->options,
+					len - sizeof(struct dhcp6_message));
 
 	return true;
 }

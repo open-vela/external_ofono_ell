@@ -79,6 +79,8 @@ void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
 					dhcp6_transport_rx_cb_t rx_cb,
 					void *userdata);
 
+void __dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
+				const void *options, size_t len);
 bool _dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const struct dhcp6_message *message,
 				size_t len);
