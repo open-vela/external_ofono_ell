@@ -815,7 +815,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 			duid_verified = true;
 			break;
 		case L_DHCP6_OPTION_STATUS_CODE:
-			if (l != 2)
+			if (l < 2)
 				return -EBADMSG;
 
 			if (l_get_be16(v) > 0) {
