@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
 	l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, 6);
 	l_dhcp6_client_set_event_handler(client, event_handler, NULL, NULL);
 	l_dhcp6_client_set_debug(client, do_debug, "[DHCP6] ", NULL);
+	l_dhcp6_client_set_lla_randomized(client, true);
 	l_dhcp6_client_start(client);
 
 	l_main_run_with_signal(signal_handler, NULL);
