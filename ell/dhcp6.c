@@ -738,8 +738,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 
 	CLIENT_DEBUG("Validating %s", mstr);
 
-	if (!_dhcp6_option_iter_init(&iter, message, len))
-		return -EBADMSG;
+	_dhcp6_option_iter_init(&iter, message, len);
 
 	/* Check for duplicate options and reject the message if it has any */
 	while (_dhcp6_option_iter_next(&iter, &t, &l, &v)) {
