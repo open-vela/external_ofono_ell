@@ -954,6 +954,11 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 
 static uint64_t fuzz_msecs(uint64_t ms)
 {
+	/*
+	 * Compute ms + RAND*ms where RAND is in range -0.1 .. 0.1
+	 *
+	 * We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2]
+	 */
         return ms - ms / 10 +
 			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
 						ms / 10 / L_MSEC_PER_SEC;
@@ -974,10 +979,30 @@ static void set_retransmission_delay(struct l_dhcp6_client *client,
 	irt_ms = irt_sec * L_MSEC_PER_SEC;
 	mrt_ms = mrt_sec * L_MSEC_PER_SEC;
 
+	/* RFC 8415, Section 15:
+	 * RT for the first message transmission is based on IRT:
+	 * 	RT = IRT + RAND*IRT
+	 *
+	 * RT for each subsequent message transmission is based on the
+	 * previous value of RT:
+	 * 	RT = 2*RTprev + RAND*RTprev
+	 *
+	 * MRT specifies an upper bound on the value of RT (disregarding the
+	 * randomization added by the use of RAND).  If MRT has a value of 0,
+	 * there is no upper limit on the value of RT.  Otherwise:
+	 * 	if (RT > MRT)
+	 * 		RT = MRT + RAND*MRT
+	 */
 	if (!client->attempt_delay) {
 		client->attempt_delay = fuzz_msecs(irt_ms);
 
-		if (client->state == DHCP6_STATE_SOLICITING)
+		/*
+		 * RFC 8415, Section 18.2.1:
+		 * ... the first RT MUST be selected to be strictly greater
+		 * than IRT by choosing RAND to be strictly greater than 0.
+		 */
+		if (client->state == DHCP6_STATE_SOLICITING &&
+				client->attempt_delay < irt_ms)
 			client->attempt_delay += irt_ms / 10;
 	} else {
 		if (mrt_ms && client->attempt_delay > mrt_ms)
