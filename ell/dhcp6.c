@@ -1000,12 +1000,82 @@ static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
 					size_t len)
 {
 	int r;
+	struct l_dhcp6_lease *lease;
+	struct dhcp6_option_iter iter;
 
 	r = dhcp6_client_validate_message(client, advertise, len);
 	if (r < 0)
 		return r;
 
-	return 0;
+	_dhcp6_option_iter_init(&iter, advertise, len);
+	lease = _dhcp6_lease_parse_options(&iter, client->addr + 2);
+	if (!lease)
+		return -EBADMSG;
+
+	/*
+	 * RFC 8415, Section 18.2.9:
+	 * "The client MUST ignore any Advertise message that contains no
+	 * addresses (IA Address options (see Section 21.6) encapsulated in
+	 * IA_NA options (see Section 21.4) or IA_TA options
+	 * (see Section 21.5)) and no delegated prefixes (IA Prefix options
+	 * (see Section 21.22) encapsulated in IA_PD options
+	 * (see Section 21.21))"
+	 */
+	r = -EINVAL;
+	if (!lease->have_na && !lease->have_pd)
+		goto bad_lease;
+
+	if (client->request_na && !lease->have_na) {
+		CLIENT_DEBUG("Requested Non-Temporary address, but not present"
+				" in lease, ignoring...");
+		goto bad_lease;
+	}
+
+	if (client->request_pd && !lease->have_pd) {
+		CLIENT_DEBUG("Requested Prefix Delegation but not present in"
+				" lease, ignoring...");
+		goto bad_lease;
+	}
+
+	if (!client->lease || client->lease->preference < lease->preference) {
+		_dhcp6_lease_free(client->lease);
+		client->lease = lease;
+
+		/*
+		 * RFC 8415, Section 18.2.1
+		 * "If the client receives a valid Advertise message that
+		 * includes a Preference option with a preference value of 255,
+		 * the client immediately begins a client-initiated message
+		 * exchange (as described in Section 18.2.2) by sending a
+		 * Request message to the server from which the Advertise
+		 * message was received.
+		 *
+		 * "If the client does not receive any valid Advertise messages
+		 * before the first RT has elapsed, it then applies the
+		 * retransmission mechanism described in Section 15.  The
+		 * client terminates the retransmission process as soon as it
+		 * receives any valid Advertise message, and the client acts on
+		 * the received Advertise message without waiting for any
+		 * additional Advertise messages."
+		 */
+		if (lease->preference == 0xff) {
+			CLIENT_DEBUG("Received a lease with max preference");
+			return DHCP6_STATE_REQUESTING;
+		}
+
+		if (client->attempt > 1) {
+			CLIENT_DEBUG("Received a valid Advertise after first"
+					" retransmission.");
+			return DHCP6_STATE_REQUESTING;
+		}
+	} else
+		_dhcp6_lease_free(lease);
+
+	return DHCP6_STATE_SOLICITING;
+
+bad_lease:
+	_dhcp6_lease_free(lease);
+	return r;
 }
 
 static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
@@ -1026,6 +1096,7 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 {
 	struct l_dhcp6_client *client = userdata;
 	const struct dhcp6_message *message = data;
+	int r;
 
 	CLIENT_DEBUG("");
 
@@ -1053,15 +1124,11 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
 			return;
 	
-		if (dhcp6_client_receive_advertise(client, message, len) < 0)
+		r = dhcp6_client_receive_advertise(client, message, len);
+		if (r < 0)
 			return;
 
-		/*
-		 * Continue collecting advertisements for the duration
-		 * of RT
-		 */
-		return;
-
+		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
 			return;
@@ -1087,6 +1154,14 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 			return;
 		break;
 	}
+
+	if (r == (int) client->state)
+		return;
+
+	dhcp6_client_new_transaction(client, r);
+
+	if (dhcp6_client_send_next(client) < 0)
+		l_dhcp6_client_stop(client);
 }
 
 static void dhcp6_client_timeout_send(struct l_timeout *timeout,
@@ -1095,6 +1170,12 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 	struct l_dhcp6_client *client = user_data;
 
 	CLIENT_DEBUG("");
+
+	if (client->state == DHCP6_STATE_SOLICITING
+			&& client->attempt && client->lease) {
+		CLIENT_DEBUG("Received a lease during initial request time");
+		dhcp6_client_new_transaction(client, DHCP6_STATE_REQUESTING);
+	}
 
 	if (dhcp6_client_send_next(client) < 0)
 		l_dhcp6_client_stop(client);
@@ -1364,6 +1445,9 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 		return false;
 
 	CLIENT_DEBUG("");
+
+	_dhcp6_lease_free(client->lease);
+	client->lease = NULL;
 
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
