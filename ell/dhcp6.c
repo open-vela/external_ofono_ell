@@ -400,6 +400,8 @@ struct l_dhcp6_client {
 	bool request_na : 1;
 };
 
+static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
+
 static void request_options_foreach(uint32_t opt, void *user_data)
 {
 	struct dhcp6_message_builder *builder = user_data;
@@ -417,6 +419,7 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 
 	switch (state) {
 	case DHCP6_STATE_SOLICITING:
+	case DHCP6_STATE_REQUESTING:
 		clone = l_uintset_clone(request_options);
 		l_uintset_put(clone, L_DHCP6_OPTION_SOL_MAX_RT);
 		break;
@@ -426,7 +429,6 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 		l_uintset_put(clone, L_DHCP6_OPTION_INF_MAX_RT);
 		break;
 	case DHCP6_STATE_INIT:
-	case DHCP6_STATE_REQUESTING:
 	case DHCP6_STATE_RENEWING:
 	case DHCP6_STATE_RELEASING:
 		break;
@@ -480,12 +482,25 @@ static int option_append_ia_common(struct l_dhcp6_client *client,
 static void option_append_ia_na(struct l_dhcp6_client *client,
 				struct dhcp6_message_builder *builder)
 {
+	void *ia_addr;
+
 	if (option_append_ia_common(client, builder, L_DHCP6_OPTION_IA_NA) < 0)
 		return;
 
 	l_put_be32(0, option_reserve(builder, 4));
 	l_put_be32(0, option_reserve(builder, 4));
 
+	if (!client->lease)
+		goto done;
+
+	ia_addr = option_reserve(builder, 28);
+	l_put_be16(L_DHCP6_OPTION_IA_ADDR, ia_addr);
+	l_put_be16(24, ia_addr + 2);
+	memcpy(ia_addr + 4, client->lease->ia_na.info.addr, 16);
+	l_put_be32(client->lease->ia_na.info.preferred_lifetime, ia_addr + 20);
+	l_put_be32(client->lease->ia_na.info.valid_lifetime, ia_addr + 24);
+
+done:
 	option_finalize(builder);
 }
 
@@ -632,71 +647,63 @@ static void set_retransmission_delay(struct l_dhcp6_client *client,
 	l_timeout_modify_ms(client->timeout_send, client->attempt_delay);
 }
 
-static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
+static struct dhcp6_message *dhcp6_client_build_message(
+						struct l_dhcp6_client *client,
+						enum dhcp6_message_type type,
+						size_t *out_len)
 {
-	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
 	struct dhcp6_message_builder *builder;
-	L_AUTO_FREE_VAR(struct dhcp6_message *, solicit);
-	size_t solicit_len;
-	int error;
 
-	CLIENT_DEBUG("");
-
-	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_SOLICIT,
-						client->transaction_id, 128);
+	builder = dhcp6_message_builder_new(type, client->transaction_id, 128);
 
 	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
 					client->duid, client->duid_len);
+
+	if (type == DHCP6_MESSAGE_TYPE_REQUEST)
+		option_append_bytes(builder, L_DHCP6_OPTION_SERVER_ID,
+					client->lease->server_id,
+					client->lease->server_id_len);
 
 	if (client->request_na)
 		option_append_ia_na(client, builder);
 
 	option_append_option_request(builder, client->request_options,
-						DHCP6_STATE_SOLICITING);
+						client->state);
 
 	option_append_elapsed_time(builder, client->transaction_start_t);
 
 	if (client->request_pd)
 		option_append_ia_pd(client, builder);
 
-	solicit = dhcp6_message_builder_free(builder, false, &solicit_len);
+	return dhcp6_message_builder_free(builder, false, out_len);
+}
 
-	error = client->transport->send(client->transport, &all_nodes,
-							solicit, solicit_len);
-	return error;
+static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
+{
+	L_AUTO_FREE_VAR(struct dhcp6_message *, solicit);
+	size_t solicit_len;
+
+	CLIENT_DEBUG("");
+
+	solicit = dhcp6_client_build_message(client,
+						DHCP6_MESSAGE_TYPE_SOLICIT,
+						&solicit_len);
+	return client->transport->send(client->transport, &all_nodes,
+						solicit, solicit_len);
 }
 
 static int dhcp6_client_send_request(struct l_dhcp6_client *client)
 {
-	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
-	struct dhcp6_message_builder *builder;
 	L_AUTO_FREE_VAR(struct dhcp6_message *, request);
 	size_t request_len;
-	int error;
 
 	CLIENT_DEBUG("");
 
-	builder = dhcp6_message_builder_new(DHCP6_MESSAGE_TYPE_REQUEST,
-						client->transaction_id, 128);
-
-	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
-					client->duid, client->duid_len);
-	option_append_bytes(builder, L_DHCP6_OPTION_SERVER_ID,
-					client->lease->server_id,
-					client->lease->server_id_len);
-
-	/* Request the SOL_MAX_RT option and other options. */
-	option_append_option_request(builder, client->request_options,
-						DHCP6_STATE_SOLICITING);
-
-	option_append_elapsed_time(builder, client->transaction_start_t);
-
-	request = dhcp6_message_builder_free(builder, false, &request_len);
-
-	error = client->transport->send(client->transport, &all_nodes,
+	request = dhcp6_client_build_message(client,
+						DHCP6_MESSAGE_TYPE_REQUEST,
+						&request_len);
+	return client->transport->send(client->transport, &all_nodes,
 							request, request_len);
-
-	return error;
 }
 
 static int dhcp6_client_send_information_request(struct l_dhcp6_client *client)
