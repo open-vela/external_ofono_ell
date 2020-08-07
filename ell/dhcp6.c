@@ -569,6 +569,69 @@ static void client_duid_generate_addr_plus_time(struct l_dhcp6_client *client)
 							client->addr_len);
 }
 
+static uint64_t fuzz_msecs(uint64_t ms)
+{
+	/*
+	 * Compute ms + RAND*ms where RAND is in range -0.1 .. 0.1
+	 *
+	 * We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2]
+	 */
+        return ms - ms / 10 +
+			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
+						ms / 10 / L_MSEC_PER_SEC;
+}
+
+static void set_retransmission_delay(struct l_dhcp6_client *client,
+					uint32_t irt_sec, uint32_t mrt_sec,
+					uint8_t mrc)
+{
+	uint64_t irt_ms;
+	uint64_t mrt_ms;
+
+	if (mrc && mrc < client->attempt)
+		return;
+
+	/* TODO add check for duration */
+
+	irt_ms = irt_sec * L_MSEC_PER_SEC;
+	mrt_ms = mrt_sec * L_MSEC_PER_SEC;
+
+	/* RFC 8415, Section 15:
+	 * RT for the first message transmission is based on IRT:
+	 * 	RT = IRT + RAND*IRT
+	 *
+	 * RT for each subsequent message transmission is based on the
+	 * previous value of RT:
+	 * 	RT = 2*RTprev + RAND*RTprev
+	 *
+	 * MRT specifies an upper bound on the value of RT (disregarding the
+	 * randomization added by the use of RAND).  If MRT has a value of 0,
+	 * there is no upper limit on the value of RT.  Otherwise:
+	 * 	if (RT > MRT)
+	 * 		RT = MRT + RAND*MRT
+	 */
+	if (!client->attempt_delay) {
+		client->attempt_delay = fuzz_msecs(irt_ms);
+
+		/*
+		 * RFC 8415, Section 18.2.1:
+		 * ... the first RT MUST be selected to be strictly greater
+		 * than IRT by choosing RAND to be strictly greater than 0.
+		 */
+		if (client->state == DHCP6_STATE_SOLICITING &&
+				client->attempt_delay < irt_ms)
+			client->attempt_delay += irt_ms / 10;
+	} else {
+		if (mrt_ms && client->attempt_delay > mrt_ms)
+			client->attempt_delay = fuzz_msecs(mrt_ms);
+		else
+			client->attempt_delay +=
+					fuzz_msecs(client->attempt_delay);
+	}
+
+	l_timeout_modify_ms(client->timeout_send, client->attempt_delay);
+}
+
 static int dhcp6_client_send_solicit(struct l_dhcp6_client *client)
 {
 	static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
@@ -671,6 +734,59 @@ static int dhcp6_client_send_renew(struct l_dhcp6_client *client)
 
 static int dhcp6_client_send_release(struct l_dhcp6_client *client)
 {
+	return 0;
+}
+
+static int dhcp6_client_send_next(struct l_dhcp6_client *client)
+{
+	int r;
+
+	switch (client->state) {
+	case DHCP6_STATE_SOLICITING:
+		r = dhcp6_client_send_solicit(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, SOL_TIMEOUT, SOL_MAX_RT, 0);
+		break;
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		r = dhcp6_client_send_information_request(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, INF_TIMEOUT, INF_MAX_RT, 0);
+		break;
+	case DHCP6_STATE_REQUESTING:
+		r = dhcp6_client_send_request(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, REQ_TIMEOUT, REQ_MAX_RT,
+								REQ_MAX_RC);
+		break;
+	case DHCP6_STATE_RENEWING:
+		r = dhcp6_client_send_renew(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, REN_TIMEOUT, REN_MAX_RT, 0);
+		break;
+	case DHCP6_STATE_RELEASING:
+		r = dhcp6_client_send_release(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, REL_TIMEOUT, 0, REL_MAX_RC);
+		break;
+	case DHCP6_STATE_INIT:
+		return -EINVAL;
+	}
+
+	/* Set after the first successfully sent message. */
+	if (!client->transaction_start_t)
+		client->transaction_start_t = l_time_now();
+
+	client->attempt += 1;
 	return 0;
 }
 
@@ -973,69 +1089,6 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	}
 }
 
-static uint64_t fuzz_msecs(uint64_t ms)
-{
-	/*
-	 * Compute ms + RAND*ms where RAND is in range -0.1 .. 0.1
-	 *
-	 * We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2]
-	 */
-        return ms - ms / 10 +
-			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
-						ms / 10 / L_MSEC_PER_SEC;
-}
-
-static void set_retransmission_delay(struct l_dhcp6_client *client,
-					uint32_t irt_sec, uint32_t mrt_sec,
-					uint8_t mrc)
-{
-	uint64_t irt_ms;
-	uint64_t mrt_ms;
-
-	if (mrc && mrc < client->attempt)
-		return;
-
-	/* TODO add check for duration */
-
-	irt_ms = irt_sec * L_MSEC_PER_SEC;
-	mrt_ms = mrt_sec * L_MSEC_PER_SEC;
-
-	/* RFC 8415, Section 15:
-	 * RT for the first message transmission is based on IRT:
-	 * 	RT = IRT + RAND*IRT
-	 *
-	 * RT for each subsequent message transmission is based on the
-	 * previous value of RT:
-	 * 	RT = 2*RTprev + RAND*RTprev
-	 *
-	 * MRT specifies an upper bound on the value of RT (disregarding the
-	 * randomization added by the use of RAND).  If MRT has a value of 0,
-	 * there is no upper limit on the value of RT.  Otherwise:
-	 * 	if (RT > MRT)
-	 * 		RT = MRT + RAND*MRT
-	 */
-	if (!client->attempt_delay) {
-		client->attempt_delay = fuzz_msecs(irt_ms);
-
-		/*
-		 * RFC 8415, Section 18.2.1:
-		 * ... the first RT MUST be selected to be strictly greater
-		 * than IRT by choosing RAND to be strictly greater than 0.
-		 */
-		if (client->state == DHCP6_STATE_SOLICITING &&
-				client->attempt_delay < irt_ms)
-			client->attempt_delay += irt_ms / 10;
-	} else {
-		if (mrt_ms && client->attempt_delay > mrt_ms)
-			client->attempt_delay = fuzz_msecs(mrt_ms);
-		else
-			client->attempt_delay +=
-					fuzz_msecs(client->attempt_delay);
-	}
-
-	l_timeout_modify_ms(client->timeout_send, client->attempt_delay);
-}
-
 static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 								void *user_data)
 {
@@ -1043,54 +1096,8 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 
 	CLIENT_DEBUG("");
 
-	switch (client->state) {
-	case DHCP6_STATE_INIT:
-		return;
-	case DHCP6_STATE_SOLICITING:
-		if (dhcp6_client_send_solicit(client) < 0)
-			goto error;
-
-		set_retransmission_delay(client, SOL_TIMEOUT, SOL_MAX_RT, 0);
-		break;
-	case DHCP6_STATE_REQUESTING_INFORMATION:
-		if (dhcp6_client_send_information_request(client) < 0)
-			goto error;
-
-		set_retransmission_delay(client, INF_TIMEOUT, INF_MAX_RT, 0);
-		break;
-	case DHCP6_STATE_REQUESTING:
-		if (dhcp6_client_send_request(client) < 0)
-			goto error;
-
-		set_retransmission_delay(client, REQ_TIMEOUT, REQ_MAX_RT,
-								REQ_MAX_RC);
-		client->attempt += 1;
-
-		break;
-	case DHCP6_STATE_RENEWING:
-		if (dhcp6_client_send_renew(client) < 0)
-			goto error;
-
-		set_retransmission_delay(client, REN_TIMEOUT, REN_MAX_RT, 0);
-		break;
-	case DHCP6_STATE_RELEASING:
-		if (dhcp6_client_send_release(client) < 0)
-			goto error;
-
-		set_retransmission_delay(client, REL_TIMEOUT, 0, REL_MAX_RC);
-		client->attempt += 1;
-
-		break;
-	}
-
-	if (!client->transaction_start_t)
-		/* Set after the first successfully sent message. */
-		client->transaction_start_t = l_time_now();
-
-	return;
-
-error:
-	l_dhcp6_client_stop(client);
+	if (dhcp6_client_send_next(client) < 0)
+		l_dhcp6_client_stop(client);
 }
 
 LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
