@@ -43,11 +43,6 @@
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
-#define CLIENT_ENTER_STATE(s)						\
-	l_util_debug(client->debug_handler, client->debug_data,		\
-			"%s:%i Entering state: " #s,			\
-			__func__, __LINE__);				\
-	client->state = (s)
 
 /*
  * RFC8415: Table 1 - Transmission and Retransmission Parameters
@@ -345,6 +340,26 @@ enum dhcp6_state {
 	DHCP6_STATE_RENEWING,
 	DHCP6_STATE_RELEASING,
 };
+
+static const char *dhcp6_state_to_str(enum dhcp6_state s)
+{
+	switch (s) {
+	case DHCP6_STATE_INIT:
+		return "Init";
+	case DHCP6_STATE_SOLICITING:
+		return "Soliciting";
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		return "Requesting-Information";
+	case DHCP6_STATE_REQUESTING:
+		return "Requesting";
+	case DHCP6_STATE_RENEWING:
+		return "Renewing";
+	case DHCP6_STATE_RELEASING:
+		return "Releasing";
+	};
+
+	return "Invalid";
+}
 
 struct l_dhcp6_client {
 	enum dhcp6_state state;
@@ -659,6 +674,18 @@ static int dhcp6_client_send_release(struct l_dhcp6_client *client)
 	return 0;
 }
 
+static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
+						enum dhcp6_state new_state)
+{
+	client->attempt = 0;
+	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
+	client->transaction_start_t = 0;
+
+	client->state = new_state;
+	l_util_debug(client->debug_handler, client->debug_data,
+			"Entering state: %s", dhcp6_state_to_str(new_state));
+}
+
 void __dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
 				const void *options, size_t len)
 {
@@ -933,8 +960,6 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 
 		if (dhcp6_client_receive_reply(client, message, len) < 0)
 			return;
-
-		client->attempt = 0;
 		break;
 	case DHCP6_STATE_RENEWING:
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
@@ -944,12 +969,8 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	case DHCP6_STATE_RELEASING:
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
 			return;
-
-		client->attempt = 0;
 		break;
 	}
-
-	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
 }
 
 static uint64_t fuzz_msecs(uint64_t ms)
@@ -1293,13 +1314,12 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 						dhcp6_client_rx_message,
 						client);
 
-	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
-
 	if (client->stateless) {
-		CLIENT_ENTER_STATE(DHCP6_STATE_REQUESTING_INFORMATION);
+		dhcp6_client_new_transaction(client,
+					DHCP6_STATE_REQUESTING_INFORMATION);
 		delay = pick_delay_interval(0, INF_MAX_DELAY);
 	} else {
-		CLIENT_ENTER_STATE(DHCP6_STATE_SOLICITING);
+		dhcp6_client_new_transaction(client, DHCP6_STATE_SOLICITING);
 		delay = pick_delay_interval(0, SOL_MAX_DELAY);
 	}
 
@@ -1336,14 +1356,15 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 	if (unlikely(!client))
 		return false;
 
+	CLIENT_DEBUG("");
+
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
 
 	if (client->transport && client->transport->close)
 		client->transport->close(client->transport);
 
-	client->transaction_start_t = 0;
-	CLIENT_ENTER_STATE(DHCP6_STATE_INIT);
+	client->state = DHCP6_STATE_INIT;
 
 	return true;
 }
