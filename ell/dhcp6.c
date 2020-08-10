@@ -1229,6 +1229,27 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 	l_free(client);
 }
 
+LIB_EXPORT const struct l_dhcp6_lease *l_dhcp6_client_get_lease(
+					const struct l_dhcp6_client *client)
+{
+	if (unlikely(!client))
+		return NULL;
+
+	switch (client->state) {
+	case DHCP6_STATE_INIT:
+	case DHCP6_STATE_SOLICITING:
+	case DHCP6_STATE_REQUESTING:
+	case DHCP6_STATE_RELEASING:
+		return NULL;
+	case DHCP6_STATE_BOUND:
+	case DHCP6_STATE_RENEWING:
+	case DHCP6_STATE_REQUESTING_INFORMATION:
+		break;
+	}
+
+	return client->lease;
+}
+
 LIB_EXPORT bool l_dhcp6_client_set_address(struct l_dhcp6_client *client,
 						uint8_t type,
 						const uint8_t *addr,

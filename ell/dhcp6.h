@@ -80,6 +80,8 @@ typedef void (*l_dhcp6_destroy_cb_t)(void *userdata);
 struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex);
 void l_dhcp6_client_destroy(struct l_dhcp6_client *client);
 
+const struct l_dhcp6_lease *l_dhcp6_client_get_lease(
+					const struct l_dhcp6_client *client);
 bool l_dhcp6_client_set_address(struct l_dhcp6_client *client, uint8_t type,
 				const uint8_t *addr, size_t addr_len);
 bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
