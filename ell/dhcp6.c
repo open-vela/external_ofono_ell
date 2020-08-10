@@ -802,6 +802,18 @@ static int dhcp6_client_send_next(struct l_dhcp6_client *client)
 	return 0;
 }
 
+static inline void dhcp6_client_event_notify(struct l_dhcp6_client *client,
+						enum l_dhcp6_client_event event)
+{
+	if (client->event_handler)
+		client->event_handler(client, event, client->event_data);
+}
+
+static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
+{
+	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
+}
+
 static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 						enum dhcp6_state new_state)
 {
@@ -1094,13 +1106,41 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 					const struct dhcp6_message *reply,
 					size_t len)
 {
+	struct l_dhcp6_lease *lease;
+	struct dhcp6_option_iter iter;
 	int r;
 
 	r = dhcp6_client_validate_message(client, reply, len);
 	if (r < 0)
 		return r;
 
-	return 0;
+	_dhcp6_option_iter_init(&iter, reply, len);
+	lease = _dhcp6_lease_parse_options(&iter, client->addr + 2);
+	if (!lease)
+		return -EBADMSG;
+
+	if (client->request_na && !lease->have_na) {
+		CLIENT_DEBUG("Requested Non-Temporary address, but not present"
+				" in lease, FAIL.");
+		goto bad_lease;
+	}
+
+	if (client->request_pd && !lease->have_pd) {
+		CLIENT_DEBUG("Requested Prefix Delegation but not present in"
+				" lease, FAIL");
+		goto bad_lease;
+	}
+
+	_dhcp6_lease_free(client->lease);
+	client->lease = lease;
+
+	return DHCP6_STATE_BOUND;
+
+bad_lease:
+	_dhcp6_lease_free(lease);
+	l_dhcp6_client_stop(client);
+	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_NO_LEASE);
+	return r;
 }
 
 static void dhcp6_client_rx_message(const void *data, size_t len,
@@ -1154,7 +1194,8 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
 			return;
 
-		if (dhcp6_client_receive_reply(client, message, len) < 0)
+		r = dhcp6_client_receive_reply(client, message, len);
+		if (r < 0)
 			return;
 		break;
 	case DHCP6_STATE_RENEWING:
@@ -1172,6 +1213,11 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		return;
 
 	dhcp6_client_new_transaction(client, r);
+
+	if (client->state == DHCP6_STATE_BOUND) {
+		dhcp6_client_setup_lease(client);
+		return;
+	}
 
 	if (dhcp6_client_send_next(client) < 0)
 		l_dhcp6_client_stop(client);
