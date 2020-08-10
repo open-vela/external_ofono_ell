@@ -337,6 +337,7 @@ enum dhcp6_state {
 	DHCP6_STATE_SOLICITING,
 	DHCP6_STATE_REQUESTING_INFORMATION,
 	DHCP6_STATE_REQUESTING,
+	DHCP6_STATE_BOUND,
 	DHCP6_STATE_RENEWING,
 	DHCP6_STATE_RELEASING,
 };
@@ -352,6 +353,8 @@ static const char *dhcp6_state_to_str(enum dhcp6_state s)
 		return "Requesting-Information";
 	case DHCP6_STATE_REQUESTING:
 		return "Requesting";
+	case DHCP6_STATE_BOUND:
+		return "Bound";
 	case DHCP6_STATE_RENEWING:
 		return "Renewing";
 	case DHCP6_STATE_RELEASING:
@@ -429,6 +432,7 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 		l_uintset_put(clone, L_DHCP6_OPTION_INF_MAX_RT);
 		break;
 	case DHCP6_STATE_INIT:
+	case DHCP6_STATE_BOUND:
 	case DHCP6_STATE_RENEWING:
 	case DHCP6_STATE_RELEASING:
 		break;
@@ -786,6 +790,7 @@ static int dhcp6_client_send_next(struct l_dhcp6_client *client)
 		set_retransmission_delay(client, REL_TIMEOUT, 0, REL_MAX_RC);
 		break;
 	case DHCP6_STATE_INIT:
+	case DHCP6_STATE_BOUND:
 		return -EINVAL;
 	}
 
@@ -1126,6 +1131,7 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 
 	switch (client->state) {
 	case DHCP6_STATE_INIT:
+	case DHCP6_STATE_BOUND:
 		return;
 	case DHCP6_STATE_SOLICITING:
 		if (message->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
