@@ -1148,7 +1148,7 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 {
 	struct l_dhcp6_client *client = userdata;
 	const struct dhcp6_message *message = data;
-	int r;
+	int r = client->state;
 
 	CLIENT_DEBUG("");
 
