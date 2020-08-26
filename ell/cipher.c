@@ -485,10 +485,10 @@ LIB_EXPORT bool l_cipher_set_iv(struct l_cipher *cipher, const uint8_t *iv,
 	msg.msg_iov = NULL;
 	msg.msg_iovlen = 0;
 
-	if (sendmsg(cipher->encrypt_sk, &msg, 0) < 0)
+	if (sendmsg(cipher->encrypt_sk, &msg, MSG_MORE) < 0)
 		return false;
 
-	if (sendmsg(cipher->decrypt_sk, &msg, 0) < 0)
+	if (sendmsg(cipher->decrypt_sk, &msg, MSG_MORE) < 0)
 		return false;
 
 	return true;
