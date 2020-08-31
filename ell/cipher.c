@@ -93,8 +93,7 @@ static uint32_t supported_aead_ciphers;
 
 struct l_cipher {
 	int type;
-	int encrypt_sk;
-	int decrypt_sk;
+	int sk;
 };
 
 struct l_aead_cipher {
@@ -177,20 +176,12 @@ LIB_EXPORT struct l_cipher *l_cipher_new(enum l_cipher_type type,
 	cipher->type = type;
 	alg_name = cipher_type_to_name(type);
 
-	cipher->encrypt_sk = create_alg("skcipher", alg_name, key, key_length,
-					0);
-	if (cipher->encrypt_sk < 0)
+	cipher->sk = create_alg("skcipher", alg_name, key, key_length, 0);
+	if (cipher->sk < 0)
 		goto error_free;
-
-	cipher->decrypt_sk = create_alg("skcipher", alg_name, key, key_length,
-					0);
-	if (cipher->decrypt_sk < 0)
-		goto error_close;
 
 	return cipher;
 
-error_close:
-	close(cipher->encrypt_sk);
 error_free:
 	l_free(cipher);
 	return NULL;
@@ -239,8 +230,7 @@ LIB_EXPORT void l_cipher_free(struct l_cipher *cipher)
 	if (unlikely(!cipher))
 		return;
 
-	close(cipher->encrypt_sk);
-	close(cipher->decrypt_sk);
+	close(cipher->sk);
 
 	l_free(cipher);
 }
@@ -413,7 +403,7 @@ LIB_EXPORT bool l_cipher_encrypt(struct l_cipher *cipher,
 	if (unlikely(!in) || unlikely(!out))
 		return false;
 
-	return operate_cipher(cipher->encrypt_sk, ALG_OP_ENCRYPT, in, len,
+	return operate_cipher(cipher->sk, ALG_OP_ENCRYPT, in, len,
 				NULL, 0, NULL, 0, out, len) >= 0;
 }
 
@@ -427,7 +417,7 @@ LIB_EXPORT bool l_cipher_encryptv(struct l_cipher *cipher,
 	if (unlikely(!in) || unlikely(!out))
 		return false;
 
-	return operate_cipherv(cipher->encrypt_sk, ALG_OP_ENCRYPT, in, in_cnt,
+	return operate_cipherv(cipher->sk, ALG_OP_ENCRYPT, in, in_cnt,
 				out, out_cnt) >= 0;
 }
 
@@ -440,7 +430,7 @@ LIB_EXPORT bool l_cipher_decrypt(struct l_cipher *cipher,
 	if (unlikely(!in) || unlikely(!out))
 		return false;
 
-	return operate_cipher(cipher->decrypt_sk, ALG_OP_DECRYPT, in, len,
+	return operate_cipher(cipher->sk, ALG_OP_DECRYPT, in, len,
 				NULL, 0, NULL, 0, out, len) >= 0;
 }
 
@@ -454,7 +444,7 @@ LIB_EXPORT bool l_cipher_decryptv(struct l_cipher *cipher,
 	if (unlikely(!in) || unlikely(!out))
 		return false;
 
-	return operate_cipherv(cipher->decrypt_sk, ALG_OP_DECRYPT, in, in_cnt,
+	return operate_cipherv(cipher->sk, ALG_OP_DECRYPT, in, in_cnt,
 				out, out_cnt) >= 0;
 }
 
@@ -485,10 +475,7 @@ LIB_EXPORT bool l_cipher_set_iv(struct l_cipher *cipher, const uint8_t *iv,
 	msg.msg_iov = NULL;
 	msg.msg_iovlen = 0;
 
-	if (sendmsg(cipher->encrypt_sk, &msg, MSG_MORE) < 0)
-		return false;
-
-	if (sendmsg(cipher->decrypt_sk, &msg, MSG_MORE) < 0)
+	if (sendmsg(cipher->sk, &msg, MSG_MORE) < 0)
 		return false;
 
 	return true;
