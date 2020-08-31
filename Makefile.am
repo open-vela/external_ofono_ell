@@ -58,7 +58,8 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/ecdh.h \
 			ell/time.h \
 			ell/gpio.h \
-			ell/path.h
+			ell/path.h \
+			ell/icmp6.h
 
 lib_LTLIBRARIES = ell/libell.la
 
@@ -137,7 +138,8 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/time.c \
 			ell/time-private.h \
 			ell/gpio.c \
-			ell/path.c
+			ell/path.c \
+			ell/icmp6.c
 
 ell_libell_la_LDFLAGS = -no-undefined \
 			-Wl,--version-script=$(top_srcdir)/ell/ell.sym \
