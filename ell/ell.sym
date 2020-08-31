@@ -579,6 +579,15 @@ global:
 	l_rtnl_route6_dump;
 	l_rtnl_route6_add_gateway;
 	l_rtnl_route6_delete_gateway;
+	/* icmp6 */
+	l_icmp6_client_new;
+	l_icmp6_client_free;
+	l_icmp6_client_start;
+	l_icmp6_client_stop;
+	l_icmp6_client_set_event_handler;
+	l_icmp6_client_set_debug;
+	l_icmp6_client_set_address;
+	l_icmp6_client_set_nodelay;
 local:
 	*;
 };
