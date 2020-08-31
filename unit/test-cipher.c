@@ -79,23 +79,23 @@ static void test_aes(const void *data)
 static void test_aes_ctr(const void *data)
 {
 	struct l_cipher *cipher;
-	uint8_t iv[8] = { 0 };
+	uint8_t iv[16] = { 0 };
 	char buf[256];
 	int r;
 
 	cipher = l_cipher_new(L_CIPHER_AES_CTR, KEY_STR, KEY_LEN);
 	assert(cipher);
 
-	l_cipher_set_iv(cipher, iv, sizeof(iv));
+	assert(l_cipher_set_iv(cipher, iv, sizeof(iv)));
 
 	memcpy(buf, FIXED_STR, FIXED_LEN);
-
-	l_cipher_encrypt(cipher, buf, buf, FIXED_LEN);
+	assert(l_cipher_encrypt(cipher, buf, buf, FIXED_LEN));
 
 	r = memcmp(buf, FIXED_STR, FIXED_LEN);
 	assert(r);
 
-	l_cipher_decrypt(cipher, buf, buf, FIXED_LEN);
+	assert(l_cipher_set_iv(cipher, iv, sizeof(iv)));
+	assert(l_cipher_decrypt(cipher, buf, buf, FIXED_LEN));
 
 	r = memcmp(buf, FIXED_STR, FIXED_LEN);
 	assert(!r);
