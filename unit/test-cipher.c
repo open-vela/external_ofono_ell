@@ -28,6 +28,7 @@
 #include <alloca.h>
 #include <stdio.h>
 
+#include "ell/private.h"
 #include <ell/ell.h>
 
 #define FIXED_STR  "The quick brown fox jumps over the lazy dog. " \
@@ -51,19 +52,23 @@ static void test_aes(const void *data)
 {
 	struct l_cipher *cipher;
 	char buf[256];
+	size_t real_len;
 	int r;
 
 	cipher = l_cipher_new(L_CIPHER_AES, KEY_STR, KEY_LEN);
 	assert(cipher);
 
 	memcpy(buf, FIXED_STR, FIXED_LEN);
+	/* AES is a block cipher, so pad out to next 16-byte boundary */
+	real_len = align_len(FIXED_LEN, 16);
+	memset(buf + FIXED_LEN, 0, real_len - FIXED_LEN);
 
-	l_cipher_encrypt(cipher, buf, buf, FIXED_LEN);
+	assert(l_cipher_encrypt(cipher, buf, buf, real_len));
 
 	r = memcmp(buf, FIXED_STR, FIXED_LEN);
 	assert(r);
 
-	l_cipher_decrypt(cipher, buf, buf, FIXED_LEN);
+	assert(l_cipher_decrypt(cipher, buf, buf, real_len));
 
 	r = memcmp(buf, FIXED_STR, FIXED_LEN);
 	assert(!r);
