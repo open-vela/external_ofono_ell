@@ -1388,6 +1388,7 @@ LIB_EXPORT bool l_dhcp6_client_set_lla_randomized(struct l_dhcp6_client *client,
 
 	return true;
 }
+
 LIB_EXPORT bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client,
 						bool nodelay)
 {
