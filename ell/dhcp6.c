@@ -33,6 +33,7 @@
 #include "ell/log.h"
 #include "ell/random.h"
 #include "ell/time.h"
+#include "ell/time-private.h"
 #include "ell/net.h"
 #include "ell/timeout.h"
 #include "ell/uintset.h"
@@ -588,18 +589,6 @@ static void client_duid_generate_addr_plus_time(struct l_dhcp6_client *client)
 							client->addr_len);
 }
 
-static uint64_t fuzz_msecs(uint64_t ms)
-{
-	/*
-	 * Compute ms + RAND*ms where RAND is in range -0.1 .. 0.1
-	 *
-	 * We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2]
-	 */
-        return ms - ms / 10 +
-			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
-						ms / 10 / L_MSEC_PER_SEC;
-}
-
 static void set_retransmission_delay(struct l_dhcp6_client *client,
 					uint32_t irt_sec, uint32_t mrt_sec,
 					uint8_t mrc)
@@ -630,7 +619,7 @@ static void set_retransmission_delay(struct l_dhcp6_client *client,
 	 * 		RT = MRT + RAND*MRT
 	 */
 	if (!client->attempt_delay) {
-		client->attempt_delay = fuzz_msecs(irt_ms);
+		client->attempt_delay = _time_fuzz_msecs(irt_ms);
 
 		/*
 		 * RFC 8415, Section 18.2.1:
@@ -642,10 +631,10 @@ static void set_retransmission_delay(struct l_dhcp6_client *client,
 			client->attempt_delay += irt_ms / 10;
 	} else {
 		if (mrt_ms && client->attempt_delay > mrt_ms)
-			client->attempt_delay = fuzz_msecs(mrt_ms);
+			client->attempt_delay = _time_fuzz_msecs(mrt_ms);
 		else
 			client->attempt_delay +=
-					fuzz_msecs(client->attempt_delay);
+					_time_fuzz_msecs(client->attempt_delay);
 	}
 
 	l_timeout_modify_ms(client->timeout_send, client->attempt_delay);
@@ -1431,14 +1420,6 @@ LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 	return true;
 }
 
-static uint64_t pick_delay_interval(uint32_t min_secs, uint32_t max_secs)
-{
-	uint64_t min_ms = min_secs * 1000ULL;
-	uint64_t max_ms = max_secs * 1000ULL;
-
-	return l_getrandom_uint32() % (max_ms + 1 - min_ms) + min_ms;
-}
-
 LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 {
 	uint32_t delay;
@@ -1486,10 +1467,10 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 	if (client->stateless) {
 		dhcp6_client_new_transaction(client,
 					DHCP6_STATE_REQUESTING_INFORMATION);
-		delay = pick_delay_interval(0, INF_MAX_DELAY);
+		delay = _time_pick_interval_secs(0, INF_MAX_DELAY);
 	} else {
 		dhcp6_client_new_transaction(client, DHCP6_STATE_SOLICITING);
-		delay = pick_delay_interval(0, SOL_MAX_DELAY);
+		delay = _time_pick_interval_secs(0, SOL_MAX_DELAY);
 	}
 
 	/*

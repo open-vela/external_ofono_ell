@@ -135,6 +135,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/ecc.c \
 			ell/ecdh.c \
 			ell/time.c \
+			ell/time-private.h \
 			ell/gpio.c \
 			ell/path.c
 
