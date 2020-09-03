@@ -1,3 +1,11 @@
+ver 0.33:
+	Fix issue with uintset and number of bytes copied.
+	Fix issue with overflow in DHCP lease T2 computation.
+	Fix issue with side channel leak in l_ecc_scalar_new.
+	Fix issue with missing MSG_MORE in l_cipher_set_iv.
+	Add support for DHCP v6 client implementation.
+	Remove support for ARC4 and RC4 cipher suites.
+
 ver 0.32:
 	Fix issue with handling D-Bus watch removal.
 
