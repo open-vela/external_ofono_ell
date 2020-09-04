@@ -584,10 +584,13 @@ global:
 	l_icmp6_client_free;
 	l_icmp6_client_start;
 	l_icmp6_client_stop;
+	l_icmp6_client_get_router;
 	l_icmp6_client_set_event_handler;
 	l_icmp6_client_set_debug;
 	l_icmp6_client_set_address;
 	l_icmp6_client_set_nodelay;
+	l_icmp6_router_get_managed;
+	l_icmp6_router_get_other;
 local:
 	*;
 };

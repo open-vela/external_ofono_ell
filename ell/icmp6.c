@@ -41,6 +41,7 @@
 #include "time-private.h"
 #include "net.h"
 #include "icmp6.h"
+#include "icmp6-private.h"
 
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
@@ -229,6 +230,8 @@ struct l_icmp6_client {
 	uint64_t retransmit_time;
 	struct l_io *io;
 
+	struct l_icmp6_router *ra;
+
 	l_icmp6_client_event_cb_t event_handler;
 	void *event_data;
 	l_icmp6_destroy_cb_t event_destroy;
@@ -252,17 +255,14 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 						struct nd_router_advert *ra,
 						const struct in6_addr *src)
 {
-	if (ra->nd_ra_type != ND_ROUTER_ADVERT) {
-		CLIENT_DEBUG("Received packet not RA - ignore");
-		return -EINVAL;
-	}
+	struct l_icmp6_router *r = _icmp6_router_parse(ra, src->s6_addr);
 
-	if (ra->nd_ra_code != 0) {
-		CLIENT_DEBUG("Received packet has wrong RA code - ignore");
+	if (!r)
 		return -EBADMSG;
-	}
 
-	return -ENOTSUP;
+	_icmp6_router_free(client->ra);
+	client->ra = r;
+	return 0;
 }
 
 static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
@@ -413,7 +413,21 @@ LIB_EXPORT bool l_icmp6_client_stop(struct l_icmp6_client *client)
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
 
+	if (client->ra) {
+		_icmp6_router_free(client->ra);
+		client->ra = NULL;
+	}
+
 	return true;
+}
+
+LIB_EXPORT const struct l_icmp6_router *l_icmp6_client_get_router(
+						struct l_icmp6_client *client)
+{
+	if (unlikely(!client))
+		return NULL;
+
+	return client->ra;
 }
 
 LIB_EXPORT bool l_icmp6_client_set_event_handler(struct l_icmp6_client *client,
@@ -475,4 +489,55 @@ LIB_EXPORT bool l_icmp6_client_set_nodelay(struct l_icmp6_client *client,
 	client->nodelay = nodelay;
 
 	return true;
+}
+
+struct l_icmp6_router *_icmp6_router_new()
+{
+	struct l_icmp6_router *r = l_new(struct l_icmp6_router, 1);
+
+	return r;
+}
+
+void _icmp6_router_free(struct l_icmp6_router *r)
+{
+	l_free(r);
+}
+
+struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
+						const uint8_t src[static 16])
+{
+	struct l_icmp6_router *r;
+
+	if (ra->nd_ra_type != ND_ROUTER_ADVERT)
+		return NULL;
+
+	if (ra->nd_ra_code != 0)
+		return NULL;
+
+	r = _icmp6_router_new();
+	memcpy(r->address, src, sizeof(r->address));
+
+	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
+		r->managed = true;
+
+	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_OTHER)
+		r->other = true;
+
+	return r;
+}
+
+LIB_EXPORT bool l_icmp6_router_get_managed(const struct l_icmp6_router *r)
+{
+	if (unlikely(!r))
+		return false;
+
+	return r->managed;
+}
+
+LIB_EXPORT bool l_icmp6_router_get_other(const struct l_icmp6_router *r)
+{
+	if (unlikely(!r))
+		return false;
+
+	return r->other;
 }
