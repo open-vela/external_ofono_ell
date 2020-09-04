@@ -139,7 +139,8 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/time-private.h \
 			ell/gpio.c \
 			ell/path.c \
-			ell/icmp6.c
+			ell/icmp6.c \
+			ell/icmp6-private.h
 
 ell_libell_la_LDFLAGS = -no-undefined \
 			-Wl,--version-script=$(top_srcdir)/ell/ell.sym \

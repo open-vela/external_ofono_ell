@@ -30,6 +30,7 @@ extern "C" {
 #include <stdbool.h>
 
 struct l_icmp6_client;
+struct l_icmp6_router;
 
 enum l_icmp6_client_event {
 	L_ICMP6_CLIENT_EVENT_ROUTER_FOUND = 0,
@@ -47,6 +48,8 @@ void l_icmp6_client_free(struct l_icmp6_client *client);
 bool l_icmp6_client_start(struct l_icmp6_client *client);
 bool l_icmp6_client_stop(struct l_icmp6_client *client);
 
+const struct l_icmp6_router *l_icmp6_client_get_router(
+						struct l_icmp6_client *client);
 bool l_icmp6_client_set_event_handler(struct l_icmp6_client *client,
 					l_icmp6_client_event_cb_t handler,
 					void *userdata,
@@ -57,6 +60,9 @@ bool l_icmp6_client_set_debug(struct l_icmp6_client *client,
 bool l_icmp6_client_set_address(struct l_icmp6_client *client,
 					const uint8_t addr[static 6]);
 bool l_icmp6_client_set_nodelay(struct l_icmp6_client *client, bool nodelay);
+
+bool l_icmp6_router_get_managed(const struct l_icmp6_router *r);
+bool l_icmp6_router_get_other(const struct l_icmp6_router *r);
 
 #ifdef __cplusplus
 }
