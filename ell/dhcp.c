@@ -787,7 +787,7 @@ static void dhcp_client_lease_expired(struct l_timeout *timeout,
 	CLIENT_DEBUG("");
 
 	l_dhcp_client_stop(client);
-	dhcp_client_event_notify(client, L_DHCP_CLIENT_EVENT_NO_LEASE);
+	dhcp_client_event_notify(client, L_DHCP_CLIENT_EVENT_LEASE_EXPIRED);
 }
 
 static void dhcp_client_t2_expired(struct l_timeout *timeout, void *user_data)
