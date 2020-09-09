@@ -231,6 +231,7 @@ static void test_obtain_lease(const void *data)
 	assert(l_dhcp6_client_set_event_handler(client,
 				event_handler_lease_obtained, NULL, NULL));
 	assert(l_dhcp6_client_set_nodelay(client, true));
+	assert(l_dhcp6_client_set_nora(client, true));
 	assert(l_dhcp6_client_set_lla_randomized(client, true));
 
 	assert(l_dhcp6_client_start(client));
