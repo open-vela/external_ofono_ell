@@ -250,6 +250,7 @@ global:
 	l_dhcp6_client_set_event_handler;
 	l_dhcp6_client_set_lla_randomized;
 	l_dhcp6_client_set_nodelay;
+	l_dhcp6_client_set_nora;
 	l_dhcp6_client_set_stateless;
 	l_dhcp6_client_add_request_option;
 	l_dhcp6_client_start;

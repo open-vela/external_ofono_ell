@@ -38,6 +38,7 @@
 #include "ell/timeout.h"
 #include "ell/uintset.h"
 #include "ell/private.h"
+#include "ell/icmp6.h"
 #include "ell/dhcp6-private.h"
 #include "ell/dhcp6.h"
 
@@ -386,6 +387,8 @@ struct l_dhcp6_client {
 	struct l_timeout *timeout_send;
 	struct l_dhcp6_lease *lease;
 
+	struct l_icmp6_client *icmp6;
+
 	l_dhcp6_client_event_cb_t event_handler;
 	void *event_data;
 	l_dhcp6_destroy_cb_t event_destroy;
@@ -400,6 +403,7 @@ struct l_dhcp6_client {
 
 	bool stateless : 1;
 	bool nodelay : 1;
+	bool nora : 1;
 	bool request_pd : 1;
 	bool request_na : 1;
 };
@@ -1229,6 +1233,93 @@ static void dhcp6_client_timeout_send(struct l_timeout *timeout,
 		l_dhcp6_client_stop(client);
 }
 
+static void dhcp6_client_send_initial(struct l_dhcp6_client *client)
+{
+	uint32_t delay;
+
+	if (client->stateless) {
+		dhcp6_client_new_transaction(client,
+					DHCP6_STATE_REQUESTING_INFORMATION);
+		delay = _time_pick_interval_secs(0, INF_MAX_DELAY);
+	} else {
+		dhcp6_client_new_transaction(client, DHCP6_STATE_SOLICITING);
+		delay = _time_pick_interval_secs(0, SOL_MAX_DELAY);
+	}
+
+	/*
+	 * RFC 8415, Section 18.2.1:
+	 * "The first Solicit message from the client on the interface SHOULD
+	 * be delayed by a random amount of time between 0 and SOL_MAX_DELAY.
+	 * This random delay helps desynchronize clients that start a DHCP
+	 * session at the same time, such as after recovery from a power
+	 * failure or after a router outage after seeing that DHCP is
+	 * available in Router Advertisement messages..."
+	 *
+	 * Similar verbiage in Section 18.2.6, except it uses 'MUST':
+	 * "The first Information-request message from the client on the
+	 * interface MUST be delayed by a random amount of time between 0 and
+	 * INF_MAX_DELAY."
+	 *
+	 * In certain situations, like when a WiFi network was just joined,
+	 * there's no point in waiting a random time, so we forgo the wait
+	 * if no delay is requested
+	 */
+	if (client->nodelay)
+		delay = 0;
+
+	client->timeout_send = l_timeout_create_ms(delay,
+						dhcp6_client_timeout_send,
+						client, NULL);
+
+	if (client->nodelay)
+		dhcp6_client_timeout_send(NULL, client);
+}
+
+static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
+					enum l_icmp6_client_event event,
+					void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	l_timeout_remove(client->timeout_send);
+	client->timeout_send = NULL;
+
+	switch (event) {
+	case L_ICMP6_CLIENT_EVENT_ROUTER_FOUND:
+	{
+		const struct l_icmp6_router *r =
+			l_icmp6_client_get_router(icmp6);
+		bool managed = l_icmp6_router_get_managed(r);
+		bool other = l_icmp6_router_get_other(r);
+
+		CLIENT_DEBUG("Received RA, managed: %s, other: %s",
+				managed ? "yes" : "no",
+				other ? "yes" : "no");
+
+		if (!managed && !other) {
+			l_dhcp6_client_stop(client);
+			dhcp6_client_event_notify(client,
+						L_DHCP6_CLIENT_EVENT_NO_LEASE);
+			return;
+		}
+
+		if (l_icmp6_router_get_managed(r))
+			dhcp6_client_send_initial(client);
+
+		break;
+	}
+	}
+}
+
+static void dhcp6_client_no_ra(struct l_timeout *timeout, void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	CLIENT_DEBUG("No Router Advertisements received, assume no DHCPv6");
+	l_dhcp6_client_stop(client);
+	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_NO_LEASE);
+}
+
 LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 {
 	struct l_dhcp6_client *client;
@@ -1259,7 +1350,6 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 	_dhcp6_transport_free(client->transport);
 	l_uintset_free(client->request_options);
 	l_free(client->duid);
-	l_timeout_remove(client->timeout_send);
 
 	l_free(client);
 }
@@ -1392,6 +1482,20 @@ LIB_EXPORT bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client,
 	return true;
 }
 
+LIB_EXPORT bool l_dhcp6_client_set_nora(struct l_dhcp6_client *client,
+					bool nora)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client->nora = nora;
+
+	return true;
+}
+
 LIB_EXPORT bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless)
 {
@@ -1422,8 +1526,6 @@ LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 
 LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 {
-	uint32_t delay;
-
 	if (unlikely(!client))
 		return false;
 
@@ -1464,40 +1566,30 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 						dhcp6_client_rx_message,
 						client);
 
-	if (client->stateless) {
-		dhcp6_client_new_transaction(client,
-					DHCP6_STATE_REQUESTING_INFORMATION);
-		delay = _time_pick_interval_secs(0, INF_MAX_DELAY);
-	} else {
-		dhcp6_client_new_transaction(client, DHCP6_STATE_SOLICITING);
-		delay = _time_pick_interval_secs(0, SOL_MAX_DELAY);
+	if (client->nora || client->addr_type != ARPHRD_ETHER) {
+		dhcp6_client_send_initial(client);
+		return true;
 	}
 
-	/*
-	 * RFC 8415, Section 18.2.1:
-	 * "The first Solicit message from the client on the interface SHOULD
-	 * be delayed by a random amount of time between 0 and SOL_MAX_DELAY.
-	 * This random delay helps desynchronize clients that start a DHCP
-	 * session at the same time, such as after recovery from a power
-	 * failure or after a router outage after seeing that DHCP is
-	 * available in Router Advertisement messages..."
-	 *
-	 * Similar verbiage in Section 18.2.6, except it uses 'MUST':
-	 * "The first Information-request message from the client on the
-	 * interface MUST be delayed by a random amount of time between 0 and
-	 * INF_MAX_DELAY."
-	 *
-	 * In certain situations, like when a WiFi network was just joined,
-	 * there's no point in waiting a random time, so we forgo the wait
-	 * if no delay is requested
-	 */
-	if (client->nodelay)
-		dhcp6_client_timeout_send(NULL, client);
-	else
-		client->timeout_send = l_timeout_create_ms(delay,
-						dhcp6_client_timeout_send,
+	client->icmp6 = l_icmp6_client_new(client->ifindex);
+	l_icmp6_client_set_address(client->icmp6, client->addr);
+	l_icmp6_client_set_event_handler(client->icmp6,
+						dhcp6_client_icmp6_event,
 						client, NULL);
+	l_icmp6_client_set_debug(client->icmp6, client->debug_handler,
+					client->debug_data,
+					client->debug_destroy);
+	l_icmp6_client_set_nodelay(client->icmp6, client->nodelay);
 
+	if (!l_icmp6_client_start(client->icmp6))
+		return false;
+
+	/*
+	 * Start a timer.  In case there are no router advertisements that
+	 * come back in a reasonable time, fail with a NO_LEASE event
+	 */
+	client->timeout_send = l_timeout_create(10, dhcp6_client_no_ra,
+						client, NULL);
 	return true;
 }
 
@@ -1510,6 +1602,9 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 
 	_dhcp6_lease_free(client->lease);
 	client->lease = NULL;
+
+	l_icmp6_client_free(client->icmp6);
+	client->icmp6 = NULL;
 
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
