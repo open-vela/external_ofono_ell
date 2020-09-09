@@ -281,7 +281,7 @@ LIB_EXPORT void l_timeout_remove(struct l_timeout *timeout)
 	if (unlikely(!timeout))
 		return;
 
-	watch_remove(timeout->fd);
+	watch_remove(timeout->fd, false);
 
 	l_free(timeout);
 }
