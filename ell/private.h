@@ -47,7 +47,7 @@ typedef void (*idle_destroy_cb_t) (void *user_data);
 int watch_add(int fd, uint32_t events, watch_event_cb_t callback,
 				void *user_data, watch_destroy_cb_t destroy);
 int watch_modify(int fd, uint32_t events, bool force);
-int watch_remove(int fd);
+int watch_remove(int fd, bool epoll_del);
 int watch_clear(int fd);
 
 #define IDLE_FLAG_NO_WARN_DANGLING 0x10000000

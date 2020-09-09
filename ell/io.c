@@ -114,7 +114,7 @@ static void io_callback(int fd, uint32_t events, void *user_data)
 	if (unlikely(events & (EPOLLERR | EPOLLHUP))) {
 		l_util_debug(io->debug_handler, io->debug_data,
 						"disconnect event <%p>", io);
-		watch_remove(io->fd);
+		watch_remove(io->fd, !io->close_on_destroy);
 		io_closed(io);
 		return;
 	}
@@ -209,7 +209,7 @@ LIB_EXPORT void l_io_destroy(struct l_io *io)
 		return;
 
 	if (io->fd != -1)
-		watch_remove(io->fd);
+		watch_remove(io->fd, !io->close_on_destroy);
 
 	io_closed(io);
 
