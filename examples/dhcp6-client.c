@@ -49,10 +49,47 @@ static void signal_handler(uint32_t signo, void *user_data)
 	}
 }
 
+static void print_lease(const struct l_dhcp6_lease *lease)
+{
+	char *ip = l_dhcp6_lease_get_address(lease);
+	char **dns = l_dhcp6_lease_get_dns(lease);
+	uint32_t prefix_length = l_dhcp6_lease_get_prefix_length(lease);
+
+	l_info("Lease Obtained:");
+
+	l_info("\tIP: %s/%u", ip, prefix_length);
+	l_free(ip);
+
+	if (dns) {
+		char *dns_concat = l_strjoinv(dns, ',');
+		l_info("\tDNS List: %s", dns_concat);
+		l_free(dns_concat);
+		l_strfreev(dns);
+	} else
+		l_info("\tNo DNS information obtained");
+}
+
 static void event_handler(struct l_dhcp6_client *client,
 					enum l_dhcp6_client_event event,
 					void *userdata)
 {
+	switch (event) {
+	case L_DHCP6_CLIENT_EVENT_IP_CHANGED:
+		l_info("IP changed");
+		/* Fall through */
+	case L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED:
+		print_lease(l_dhcp6_client_get_lease(client));
+		break;
+	case L_DHCP6_CLIENT_EVENT_LEASE_EXPIRED:
+		l_info("Lease expired");
+		break;
+	case L_DHCP6_CLIENT_EVENT_LEASE_RENEWED:
+		l_info("Lease Renewed");
+		break;
+	case L_DHCP6_CLIENT_EVENT_NO_LEASE:
+		l_info("No lease available");
+		break;
+	}
 }
 
 int main(int argc, char *argv[])
