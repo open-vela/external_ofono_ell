@@ -321,7 +321,7 @@ LIB_EXPORT char *l_dhcp6_lease_get_address(const struct l_dhcp6_lease *lease)
 	return get_ip(lease->ia_na.info.addr);
 }
 
-char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease)
+LIB_EXPORT char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease)
 {
 	if (unlikely(!lease))
 		return NULL;
