@@ -331,3 +331,18 @@ LIB_EXPORT char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease)
 
 	return convert_ipv6_addresses(lease->dns, lease->dns_len);
 }
+
+LIB_EXPORT uint8_t l_dhcp6_lease_get_prefix_length(
+					const struct l_dhcp6_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	if (lease->have_na)
+		return 128;
+
+	if (lease->have_pd)
+		return lease->ia_pd.info.prefix_len;
+
+	return 0;
+}
