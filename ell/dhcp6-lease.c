@@ -300,6 +300,11 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 			lease->dns = l_memdup(v, l);
 			lease->dns_len = l;
 			break;
+		case DHCP6_OPTION_RAPID_COMMIT:
+			if (l != 0)
+				goto error;
+
+			lease->rapid_commit = true;
 		}
 	}
 

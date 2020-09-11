@@ -137,6 +137,7 @@ struct l_dhcp6_lease {
 
 	bool have_na : 1;
 	bool have_pd : 1;
+	bool rapid_commit : 1;
 };
 
 struct l_dhcp6_lease *_dhcp6_lease_new(void);

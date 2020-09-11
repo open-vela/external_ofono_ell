@@ -71,6 +71,8 @@ bool l_dhcp6_client_set_lla_randomized(struct l_dhcp6_client *client,
 						bool randomized);
 bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client, bool nodelay);
 bool l_dhcp6_client_set_nora(struct l_dhcp6_client *client, bool nora);
+bool l_dhcp6_client_set_no_rapid_commit(struct l_dhcp6_client *client,
+							bool no_rapid_commit);
 bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless);
 
