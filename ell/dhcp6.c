@@ -450,13 +450,6 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 	l_uintset_free(clone);
 }
 
-static void option_append_reconfigure_accept(
-					struct dhcp6_message_builder *builder)
-{
-	option_start(builder, L_DHCP6_OPTION_RECONF_ACCEPT);
-	option_finalize(builder);
-}
-
 static int option_append_ia_common(struct l_dhcp6_client *client,
 				struct dhcp6_message_builder *builder,
 				enum l_dhcp6_option option)
@@ -720,7 +713,6 @@ static int dhcp6_client_send_information_request(struct l_dhcp6_client *client)
 	option_append_elapsed_time(builder, client->transaction_start_t);
 	option_append_option_request(builder, client->request_options,
 					DHCP6_STATE_REQUESTING_INFORMATION);
-	option_append_reconfigure_accept(builder);
 
 	information_request = dhcp6_message_builder_free(builder, false,
 						&information_request_len);
