@@ -118,31 +118,31 @@ static const char *message_type_to_string(uint8_t t)
 static const char *option_to_string(uint16_t o)
 {
 	switch (o) {
-	case L_DHCP6_OPTION_CLIENT_ID:
+	case DHCP6_OPTION_CLIENT_ID:
 		return "CLIENTID";
-	case L_DHCP6_OPTION_SERVER_ID:
+	case DHCP6_OPTION_SERVER_ID:
 		return "SERVERID";
-	case L_DHCP6_OPTION_IA_NA:
+	case DHCP6_OPTION_IA_NA:
 		return "IA_NA";
-	case L_DHCP6_OPTION_IA_TA:
+	case DHCP6_OPTION_IA_TA:
 		return "IA_TA";
-	case L_DHCP6_OPTION_IA_PD:
+	case DHCP6_OPTION_IA_PD:
 		return "IA_PD";
-	case L_DHCP6_OPTION_REQUEST_OPTION:
+	case DHCP6_OPTION_REQUEST_OPTION:
 		return "ORO";
-	case L_DHCP6_OPTION_ELAPSED_TIME:
+	case DHCP6_OPTION_ELAPSED_TIME:
 		return "ELAPSED_TIME";
-	case L_DHCP6_OPTION_PREFERENCE:
+	case DHCP6_OPTION_PREFERENCE:
 		return "PREFERENCE";
-	case L_DHCP6_OPTION_STATUS_CODE:
+	case DHCP6_OPTION_STATUS_CODE:
 		return "STATUS_CODE";
-	case L_DHCP6_OPTION_RAPID_COMMIT:
+	case DHCP6_OPTION_RAPID_COMMIT:
 		return "RAPID_COMMIT";
-	case L_DHCP6_OPTION_USER_CLASS:
+	case DHCP6_OPTION_USER_CLASS:
 		return "USER_CLASS";
-	case L_DHCP6_OPTION_VENDOR_CLASS:
+	case DHCP6_OPTION_VENDOR_CLASS:
 		return "VENDOR_CLASS";
-	case L_DHCP6_OPTION_VENDOR_OPTS:
+	case DHCP6_OPTION_VENDOR_OPTS:
 		return "VENDOR_OPTS";
 	case L_DHCP6_OPTION_DNS_SERVERS:
 		return "DNS_SERVERS";
@@ -150,13 +150,13 @@ static const char *option_to_string(uint16_t o)
 		return "DOMAIN_LIST";
 	case L_DHCP6_OPTION_SNTP_SERVERS:
 		return "SNTP_SERVERS";
-	case L_DHCP6_OPTION_INF_RT:
+	case DHCP6_OPTION_INF_RT:
 		return "INF_RT";
 	case L_DHCP6_OPTION_NTP_SERVER:
 		return "NTP_SERVER";
-	case L_DHCP6_OPTION_SOL_MAX_RT:
+	case DHCP6_OPTION_SOL_MAX_RT:
 		return "SOL_MAX_RT";
-	case L_DHCP6_OPTION_INF_MAX_RT:
+	case DHCP6_OPTION_INF_MAX_RT:
 		return "INF_MAX_RT";
 	default:
 		break;
@@ -330,7 +330,7 @@ static void option_append_elapsed_time(struct dhcp6_message_builder *builder,
 		elapsed_time = UINT16_MAX;
 
 done:
-	option_append_uint16(builder, L_DHCP6_OPTION_ELAPSED_TIME,
+	option_append_uint16(builder, DHCP6_OPTION_ELAPSED_TIME,
 							elapsed_time);
 }
 
@@ -423,18 +423,18 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 {
 	struct l_uintset *clone = NULL;
 
-	option_start(builder, L_DHCP6_OPTION_REQUEST_OPTION);
+	option_start(builder, DHCP6_OPTION_REQUEST_OPTION);
 
 	switch (state) {
 	case DHCP6_STATE_SOLICITING:
 	case DHCP6_STATE_REQUESTING:
 		clone = l_uintset_clone(request_options);
-		l_uintset_put(clone, L_DHCP6_OPTION_SOL_MAX_RT);
+		l_uintset_put(clone, DHCP6_OPTION_SOL_MAX_RT);
 		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
 		clone = l_uintset_clone(request_options);
-		l_uintset_put(clone, L_DHCP6_OPTION_INF_RT);
-		l_uintset_put(clone, L_DHCP6_OPTION_INF_MAX_RT);
+		l_uintset_put(clone, DHCP6_OPTION_INF_RT);
+		l_uintset_put(clone, DHCP6_OPTION_INF_MAX_RT);
 		break;
 	case DHCP6_STATE_INIT:
 	case DHCP6_STATE_BOUND:
@@ -486,7 +486,7 @@ static void option_append_ia_na(struct l_dhcp6_client *client,
 {
 	void *ia_addr;
 
-	if (option_append_ia_common(client, builder, L_DHCP6_OPTION_IA_NA) < 0)
+	if (option_append_ia_common(client, builder, DHCP6_OPTION_IA_NA) < 0)
 		return;
 
 	l_put_be32(0, option_reserve(builder, 4));
@@ -496,7 +496,7 @@ static void option_append_ia_na(struct l_dhcp6_client *client,
 		goto done;
 
 	ia_addr = option_reserve(builder, 28);
-	l_put_be16(L_DHCP6_OPTION_IA_ADDR, ia_addr);
+	l_put_be16(DHCP6_OPTION_IA_ADDR, ia_addr);
 	l_put_be16(24, ia_addr + 2);
 	memcpy(ia_addr + 4, client->lease->ia_na.info.addr, 16);
 	l_put_be32(client->lease->ia_na.info.preferred_lifetime, ia_addr + 20);
@@ -509,7 +509,7 @@ done:
 static void option_append_ia_pd(struct l_dhcp6_client *client,
 				struct dhcp6_message_builder *builder)
 {
-	if (option_append_ia_common(client, builder, L_DHCP6_OPTION_IA_PD) < 0)
+	if (option_append_ia_common(client, builder, DHCP6_OPTION_IA_PD) < 0)
 		return;
 
 	l_put_be32(0, option_reserve(builder, 4));
@@ -521,40 +521,24 @@ static void option_append_ia_pd(struct l_dhcp6_client *client,
 static void client_enable_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
 {
-	size_t i;
+	const char *s;
 
-	static const struct {
-		enum l_dhcp6_option option;
-	} options_to_ignore[] = {
-		{ L_DHCP6_OPTION_CLIENT_ID },
-		{ L_DHCP6_OPTION_SERVER_ID },
-		{ L_DHCP6_OPTION_IA_NA },
-		{ L_DHCP6_OPTION_IA_TA },
-		{ L_DHCP6_OPTION_IA_PD },
-		{ L_DHCP6_OPTION_IA_ADDR },
-		{ L_DHCP6_OPTION_IA_PREFIX },
-		{ L_DHCP6_OPTION_REQUEST_OPTION },
-		{ L_DHCP6_OPTION_ELAPSED_TIME },
-		{ L_DHCP6_OPTION_PREFERENCE },
-		{ L_DHCP6_OPTION_RELAY_MSG },
-		{ L_DHCP6_OPTION_AUTH },
-		{ L_DHCP6_OPTION_UNICAST },
-		{ L_DHCP6_OPTION_STATUS_CODE },
-		{ L_DHCP6_OPTION_RAPID_COMMIT },
-		{ L_DHCP6_OPTION_USER_CLASS },
-		{ L_DHCP6_OPTION_VENDOR_CLASS },
-		{ L_DHCP6_OPTION_INTERFACE_ID },
-		{ L_DHCP6_OPTION_RECONF_MSG },
-		{ L_DHCP6_OPTION_RECONF_ACCEPT },
-		{ L_DHCP6_OPTION_INF_RT },
-		{ L_DHCP6_OPTION_SOL_MAX_RT },
-		{ L_DHCP6_OPTION_INF_MAX_RT },
-		{ }
-	};
+	switch (option) {
+	case L_DHCP6_OPTION_DNS_SERVERS:
+	case L_DHCP6_OPTION_DOMAIN_LIST:
+	case L_DHCP6_OPTION_SNTP_SERVERS:
+	case L_DHCP6_OPTION_NTP_SERVER:
+		break;
+	default:
+		s = option_to_string(option);
 
-	for (i = 0; options_to_ignore[i].option; i++)
-		if (options_to_ignore[i].option == option)
-			return;
+		if (s)
+			CLIENT_DEBUG("Ignore request option: %s", s);
+		else
+			CLIENT_DEBUG("Ignore request option: %u", option);
+
+		return;
+	}
 
 	l_uintset_put(client->request_options, option);
 }
@@ -646,11 +630,11 @@ static struct dhcp6_message *dhcp6_client_build_message(
 
 	builder = dhcp6_message_builder_new(type, client->transaction_id, 128);
 
-	option_append_bytes(builder, L_DHCP6_OPTION_CLIENT_ID,
+	option_append_bytes(builder, DHCP6_OPTION_CLIENT_ID,
 					client->duid, client->duid_len);
 
 	if (type == DHCP6_MESSAGE_TYPE_REQUEST)
-		option_append_bytes(builder, L_DHCP6_OPTION_SERVER_ID,
+		option_append_bytes(builder, DHCP6_OPTION_SERVER_ID,
 					client->lease->server_id,
 					client->lease->server_id_len);
 
@@ -913,27 +897,27 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 		 * singletons
 		 */
 		switch (t) {
-		case L_DHCP6_OPTION_CLIENT_ID:
-		case L_DHCP6_OPTION_SERVER_ID:
-		case L_DHCP6_OPTION_IA_NA:
-		case L_DHCP6_OPTION_IA_TA:
-		case L_DHCP6_OPTION_IA_PD:
-		case L_DHCP6_OPTION_REQUEST_OPTION:
-		case L_DHCP6_OPTION_ELAPSED_TIME:
-		case L_DHCP6_OPTION_PREFERENCE:
-		case L_DHCP6_OPTION_RAPID_COMMIT:
-		case L_DHCP6_OPTION_USER_CLASS:
+		case DHCP6_OPTION_CLIENT_ID:
+		case DHCP6_OPTION_SERVER_ID:
+		case DHCP6_OPTION_IA_NA:
+		case DHCP6_OPTION_IA_TA:
+		case DHCP6_OPTION_IA_PD:
+		case DHCP6_OPTION_REQUEST_OPTION:
+		case DHCP6_OPTION_ELAPSED_TIME:
+		case DHCP6_OPTION_PREFERENCE:
+		case DHCP6_OPTION_RAPID_COMMIT:
+		case DHCP6_OPTION_USER_CLASS:
 		case L_DHCP6_OPTION_DNS_SERVERS:
 		case L_DHCP6_OPTION_DOMAIN_LIST:
 		case L_DHCP6_OPTION_SNTP_SERVERS:
-		case L_DHCP6_OPTION_INF_RT:
+		case DHCP6_OPTION_INF_RT:
 		case L_DHCP6_OPTION_NTP_SERVER:
-		case L_DHCP6_OPTION_SOL_MAX_RT:
-		case L_DHCP6_OPTION_INF_MAX_RT:
+		case DHCP6_OPTION_SOL_MAX_RT:
+		case DHCP6_OPTION_INF_MAX_RT:
 			break;
-		case L_DHCP6_OPTION_STATUS_CODE:
-		case L_DHCP6_OPTION_VENDOR_CLASS:
-		case L_DHCP6_OPTION_VENDOR_OPTS:
+		case DHCP6_OPTION_STATUS_CODE:
+		case DHCP6_OPTION_VENDOR_CLASS:
+		case DHCP6_OPTION_VENDOR_OPTS:
 		default:
 			/* Multiples allowed */
 			continue;
@@ -963,7 +947,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 
 	while (_dhcp6_option_iter_next(&iter, &t, &l, &v)) {
 		switch (t) {
-		case L_DHCP6_OPTION_CLIENT_ID:
+		case DHCP6_OPTION_CLIENT_ID:
 			if (client->duid_len != l ||
 					memcmp(client->duid, v, l)) {
 				CLIENT_DEBUG("Message %s - invalid option: %s",
@@ -973,7 +957,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 
 			duid_verified = true;
 			break;
-		case L_DHCP6_OPTION_STATUS_CODE:
+		case DHCP6_OPTION_STATUS_CODE:
 			if (l < 2)
 				return -EBADMSG;
 
@@ -983,7 +967,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 				return -EINVAL;
 			}
 			break;
-		case L_DHCP6_OPTION_SERVER_ID:
+		case DHCP6_OPTION_SERVER_ID:
 			server_id_present = true;
 			break;
 		default:
