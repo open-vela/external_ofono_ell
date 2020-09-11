@@ -64,23 +64,23 @@ static void test_option_parsing(const void *data)
 	assert(_dhcp6_option_iter_init(&iter, message, len));
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
-	assert(t == L_DHCP6_OPTION_CLIENT_ID);
+	assert(t == DHCP6_OPTION_CLIENT_ID);
 	assert(l == 14);
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
-	assert(t == L_DHCP6_OPTION_SERVER_ID);
+	assert(t == DHCP6_OPTION_SERVER_ID);
 	assert(l == 18);
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
-	assert(t == L_DHCP6_OPTION_VENDOR_OPTS);
+	assert(t == DHCP6_OPTION_VENDOR_OPTS);
 	assert(l == 39);
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
-	assert(t == L_DHCP6_OPTION_STATUS_CODE);
+	assert(t == DHCP6_OPTION_STATUS_CODE);
 	assert(l == 2);
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
-	assert(t == L_DHCP6_OPTION_STATUS_CODE);
+	assert(t == DHCP6_OPTION_STATUS_CODE);
 	assert(l == 2);
 
 	assert(_dhcp6_option_iter_next(&iter, &t, &l, &v));
