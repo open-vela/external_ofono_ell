@@ -406,6 +406,7 @@ struct l_dhcp6_client {
 	bool nora : 1;
 	bool request_pd : 1;
 	bool request_na : 1;
+	bool no_rapid_commit : 1;
 };
 
 static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
@@ -645,6 +646,10 @@ static struct dhcp6_message *dhcp6_client_build_message(
 						client->state);
 
 	option_append_elapsed_time(builder, client->transaction_start_t);
+
+	if (type == DHCP6_MESSAGE_TYPE_SOLICIT && !client->no_rapid_commit)
+		option_append_bytes(builder, DHCP6_OPTION_RAPID_COMMIT,
+						NULL, 0);
 
 	if (client->request_pd)
 		option_append_ia_pd(client, builder);
@@ -996,6 +1001,9 @@ static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
 	struct l_dhcp6_lease *lease;
 	struct dhcp6_option_iter iter;
 
+	if (advertise->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
+		return -EINVAL;
+
 	r = dhcp6_client_validate_message(client, advertise, len);
 	if (r < 0)
 		return r;
@@ -1079,6 +1087,9 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 	struct dhcp6_option_iter iter;
 	int r;
 
+	if (reply->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+		return -EINVAL;
+
 	r = dhcp6_client_validate_message(client, reply, len);
 	if (r < 0)
 		return r;
@@ -1098,6 +1109,13 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 		CLIENT_DEBUG("Requested Prefix Delegation but not present in"
 				" lease, FAIL");
 		goto bad_lease;
+	}
+
+	if (client->state == DHCP6_STATE_SOLICITING && !lease->rapid_commit) {
+		CLIENT_DEBUG("Did not request Rapid Commit, but received one"
+				" anyway.  Ignoring");
+		_dhcp6_lease_free(client->lease);
+		return -EBADMSG;
 	}
 
 	_dhcp6_lease_free(client->lease);
@@ -1142,39 +1160,28 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	case DHCP6_STATE_INIT:
 	case DHCP6_STATE_BOUND:
 		return;
-	case DHCP6_STATE_SOLICITING:
-		if (message->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
-			return;
-	
-		r = dhcp6_client_receive_advertise(client, message, len);
-		if (r < 0)
-			return;
-
-		break;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
-		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
-			return;
-
 		if (dhcp6_client_receive_reply(client, message, len) < 0)
 			return;
 
 		break;
-	case DHCP6_STATE_REQUESTING:
-		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
+	case DHCP6_STATE_SOLICITING:
+		r = dhcp6_client_receive_advertise(client, message, len);
+		if (r >= 0)
+			break;
+
+		if (client->no_rapid_commit)
 			return;
 
+		/* Fall through */
+	case DHCP6_STATE_REQUESTING:
 		r = dhcp6_client_receive_reply(client, message, len);
 		if (r < 0)
 			return;
 		break;
 	case DHCP6_STATE_RENEWING:
-		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
-			return;
-
 		break;
 	case DHCP6_STATE_RELEASING:
-		if (message->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
-			return;
 		break;
 	}
 
@@ -1443,6 +1450,21 @@ LIB_EXPORT bool l_dhcp6_client_set_lla_randomized(struct l_dhcp6_client *client,
 	client->duid->type = L_CPU_TO_BE16(DUID_TYPE_LINK_LAYER_ADDR);
 	l_put_be16(client->addr_type, client->duid->identifier);
 	memcpy(client->duid->identifier + 2, client->addr, client->addr_len);
+
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp6_client_set_no_rapid_commit(
+						struct l_dhcp6_client *client,
+						bool no_rapid_commit)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client->no_rapid_commit = no_rapid_commit;
 
 	return true;
 }
