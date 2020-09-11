@@ -109,7 +109,7 @@ static int parse_ia_address(const void *ia_addr, uint16_t ia_addr_len,
 		uint16_t status;
 
 		switch (t) {
-		case L_DHCP6_OPTION_STATUS_CODE:
+		case DHCP6_OPTION_STATUS_CODE:
 			if (l < 2)
 				return -EBADMSG;
 
@@ -154,7 +154,7 @@ static int parse_ia_prefix(const void *ia_prefix, uint16_t ia_prefix_len,
 		uint16_t status;
 
 		switch (t) {
-		case L_DHCP6_OPTION_STATUS_CODE:
+		case DHCP6_OPTION_STATUS_CODE:
 			if (l < 2)
 				return -EBADMSG;
 
@@ -213,7 +213,7 @@ static int parse_ia(const void *ia, uint16_t ia_len, uint16_t tag,
 		uint16_t status;
 
 		switch (t) {
-		case L_DHCP6_OPTION_STATUS_CODE:
+		case DHCP6_OPTION_STATUS_CODE:
 			if (l < 2)
 				return -EBADMSG;
 
@@ -222,8 +222,8 @@ static int parse_ia(const void *ia, uint16_t ia_len, uint16_t tag,
 				return -EINVAL;
 
 			break;
-		case L_DHCP6_OPTION_IA_ADDR:
-			if (tag != L_DHCP6_OPTION_IA_NA)
+		case DHCP6_OPTION_IA_ADDR:
+			if (tag != DHCP6_OPTION_IA_NA)
 				return -EBADMSG;
 
 			if (have_info || parse_ia_address(v, l, &info) < 0)
@@ -231,8 +231,8 @@ static int parse_ia(const void *ia, uint16_t ia_len, uint16_t tag,
 
 			have_info = true;
 			break;
-		case L_DHCP6_OPTION_IA_PREFIX:
-			if (tag != L_DHCP6_OPTION_IA_PD)
+		case DHCP6_OPTION_IA_PREFIX:
+			if (tag != DHCP6_OPTION_IA_PD)
 				return -EBADMSG;
 
 			if (have_info || parse_ia_prefix(v, l, &info) < 0)
@@ -267,17 +267,17 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 
 	while (_dhcp6_option_iter_next(iter, &t, &l, &v)) {
 		switch (t) {
-		case L_DHCP6_OPTION_SERVER_ID:
+		case DHCP6_OPTION_SERVER_ID:
 			lease->server_id = l_memdup(v, l);
 			lease->server_id_len = l;
 			break;
-		case L_DHCP6_OPTION_PREFERENCE:
+		case DHCP6_OPTION_PREFERENCE:
 			if (l != 1)
 				goto error;
 
 			lease->preference = l_get_u8(v);
 			break;
-		case L_DHCP6_OPTION_IA_NA:
+		case DHCP6_OPTION_IA_NA:
 			if (lease->have_na ||
 					parse_ia(v, l, t, expected_iaid,
 							&lease->ia_na) < 0)
@@ -285,7 +285,7 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 
 			lease->have_na = true;
 			break;
-		case L_DHCP6_OPTION_IA_PD:
+		case DHCP6_OPTION_IA_PD:
 			if (lease->have_pd ||
 					parse_ia(v, l, t, expected_iaid,
 							&lease->ia_pd) < 0)
