@@ -434,6 +434,8 @@ static void test_set_methods(const void *test_data)
 	bool b;
 	const char *v;
 	char *s;
+	uint8_t *bytes;
+	size_t len;
 
 	settings = l_settings_new();
 
@@ -502,6 +504,18 @@ static void test_set_methods(const void *test_data)
 	v = l_settings_get_value(settings, "Main", "Escapes");
 	assert(v);
 	assert(!strcmp(v, "\\s\\\\Text\t\\n\\r\\\\"));
+
+	/* Bytes test */
+	assert(l_settings_set_bytes(settings, "Main", "Bytes",
+					(uint8_t []) { 10, 11, 0, 12, 13 }, 5));
+	bytes = l_settings_get_bytes(settings, "Main", "Bytes", &len);
+	assert(bytes);
+	assert(len == 5);
+	assert(!memcmp(bytes, (uint8_t []) { 10, 11, 0, 12, 13 }, 5));
+	l_free(bytes);
+	v = l_settings_get_value(settings, "Main", "Bytes");
+	assert(v);
+	assert(!strcmp(v, "0a0b000c0d"));
 
 	l_settings_free(settings);
 }
