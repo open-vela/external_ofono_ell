@@ -395,10 +395,6 @@ global:
 	/* pkcs5 */
 	l_pkcs5_pbkdf1;
 	l_pkcs5_pbkdf2;
-	/* plugin */
-	l_plugin_add;
-	l_plugin_load;
-	l_plugin_unload;
 	/* getrandom */
 	l_getrandom;
 	l_getrandom_is_supported;
