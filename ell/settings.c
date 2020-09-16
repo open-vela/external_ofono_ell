@@ -1325,6 +1325,43 @@ LIB_EXPORT bool l_settings_set_float(struct l_settings *settings,
 	return l_settings_set_value(settings, group_name, key, buf);
 }
 
+LIB_EXPORT uint8_t *l_settings_get_bytes(const struct l_settings *settings,
+						const char *group_name,
+						const char *key,
+						size_t *out_len)
+{
+	const char *value = l_settings_get_value(settings, group_name, key);
+
+	if (!value)
+		return NULL;
+
+	if (value[0] == '\0') {
+		*out_len = 0;
+
+		/* Return something that can be l_freed but is not a NULL */
+		return l_memdup("", 1);
+	}
+
+	return l_util_from_hexstring(value, out_len);
+}
+
+LIB_EXPORT bool l_settings_set_bytes(struct l_settings *settings,
+					const char *group_name, const char *key,
+					const uint8_t *value, size_t value_len)
+{
+	char *buf;
+
+	if (unlikely(!settings || !value))
+		return false;
+
+	if (value_len)
+		buf = l_util_hexstring(value, value_len);
+	else
+		buf = l_strdup("");
+
+	return set_value(settings, group_name, key, buf);
+}
+
 LIB_EXPORT bool l_settings_remove_group(struct l_settings *settings,
 					const char *group_name)
 {
