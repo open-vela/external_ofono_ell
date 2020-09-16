@@ -34,7 +34,6 @@
 #include <ell/io.h>
 #include <ell/ringbuf.h>
 #include <ell/log.h>
-#include <ell/plugin.h>
 #include <ell/checksum.h>
 #include <ell/settings.h>
 #include <ell/hwdb.h>

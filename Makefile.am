@@ -30,7 +30,6 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/io.h \
 			ell/ringbuf.h \
 			ell/log.h \
-			ell/plugin.h \
 			ell/checksum.h \
 			ell/netlink.h \
 			ell/genl.h \
@@ -82,7 +81,6 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/io.c \
 			ell/ringbuf.c \
 			ell/log.c \
-			ell/plugin.c \
 			ell/checksum.c \
 			ell/netlink-private.h \
 			ell/netlink.c \
@@ -170,7 +168,6 @@ unit_tests = unit/test-unit \
 			unit/test-main \
 			unit/test-io \
 			unit/test-ringbuf \
-			unit/test-plugin \
 			unit/test-checksum \
 			unit/test-settings \
 			unit/test-netlink \
@@ -250,9 +247,6 @@ unit_test_io_LDADD = ell/libell-private.la
 
 unit_test_ringbuf_LDADD = ell/libell-private.la
 
-unit_test_plugin_LDFLAGS = -Wl,-export-dynamic
-unit_test_plugin_LDADD = ell/libell-private.la -ldl
-
 unit_test_checksum_LDADD = ell/libell-private.la
 
 unit_test_settings_LDADD = ell/libell-private.la
@@ -324,13 +318,6 @@ unit_test_time_LDADD = ell/libell-private.la
 unit_test_path_LDADD = ell/libell-private.la
 
 unit_test_net_LDADD = ell/libell-private.la
-
-if MAINTAINER_MODE
-noinst_LTLIBRARIES += unit/example-plugin.la
-endif
-
-unit_example_plugin_la_LDFLAGS = -no-undefined -module -avoid-version \
-							-rpath /dummy
 
 unit_test_data_files = unit/settings.test unit/dbus.conf
 
