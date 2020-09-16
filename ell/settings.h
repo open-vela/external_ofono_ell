@@ -119,6 +119,13 @@ bool l_settings_get_float(const struct l_settings *settings,
 bool l_settings_set_float(struct l_settings *settings, const char *group_name,
 				const char *key, float in);
 
+uint8_t *l_settings_get_bytes(const struct l_settings *settings,
+				const char *group_name, const char *key,
+				size_t *out_len);
+bool l_settings_set_bytes(struct l_settings *settings, const char *group_name,
+				const char *key,
+				const uint8_t *value, size_t value_len);
+
 bool l_settings_remove_key(struct l_settings *settings, const char *group_name,
 				const char *key);
 bool l_settings_remove_group(struct l_settings *settings,
