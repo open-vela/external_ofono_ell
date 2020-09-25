@@ -31,6 +31,9 @@
 #include <sys/ioctl.h>
 
 #include "net.h"
+#include "net-private.h"
+#include "string.h"
+#include "utf8.h"
 #include "private.h"
 
 /**
@@ -177,4 +180,159 @@ LIB_EXPORT bool l_net_hostname_is_localhost(const char *hostname)
 		return true;
 
 	return false;
+}
+
+static const char *domain_name_escape(const uint8_t *label, uint8_t l)
+{
+	/* RFC 1035, Section 3.1: "...limit the label to 63 octets or less." */
+	static char buf[63 * 4 + 1];
+	unsigned int i;
+	unsigned int j;
+
+	for (i = 0, j = 0; i < l; i++) {
+		if (l_ascii_isalnum(label[i]) ||
+				label[i] == '_' || label[i] == '-') {
+			buf[j++] = label[i];
+			continue;
+		}
+
+		if (label[i] == '.' || label[i] == '\\') {
+			buf[j++] = '\\';
+			buf[j++] = label[i];
+			continue;
+		}
+
+		buf[j++] = '\\';
+		buf[j++] = '0' + label[i] / 100;
+		buf[j++] = '0' + (label[i] / 10) % 10;
+		buf[j++] = '0' + label[i] % 10;
+	}
+
+	buf[j] = '\0';
+
+	return buf;
+}
+
+static int validate_next_domain_name(const uint8_t *raw, size_t raw_len)
+{
+	const uint8_t *p;
+	unsigned int r;
+
+	if (raw_len <= 1)
+		return -EBADMSG;
+
+	/* Treat NULL domains as invalid */
+	if (raw[0] == 0)
+		return -EBADMSG;
+
+	p = raw;
+	r = raw_len;
+
+	while (r) {
+		uint8_t skip = *p;
+
+		r -= 1;
+		p += 1;
+
+		if (skip > r)
+			return -EBADMSG;
+
+		if (skip > 63)
+			return -EINVAL;
+
+		if (skip == 0)
+			break;
+
+		r -= skip;
+		p += skip;
+
+		/* domains must end with a null label */
+		if (!r)
+			return -EBADMSG;
+	}
+
+	r = p - raw;
+	if (r > 255)
+		return -EMSGSIZE;
+
+	return r;
+}
+
+/*
+ * Parse the domain name encoded according to RFC 1035 Section 3.1
+ */
+char *net_domain_name_parse(const uint8_t *raw, size_t raw_len)
+{
+	int r;
+	struct l_string *growable;
+	const uint8_t *p;
+	bool first = true;
+
+	r = validate_next_domain_name(raw, raw_len);
+	if (r < 0 || (size_t) r != raw_len)
+		return NULL;
+
+	growable = l_string_new(r);
+	p = raw;
+
+	while (*p) {
+		if (first)
+			first = false;
+		else
+			l_string_append_c(growable, '.');
+
+		l_string_append(growable, domain_name_escape(p + 1, *p));
+		p += *p + 1;
+	}
+
+	return l_string_unwrap(growable);
+}
+
+/*
+ * Parse list of domain names encoded according to RFC 1035 Section 3.1
+ */
+char **net_domain_list_parse(const uint8_t *raw, size_t raw_len)
+{
+	size_t remaining = raw_len;
+	const uint8_t *p = raw;
+	int r;
+	char **ret;
+	unsigned int nitems = 0;
+	struct l_string *growable = NULL;
+
+	while (remaining) {
+		r = validate_next_domain_name(p, remaining);
+		if (r < 0)
+			return NULL;
+
+		p += r;
+		remaining -= r;
+		nitems += 1;
+	}
+
+	ret = l_new(char *, nitems + 1);
+	p = raw;
+	remaining = raw_len;
+	nitems = 0;
+
+	while (remaining) {
+		remaining -= *p + 1;
+
+		if (*p == 0) {
+			p += 1;
+			ret[nitems++] = l_string_unwrap(growable);
+			growable = NULL;
+			continue;
+		}
+
+		if (!growable)
+			growable = l_string_new(128);
+		else
+			l_string_append_c(growable, '.');
+
+		l_string_append(growable, domain_name_escape(p + 1, *p));
+		p += *p + 1;
+	}
+
+	return ret;
 }
