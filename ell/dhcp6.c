@@ -226,8 +226,7 @@ static uint8_t *option_reserve(struct dhcp6_message_builder *builder,
 	return p;
 }
 
-static void option_start(struct dhcp6_message_builder *builder,
-						enum l_dhcp6_option type)
+static void option_start(struct dhcp6_message_builder *builder, uint16_t type)
 {
 	builder->option_start = builder->options_pos;
 	l_put_be16(type, option_reserve(builder, OPTION_HEADER_LEN));
@@ -244,7 +243,7 @@ static void option_finalize(struct dhcp6_message_builder *builder)
 }
 
 static void option_append_uint16(struct dhcp6_message_builder *builder,
-					enum l_dhcp6_option type, uint16_t v)
+					uint16_t type, uint16_t v)
 {
 	uint8_t *p = option_reserve(builder, OPTION_HEADER_LEN + sizeof(v));
 
@@ -254,8 +253,7 @@ static void option_append_uint16(struct dhcp6_message_builder *builder,
 }
 
 static void option_append_bytes(struct dhcp6_message_builder *builder,
-				enum l_dhcp6_option type,
-				const void *bytes, uint16_t len)
+				uint16_t type, const void *bytes, uint16_t len)
 {
 	uint8_t *p = option_reserve(builder, OPTION_HEADER_LEN + len);
 
@@ -453,7 +451,7 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 
 static int option_append_ia_common(struct l_dhcp6_client *client,
 				struct dhcp6_message_builder *builder,
-				enum l_dhcp6_option option)
+				uint16_t option)
 {
 	option_start(builder, option);
 
