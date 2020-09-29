@@ -111,6 +111,15 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 			if (memchr(v, 0, l - 1))
 				goto error;
 
+			/*
+			 * RFC2132 doesn't say whether ending NULLs are present
+			 * or not.  However, section 2 recommends that trailing
+			 * NULLs should not be used but must not be treated
+			 * as an error
+			 */
+			if (l_get_u8(v + l - 1) == 0)
+				l -= 1;
+
 			if (!l_utf8_validate(v, l, NULL))
 				goto error;
 
