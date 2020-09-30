@@ -30,9 +30,11 @@
 #include <arpa/inet.h>
 #include <string.h>
 
+#include "strv.h"
 #include "ell/private.h"
 #include "ell/dhcp6-private.h"
 #include "ell/dhcp6.h"
+#include "net-private.h"
 
 static inline char *get_ip(const uint8_t a[static 16])
 {
@@ -57,6 +59,7 @@ void _dhcp6_lease_free(struct l_dhcp6_lease *lease)
 
 	l_free(lease->server_id);
 	l_free(lease->dns);
+	l_strfreev(lease->domain_list);
 
 	l_free(lease);
 }
@@ -305,6 +308,13 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 				goto error;
 
 			lease->rapid_commit = true;
+			break;
+		case L_DHCP6_OPTION_DOMAIN_LIST:
+			lease->domain_list = net_domain_list_parse(v, l);
+			if (!lease->domain_list)
+				goto error;
+
+			break;
 		}
 	}
 
@@ -335,6 +345,14 @@ LIB_EXPORT char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease)
 		return NULL;
 
 	return convert_ipv6_addresses(lease->dns, lease->dns_len);
+}
+
+LIB_EXPORT char **l_dhcp6_lease_get_domains(const struct l_dhcp6_lease *lease)
+{
+	if (unlikely(!lease))
+		return NULL;
+
+	return l_strv_copy(lease->domain_list);
 }
 
 LIB_EXPORT uint8_t l_dhcp6_lease_get_prefix_length(

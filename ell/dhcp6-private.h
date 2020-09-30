@@ -134,6 +134,7 @@ struct l_dhcp6_lease {
 	struct dhcp6_ia ia_pd;
 	uint8_t *dns;
 	uint16_t dns_len;
+	char **domain_list;
 
 	bool have_na : 1;
 	bool have_pd : 1;
