@@ -258,6 +258,7 @@ global:
 	l_dhcp6_client_stop;
 	l_dhcp6_lease_get_address;
 	l_dhcp6_lease_get_dns;
+	l_dhcp6_lease_get_domains;
 	l_dhcp6_lease_get_prefix_length;
 	/* dir */
 	l_dir_watch_new;

@@ -84,6 +84,7 @@ bool l_dhcp6_client_stop(struct l_dhcp6_client *client);
 
 char *l_dhcp6_lease_get_address(const struct l_dhcp6_lease *lease);
 char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease);
+char **l_dhcp6_lease_get_domains(const struct l_dhcp6_lease *lease);
 uint8_t l_dhcp6_lease_get_prefix_length(const struct l_dhcp6_lease *lease);
 
 #ifdef __cplusplus
