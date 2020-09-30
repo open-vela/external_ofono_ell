@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <alloca.h>
 #include <fnmatch.h>

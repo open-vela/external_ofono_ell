@@ -26,7 +26,6 @@
 
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <stdarg.h>
 #include <fcntl.h>
 #include <unistd.h>
 

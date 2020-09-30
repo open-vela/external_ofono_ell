@@ -27,7 +27,6 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <ctype.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <limits.h>
 
