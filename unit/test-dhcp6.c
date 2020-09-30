@@ -285,6 +285,7 @@ static void test_obtain_lease_rc(const void *data)
 	struct dhcp6_transport *transport = l_new(struct dhcp6_transport, 1);
 	const struct l_dhcp6_lease *lease;
 	struct l_dhcp6_client *client;
+	char **domains;
 
 	transport->send = fake_transport_send;
 	transport->ifindex = 42;
@@ -309,6 +310,13 @@ static void test_obtain_lease_rc(const void *data)
 
 	lease = l_dhcp6_client_get_lease(client);
 	assert(lease);
+
+	domains = l_dhcp6_lease_get_domains(lease);
+	assert(domains);
+	assert(domains[0]);
+	assert(!domains[1]);
+	assert(!strcmp(domains[0], "example.com"));
+	l_strfreev(domains);
 
 	l_dhcp6_client_destroy(client);
 }
