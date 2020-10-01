@@ -30,17 +30,17 @@
 #include <errno.h>
 #include <time.h>
 
-#include "ell/log.h"
-#include "ell/random.h"
-#include "ell/time.h"
-#include "ell/time-private.h"
-#include "ell/net.h"
-#include "ell/timeout.h"
-#include "ell/uintset.h"
-#include "ell/private.h"
-#include "ell/icmp6.h"
-#include "ell/dhcp6-private.h"
-#include "ell/dhcp6.h"
+#include "log.h"
+#include "random.h"
+#include "time.h"
+#include "time-private.h"
+#include "net.h"
+#include "timeout.h"
+#include "uintset.h"
+#include "private.h"
+#include "icmp6.h"
+#include "dhcp6-private.h"
+#include "dhcp6.h"
 
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
