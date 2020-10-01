@@ -31,9 +31,9 @@
 #include <string.h>
 
 #include "strv.h"
-#include "ell/private.h"
-#include "ell/dhcp6-private.h"
-#include "ell/dhcp6.h"
+#include "private.h"
+#include "dhcp6-private.h"
+#include "dhcp6.h"
 #include "net-private.h"
 
 static inline char *get_ip(const uint8_t a[static 16])

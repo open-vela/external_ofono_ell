@@ -33,10 +33,9 @@
 #include <netinet/udp.h>
 #include <unistd.h>
 
-#include "ell/io.h"
-#include "ell/util.h"
-#include "ell/private.h"
-#include "ell/dhcp6-private.h"
+#include "private.h"
+#include "io.h"
+#include "dhcp6-private.h"
 
 struct dhcp6_default_transport {
 	struct dhcp6_transport super;
