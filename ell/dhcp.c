@@ -33,6 +33,7 @@
 #include "private.h"
 #include "random.h"
 #include "time.h"
+#include "time-private.h"
 #include "net.h"
 #include "timeout.h"
 #include "dhcp.h"
@@ -460,9 +461,6 @@ static uint16_t dhcp_attempt_secs(uint64_t start)
  */
 static uint64_t dhcp_fuzz_secs(uint32_t secs)
 {
-	uint64_t ms = secs * 1000ULL;
-	uint32_t r = l_getrandom_uint32();
-
 	/*
 	 * RFC2132, Section 4.1:
 	 * DHCP clients are responsible for all message retransmission.  The
@@ -477,12 +475,7 @@ static uint64_t dhcp_fuzz_secs(uint32_t secs)
 	 * Clients with clocks that provide resolution granularity of less than
 	 * one second may choose a non-integer randomization value.
 	 */
-	if (r & 0x80000000)
-		ms += r & 0x3ff;
-	else
-		ms -= r & 0x3ff;
-
-	return ms;
+	return _time_fuzz_secs(secs, 1);
 }
 
 /*
