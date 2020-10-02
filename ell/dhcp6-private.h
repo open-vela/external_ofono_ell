@@ -146,3 +146,7 @@ void _dhcp6_lease_free(struct l_dhcp6_lease *lease);
 struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 					struct dhcp6_option_iter *iter,
 					const uint8_t expected_iaid[static 4]);
+uint32_t _dhcp6_lease_get_t1(struct l_dhcp6_lease *lease);
+uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease);
+uint32_t _dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease);
+uint32_t _dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease);
