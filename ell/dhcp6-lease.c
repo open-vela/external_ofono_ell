@@ -369,3 +369,51 @@ LIB_EXPORT uint8_t l_dhcp6_lease_get_prefix_length(
 
 	return 0;
 }
+
+#define PICK_IA() \
+	struct dhcp6_ia *ia;		\
+					\
+	if (lease->have_na)		\
+		ia = &lease->ia_na;	\
+	else if (lease->have_pd)	\
+		ia = &lease->ia_pd;	\
+	else				\
+		return 0		\
+
+uint32_t _dhcp6_lease_get_t1(struct l_dhcp6_lease *lease)
+{
+	PICK_IA();
+
+	if (ia->t1)
+		return ia->t1;
+
+	if (ia->info.valid_lifetime == 0xffffffffu)
+		return ia->info.valid_lifetime;
+
+	return ia->info.valid_lifetime / 2;
+}
+
+uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease)
+{
+	PICK_IA();
+
+	if (ia->t2)
+		return ia->t2;
+
+	if (ia->info.valid_lifetime == 0xffffffffu)
+		return ia->info.valid_lifetime;
+
+	return ia->info.valid_lifetime /  10 * 8;
+}
+
+uint32_t _dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease)
+{
+	PICK_IA();
+	return ia->info.valid_lifetime;
+}
+
+uint32_t _dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease)
+{
+	PICK_IA();
+	return ia->info.preferred_lifetime;
+}
