@@ -1005,6 +1005,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 		 * reacquisition."
 		 */
 		l_timeout_remove(client->timeout_lease);
+		client->timeout_lease = NULL;
 
 		/* Infinite lease, no need to start t1 */
 		if (client->lease->lifetime != 0xffffffffu) {
