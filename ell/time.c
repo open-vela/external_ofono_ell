@@ -89,3 +89,19 @@ uint64_t _time_pick_interval_secs(uint32_t min_secs, uint32_t max_secs)
 
 	return l_getrandom_uint32() % (max_ms + 1 - min_ms) + min_ms;
 }
+
+/* Compute a time in ms based on seconds + max_offset * [-1.0 .. 1.0] */
+uint64_t _time_fuzz_secs(uint32_t secs, uint32_t max_offset)
+{
+	uint64_t ms = secs * L_MSEC_PER_SEC;
+	uint64_t r = l_getrandom_uint32();
+
+	max_offset *= L_MSEC_PER_SEC;
+
+	if (r & 0x80000000)
+		ms += (r & 0x7fffffff) % max_offset;
+	else
+		ms -= (r & 0x7fffffff) % max_offset;
+
+	return ms;
+}
