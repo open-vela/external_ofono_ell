@@ -632,7 +632,8 @@ static struct dhcp6_message *dhcp6_client_build_message(
 	option_append_bytes(builder, DHCP6_OPTION_CLIENT_ID,
 					client->duid, client->duid_len);
 
-	if (type == DHCP6_MESSAGE_TYPE_REQUEST)
+	if (type == DHCP6_MESSAGE_TYPE_REQUEST ||
+			type == DHCP6_MESSAGE_TYPE_RENEW)
 		option_append_bytes(builder, DHCP6_OPTION_SERVER_ID,
 					client->lease->server_id,
 					client->lease->server_id_len);
@@ -712,7 +713,16 @@ static int dhcp6_client_send_information_request(struct l_dhcp6_client *client)
 
 static int dhcp6_client_send_renew(struct l_dhcp6_client *client)
 {
-	return 0;
+	L_AUTO_FREE_VAR(struct dhcp6_message *, renew);
+	size_t renew_len;
+
+	CLIENT_DEBUG("");
+
+	renew = dhcp6_client_build_message(client,
+						DHCP6_MESSAGE_TYPE_RENEW,
+						&renew_len);
+	return client->transport->send(client->transport, &all_nodes,
+						renew, renew_len);
 }
 
 static int dhcp6_client_send_release(struct l_dhcp6_client *client)
