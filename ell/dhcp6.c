@@ -60,6 +60,8 @@
 #define REQ_MAX_RT	30
 #define REN_TIMEOUT	10
 #define REN_MAX_RT	600
+#define REB_TIMEOUT	10
+#define REB_MAX_RT	600
 #define REL_TIMEOUT	1
 #define REL_MAX_RC	4
 
@@ -339,6 +341,7 @@ enum dhcp6_state {
 	DHCP6_STATE_REQUESTING,
 	DHCP6_STATE_BOUND,
 	DHCP6_STATE_RENEWING,
+	DHCP6_STATE_REBINDING,
 	DHCP6_STATE_RELEASING,
 };
 
@@ -357,6 +360,8 @@ static const char *dhcp6_state_to_str(enum dhcp6_state s)
 		return "Bound";
 	case DHCP6_STATE_RENEWING:
 		return "Renewing";
+	case DHCP6_STATE_REBINDING:
+		return "Rebinding";
 	case DHCP6_STATE_RELEASING:
 		return "Releasing";
 	};
@@ -438,6 +443,7 @@ static void option_append_option_request(struct dhcp6_message_builder *builder,
 	case DHCP6_STATE_INIT:
 	case DHCP6_STATE_BOUND:
 	case DHCP6_STATE_RENEWING:
+	case DHCP6_STATE_REBINDING:
 	case DHCP6_STATE_RELEASING:
 		break;
 	}
@@ -725,6 +731,20 @@ static int dhcp6_client_send_renew(struct l_dhcp6_client *client)
 						renew, renew_len);
 }
 
+static int dhcp6_client_send_rebind(struct l_dhcp6_client *client)
+{
+	L_AUTO_FREE_VAR(struct dhcp6_message *, rebind);
+	size_t rebind_len;
+
+	CLIENT_DEBUG("");
+
+	rebind = dhcp6_client_build_message(client,
+						DHCP6_MESSAGE_TYPE_REBIND,
+						&rebind_len);
+	return client->transport->send(client->transport, &all_nodes,
+						rebind, rebind_len);
+}
+
 static int dhcp6_client_send_release(struct l_dhcp6_client *client)
 {
 	return 0;
@@ -763,6 +783,13 @@ static int dhcp6_client_send_next(struct l_dhcp6_client *client)
 			return r;
 
 		set_retransmission_delay(client, REN_TIMEOUT, REN_MAX_RT, 0);
+		break;
+	case DHCP6_STATE_REBINDING:
+		r = dhcp6_client_send_rebind(client);
+		if (r < 0)
+			return r;
+
+		set_retransmission_delay(client, REB_TIMEOUT, REB_MAX_RT, 0);
 		break;
 	case DHCP6_STATE_RELEASING:
 		r = dhcp6_client_send_release(client);
@@ -1189,6 +1216,8 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		break;
 	case DHCP6_STATE_RENEWING:
 		break;
+	case DHCP6_STATE_REBINDING:
+		break;
 	case DHCP6_STATE_RELEASING:
 		break;
 	}
@@ -1362,6 +1391,7 @@ LIB_EXPORT const struct l_dhcp6_lease *l_dhcp6_client_get_lease(
 		return NULL;
 	case DHCP6_STATE_BOUND:
 	case DHCP6_STATE_RENEWING:
+	case DHCP6_STATE_REBINDING:
 	case DHCP6_STATE_REQUESTING_INFORMATION:
 		break;
 	}
