@@ -389,6 +389,8 @@ struct l_dhcp6_client {
 
 	struct l_timeout *timeout_send;
 	struct l_dhcp6_lease *lease;
+	struct l_timeout *timeout_lease;
+	uint64_t lease_start_t;
 
 	struct l_icmp6_client *icmp6;
 
@@ -818,11 +820,6 @@ static inline void dhcp6_client_event_notify(struct l_dhcp6_client *client,
 		client->event_handler(client, event, client->event_data);
 }
 
-static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
-{
-	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
-}
-
 static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 						enum dhcp6_state new_state)
 {
@@ -833,6 +830,102 @@ static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 	client->state = new_state;
 	l_util_debug(client->debug_handler, client->debug_data,
 			"Entering state: %s", dhcp6_state_to_str(new_state));
+}
+
+static void dhcp6_client_timeout_send(struct l_timeout *timeout,
+								void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	CLIENT_DEBUG("");
+
+	if (client->state == DHCP6_STATE_SOLICITING
+			&& client->attempt && client->lease) {
+		CLIENT_DEBUG("Received a lease during initial request time");
+		dhcp6_client_new_transaction(client, DHCP6_STATE_REQUESTING);
+	}
+
+	if (dhcp6_client_send_next(client) < 0)
+		l_dhcp6_client_stop(client);
+}
+
+static void dhcp6_client_lease_expired(struct l_timeout *timeout,
+							void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	CLIENT_DEBUG("");
+
+	l_dhcp6_client_stop(client);
+	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_LEASE_EXPIRED);
+}
+
+static void dhcp6_client_t2_expired(struct l_timeout *timeout, void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+	uint32_t elapsed =
+		l_time_to_msecs(l_time_now() - client->lease_start_t);
+	uint32_t valid = _dhcp6_lease_get_valid_lifetime(client->lease) *
+				L_MSEC_PER_SEC;
+
+	CLIENT_DEBUG("");
+
+	dhcp6_client_new_transaction(client, DHCP6_STATE_REBINDING);
+	l_timeout_set_callback(client->timeout_lease,
+				dhcp6_client_lease_expired, client, NULL);
+
+	if (valid <= elapsed) {
+		dhcp6_client_lease_expired(client->timeout_lease, client);
+		return;
+	}
+
+	l_timeout_modify_ms(client->timeout_lease, valid - elapsed);
+}
+
+static void dhcp6_client_t1_expired(struct l_timeout *timeout, void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+	uint32_t next_timeout;
+
+	CLIENT_DEBUG("");
+
+	/* timeout_send was destroyed when entering BOUND, re-create */
+	client->timeout_send = l_timeout_create_ms(0,
+						dhcp6_client_timeout_send,
+						client, NULL);
+	dhcp6_client_new_transaction(client, DHCP6_STATE_RENEWING);
+
+	if (dhcp6_client_send_next(client) < 0) {
+		l_dhcp6_client_stop(client);
+		return;
+	}
+
+	next_timeout = _dhcp6_lease_get_t2(client->lease) -
+					_dhcp6_lease_get_t1(client->lease);
+	l_timeout_modify(client->timeout_lease, next_timeout);
+	l_timeout_set_callback(client->timeout_lease, dhcp6_client_t2_expired,
+					client, NULL);
+}
+
+static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
+{
+	uint32_t t1 = _dhcp6_lease_get_t1(client->lease);
+	uint32_t t2 = _dhcp6_lease_get_t2(client->lease);
+
+	client->lease_start_t = l_time_now();
+	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
+
+	l_timeout_remove(client->timeout_lease);
+	client->timeout_lease = NULL;
+
+	if (t1 == 0xffffffff || t2 == 0xffffffff) {
+		CLIENT_DEBUG("T1 (%u) or T2 (%u) was infinite", t1, t2);
+		return;
+	}
+
+	client->timeout_lease = l_timeout_create_ms(_time_fuzz_secs(t1, 1),
+							dhcp6_client_t1_expired,
+							client, NULL);
 }
 
 void __dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
@@ -1239,23 +1332,6 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		l_dhcp6_client_stop(client);
 }
 
-static void dhcp6_client_timeout_send(struct l_timeout *timeout,
-								void *user_data)
-{
-	struct l_dhcp6_client *client = user_data;
-
-	CLIENT_DEBUG("");
-
-	if (client->state == DHCP6_STATE_SOLICITING
-			&& client->attempt && client->lease) {
-		CLIENT_DEBUG("Received a lease during initial request time");
-		dhcp6_client_new_transaction(client, DHCP6_STATE_REQUESTING);
-	}
-
-	if (dhcp6_client_send_next(client) < 0)
-		l_dhcp6_client_stop(client);
-}
-
 static void dhcp6_client_send_initial(struct l_dhcp6_client *client)
 {
 	uint32_t delay;
@@ -1647,6 +1723,9 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
+
+	l_timeout_remove(client->timeout_lease);
+	client->timeout_lease = NULL;
 
 	if (client->transport && client->transport->close)
 		client->transport->close(client->transport);
