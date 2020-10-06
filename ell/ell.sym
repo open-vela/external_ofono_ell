@@ -564,6 +564,18 @@ global:
 	l_gpio_reader_free;
 	l_gpio_reader_get;
 	/* rtnl */
+	l_rtnl_address_new;
+	l_rtl_address_free;
+	l_rtnl_address_get_family;
+	l_rtnl_address_get_prefix_length;
+	l_rtnl_address_get_broadcast;
+	l_rtnl_address_set_broadcast;
+	l_rtnl_address_get_label;
+	l_rtnl_address_set_label;
+	l_rtnl_address_set_noprefixroute;
+	l_rtnl_address_get_valid_lifetime;
+	l_rtnl_address_get_preferred_lifetime;
+	l_rtnl_address_set_lifetimes;
 	l_rtnl_set_linkmode_and_operstate;
 	l_rtnl_set_mac;
 	l_rtnl_set_powered;
@@ -583,7 +595,9 @@ global:
 	l_rtnl_route6_dump;
 	l_rtnl_route6_add_gateway;
 	l_rtnl_route6_delete_gateway;
-	/* icmp6 */
+	l_rtnl_ifaddr_add;
+	l_rtnl_ifaddr_delete;
+/* icmp6 */
 	l_icmp6_client_new;
 	l_icmp6_client_free;
 	l_icmp6_client_start;
