@@ -31,6 +31,7 @@ extern "C" {
 
 struct l_dhcp6_client;
 struct l_dhcp6_lease;
+struct l_netlink;
 
 enum l_dhcp6_option {
 	L_DHCP6_OPTION_DNS_SERVERS		= 23,
@@ -73,6 +74,8 @@ bool l_dhcp6_client_set_nodelay(struct l_dhcp6_client *client, bool nodelay);
 bool l_dhcp6_client_set_nora(struct l_dhcp6_client *client, bool nora);
 bool l_dhcp6_client_set_no_rapid_commit(struct l_dhcp6_client *client,
 							bool no_rapid_commit);
+bool l_dhcp6_client_set_rtnl(struct l_dhcp6_client *client,
+						struct l_netlink *rtnl);
 bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless);
 
