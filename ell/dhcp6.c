@@ -1488,7 +1488,8 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 	if (unlikely(!client))
 		return;
 
-	l_dhcp6_client_stop(client);
+	if (client->state != DHCP6_STATE_INIT)
+		l_dhcp6_client_stop(client);
 
 	if (client->event_destroy)
 		client->event_destroy(client->event_data);
