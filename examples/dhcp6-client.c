@@ -31,11 +31,31 @@
 
 #include <ell/ell.h>
 
+static bool terminating;
+static struct l_timeout *timeout;
+static struct l_dhcp6_client *client;
+
 static void do_debug(const char *str, void *user_data)
 {
 	const char *prefix = user_data;
 
 	l_info("%s%s", prefix, str);
+}
+
+static void main_loop_quit(struct l_timeout *timeout, void *user_data)
+{
+	l_main_quit();
+}
+
+static void client_shutdown(void)
+{
+	if (terminating)
+		return;
+
+	terminating = true;
+
+	timeout = l_timeout_create(1, main_loop_quit, NULL, NULL);
+	l_dhcp6_client_stop(client);
 }
 
 static void signal_handler(uint32_t signo, void *user_data)
@@ -44,7 +64,7 @@ static void signal_handler(uint32_t signo, void *user_data)
 	case SIGINT:
 	case SIGTERM:
 		l_info("Terminate");
-		l_main_quit();
+		client_shutdown();
 		break;
 	}
 }
@@ -94,7 +114,7 @@ static void event_handler(struct l_dhcp6_client *client,
 
 int main(int argc, char *argv[])
 {
-	struct l_dhcp6_client *client;
+	struct l_netlink *rtnl;
 	int ifindex;
 	uint8_t mac[6];
 
@@ -117,17 +137,27 @@ int main(int argc, char *argv[])
 	if (!l_main_init())
 		return EXIT_FAILURE;
 
+	rtnl = l_netlink_new(NETLINK_ROUTE);
+	if (!rtnl) {
+		fprintf(stderr, "Failed to open RTNL\n");
+		return EXIT_FAILURE;
+	}
+
 	client = l_dhcp6_client_new(ifindex);
 	l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, 6);
 	l_dhcp6_client_set_event_handler(client, event_handler, NULL, NULL);
 	l_dhcp6_client_set_debug(client, do_debug, "[DHCP6] ", NULL);
 	l_dhcp6_client_set_lla_randomized(client, true);
+	l_dhcp6_client_set_rtnl(client, rtnl);
 	l_dhcp6_client_start(client);
 
 	l_main_run_with_signal(signal_handler, NULL);
 
+	l_timeout_remove(timeout);
 	l_dhcp6_client_destroy(client);
 	l_main_exit();
+
+	l_netlink_destroy(rtnl);
 
 	return EXIT_SUCCESS;
 }
