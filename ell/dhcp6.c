@@ -39,6 +39,8 @@
 #include "uintset.h"
 #include "private.h"
 #include "icmp6.h"
+#include "netlink.h"
+#include "rtnl.h"
 #include "dhcp6-private.h"
 #include "dhcp6.h"
 
@@ -393,6 +395,10 @@ struct l_dhcp6_client {
 	uint64_t lease_start_t;
 
 	struct l_icmp6_client *icmp6;
+
+	struct l_netlink *rtnl;
+	uint32_t rtnl_add_cmdid;
+	struct l_rtnl_address *rtnl_configured_address;
 
 	l_dhcp6_client_event_cb_t event_handler;
 	void *event_data;
@@ -907,6 +913,24 @@ static void dhcp6_client_t1_expired(struct l_timeout *timeout, void *user_data)
 					client, NULL);
 }
 
+static void dhcp6_client_address_add_cb(int error, uint16_t type,
+						const void *data, uint32_t len,
+						void *user_data)
+{
+	struct l_dhcp6_client *client = user_data;
+
+	client->rtnl_add_cmdid = 0;
+
+	if (error < 0 && error != -EEXIST) {
+		l_rtnl_address_free(client->rtnl_configured_address);
+		client->rtnl_configured_address = NULL;
+		CLIENT_DEBUG("Unable to set address on ifindex: %u: %d(%s)",
+				client->ifindex, error,
+				strerror(-error));
+		return;
+	}
+}
+
 static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 {
 	uint32_t t1 = _dhcp6_lease_get_t1(client->lease);
@@ -926,6 +950,29 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 	client->timeout_lease = l_timeout_create_ms(_time_fuzz_secs(t1, 1),
 							dhcp6_client_t1_expired,
 							client, NULL);
+
+	if (client->rtnl) {
+		struct l_rtnl_address *a;
+		L_AUTO_FREE_VAR(char *, ip) =
+			l_dhcp6_lease_get_address(client->lease);
+		uint8_t prefix_len =
+			l_dhcp6_lease_get_prefix_length(client->lease);
+		uint32_t p = _dhcp6_lease_get_preferred_lifetime(client->lease);
+		uint32_t v = _dhcp6_lease_get_valid_lifetime(client->lease);
+
+		a = l_rtnl_address_new(ip, prefix_len);
+		l_rtnl_address_set_noprefixroute(a, true);
+		l_rtnl_address_set_lifetimes(a, p, v);
+
+		client->rtnl_add_cmdid =
+			l_rtnl_ifaddr_add(client->rtnl, client->ifindex, a,
+						dhcp6_client_address_add_cb,
+						client, NULL);
+		if (client->rtnl_add_cmdid)
+			client->rtnl_configured_address = a;
+		else
+			CLIENT_DEBUG("Configuring address via RTNL failed");
+	}
 }
 
 void __dhcp6_option_iter_init(struct dhcp6_option_iter *iter,
@@ -1611,6 +1658,24 @@ LIB_EXPORT bool l_dhcp6_client_set_nora(struct l_dhcp6_client *client,
 	return true;
 }
 
+/*
+ * Set l_netlink object to use for sending RTNL commands.  If set, then
+ * l_dhcp6_client will add / delete addresses obtained via DHCPv6
+ * automatically.
+ */
+LIB_EXPORT bool l_dhcp6_client_set_rtnl(struct l_dhcp6_client *client,
+						struct l_netlink *rtnl)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP6_STATE_INIT))
+		return false;
+
+	client->rtnl = rtnl;
+	return true;
+}
+
 LIB_EXPORT bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless)
 {
@@ -1714,6 +1779,19 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 		return false;
 
 	CLIENT_DEBUG("");
+
+	if (client->rtnl_add_cmdid) {
+		l_netlink_cancel(client->rtnl, client->rtnl_add_cmdid);
+		client->rtnl_add_cmdid = 0;
+	}
+
+	if (client->rtnl_configured_address) {
+		l_rtnl_ifaddr_delete(client->rtnl, client->ifindex,
+					client->rtnl_configured_address,
+					NULL, NULL, NULL);
+		l_rtnl_address_free(client->rtnl_configured_address);
+		client->rtnl_configured_address = NULL;
+	}
 
 	_dhcp6_lease_free(client->lease);
 	client->lease = NULL;
