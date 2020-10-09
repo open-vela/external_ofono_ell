@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 struct l_rtnl_address;
+struct l_rtnl_route;
 
 struct l_rtnl_address *l_rtnl_address_new(const char *ip, uint8_t prefix_len);
 void l_rtnl_address_free(struct l_rtnl_address *addr);
@@ -50,6 +51,26 @@ uint32_t l_rtnl_address_get_preferred_lifetime(
 bool l_rtnl_address_set_lifetimes(struct l_rtnl_address *addr,
 						uint32_t preferred_lifetime,
 						uint32_t valid_lifetime);
+
+struct l_rtnl_route *l_rtnl_route_new_gateway(const char *gw);
+struct l_rtnl_route *l_rtnl_route_new_prefix(const char *ip,
+							uint8_t prefix_len);
+void l_rtnl_route_free(struct l_rtnl_route *rt);
+uint8_t l_rtnl_route_get_family(const struct l_rtnl_route *rt);
+uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_lifetime(struct l_rtnl_route *rt, uint32_t lt);
+uint32_t l_rtnl_route_get_mtu(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_mtu(struct l_rtnl_route *rt, uint32_t mtu);
+uint8_t l_rtnl_route_get_preference(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_preference(struct l_rtnl_route *rt, uint8_t preference);
+bool l_rtnl_route_get_prefsrc(const struct l_rtnl_route *rt, char *out_address);
+bool l_rtnl_route_set_prefsrc(struct l_rtnl_route *rt, const char *address);
+uint32_t l_rtnl_route_get_priority(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_priority(struct l_rtnl_route *rt, uint32_t priority);
+uint8_t l_rtnl_route_get_protocol(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_protocol(struct l_rtnl_route *rt, uint8_t protocol);
+uint8_t l_rtnl_route_get_scope(const struct l_rtnl_route *rt);
+bool l_rtnl_route_set_scope(struct l_rtnl_route *rt, uint8_t scope);
 
 uint32_t l_rtnl_set_linkmode_and_operstate(struct l_netlink *rtnl, int ifindex,
 					uint8_t linkmode, uint8_t operstate,
@@ -147,6 +168,17 @@ uint32_t l_rtnl_ifaddr_add(struct l_netlink *rtnl, int ifindex,
 					l_netlink_destroy_func_t destroy);
 uint32_t l_rtnl_ifaddr_delete(struct l_netlink *rtnl, int ifindex,
 					const struct l_rtnl_address *addr,
+					l_netlink_command_func_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy);
+
+uint32_t l_rtnl_route_add(struct l_netlink *rtnl, int ifindex,
+					const struct l_rtnl_route *rt,
+					l_netlink_command_func_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy);
+uint32_t l_rtnl_route_delete(struct l_netlink *rtnl, int ifindex,
+					const struct l_rtnl_route *rt,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
