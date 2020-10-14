@@ -108,9 +108,6 @@ AC_CHECK_FUNC(timerfd_create, dummy=yes,
 AC_CHECK_FUNC(epoll_create, dummy=yes,
 			AC_MSG_ERROR(epoll support is required))
 
-AC_CHECK_LIB(dl, dlopen, dummy=yes,
-			AC_MSG_ERROR(dynamic linking loader is required))
-
 AC_CHECK_HEADERS(linux/types.h linux/if_alg.h)
 
 AC_ARG_ENABLE(glib, AC_HELP_STRING([--enable-glib],
