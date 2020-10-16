@@ -158,3 +158,163 @@ uint8_t *_dhcp_message_builder_finalize(struct dhcp_message_builder *builder,
 
 	return builder->start;
 }
+
+bool _dhcp_message_iter_init(struct dhcp_message_iter *iter,
+				const struct dhcp_message *message, size_t len)
+{
+	if (!message)
+		return false;
+
+	if (len < sizeof(struct dhcp_message))
+		return false;
+
+	if (L_BE32_TO_CPU(message->magic) != DHCP_MAGIC)
+		return false;
+
+	memset(iter, 0, sizeof(*iter));
+	iter->message = message;
+	iter->message_len = len;
+	iter->max = len - sizeof(struct dhcp_message);
+	iter->options = message->options;
+	iter->can_overload = true;
+
+	return true;
+}
+
+static bool next_option(struct dhcp_message_iter *iter,
+				uint8_t *t, uint8_t *l, const void **v)
+{
+	uint8_t type;
+	uint8_t len;
+
+	while (iter->pos < iter->max) {
+		type = iter->options[iter->pos];
+
+		switch (type) {
+		case DHCP_OPTION_PAD:
+			iter->pos += 1;
+			continue;
+		case DHCP_OPTION_END:
+			return false;
+		default:
+			break;
+		}
+
+		if (iter->pos + 2 >= iter->max)
+			return false;
+
+		len = iter->options[iter->pos + 1];
+
+		if (iter->pos + 2 + len > iter->max)
+			return false;
+
+		*t = type;
+		*l = len;
+		*v = &iter->options[iter->pos + 2];
+
+		iter->pos += 2 + len;
+		return true;
+	}
+
+	return false;
+}
+
+bool _dhcp_message_iter_next(struct dhcp_message_iter *iter, uint8_t *type,
+				uint8_t *len, const void **data)
+{
+	bool r;
+	uint8_t t, l;
+	const void *v;
+
+	do {
+		r = next_option(iter, &t, &l, &v);
+		if (!r) {
+			iter->can_overload = false;
+
+			if (iter->overload_file) {
+				iter->options = iter->message->file;
+				iter->pos = 0;
+				iter->max = sizeof(iter->message->file);
+				iter->overload_file = false;
+				continue;
+			}
+
+			if (iter->overload_sname) {
+				iter->options = iter->message->sname;
+				iter->pos = 0;
+				iter->max = sizeof(iter->message->sname);
+				iter->overload_sname = false;
+				continue;
+			}
+
+			return r;
+		}
+
+		switch (t) {
+		case DHCP_OPTION_OVERLOAD:
+			if (l != 1)
+				continue;
+
+			if (!iter->can_overload)
+				continue;
+
+			if (l_get_u8(v) & DHCP_OVERLOAD_FILE)
+				iter->overload_file = true;
+
+			if (l_get_u8(v) & DHCP_OVERLOAD_SNAME)
+				iter->overload_sname = true;
+
+			continue;
+		default:
+			if (type)
+				*type = t;
+
+			if (len)
+				*len = l;
+
+			if (data)
+				*data = v;
+			return r;
+		}
+	} while (true);
+
+	return false;
+}
+
+int _dhcp_option_append(uint8_t **buf, size_t *buflen, uint8_t code,
+					size_t optlen, const void *optval)
+{
+	if (!buf || !buflen)
+		return -EINVAL;
+
+	switch (code) {
+
+	case DHCP_OPTION_PAD:
+	case DHCP_OPTION_END:
+		if (*buflen < 1)
+			return -ENOBUFS;
+
+		(*buf)[0] = code;
+		*buf += 1;
+		*buflen -= 1;
+		break;
+
+	default:
+		if (*buflen < optlen + 2)
+			return -ENOBUFS;
+
+		if (!optval)
+			return -EINVAL;
+
+		(*buf)[0] = code;
+		(*buf)[1] = optlen;
+		memcpy(&(*buf)[2], optval, optlen);
+
+		*buf += optlen + 2;
+		*buflen -= (optlen + 2);
+
+		break;
+	}
+
+	return 0;
+}
