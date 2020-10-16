@@ -354,9 +354,10 @@ static int dhcp_client_send_discover(struct l_dhcp_client *client)
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
-	return client->transport->broadcast(client->transport,
+	return client->transport->l2_send(client->transport,
 					INADDR_ANY, DHCP_PORT_CLIENT,
 					INADDR_BROADCAST, DHCP_PORT_SERVER,
+					NULL,
 					discover, len);
 }
 
@@ -453,10 +454,10 @@ static int dhcp_client_send_request(struct l_dhcp_client *client)
 							&si, request, len);
 	}
 
-	return client->transport->broadcast(client->transport,
+	return client->transport->l2_send(client->transport,
 					INADDR_ANY, DHCP_PORT_CLIENT,
 					INADDR_BROADCAST, DHCP_PORT_SERVER,
-					request, len);
+					NULL, request, len);
 }
 
 static void dhcp_client_timeout_resend(struct l_timeout *timeout,
