@@ -382,9 +382,11 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port, uint32_t xid)
 		/* A <- DHCP op */
 		BPF_STMT(BPF_LD + BPF_B + BPF_ABS,
 				offsetof(struct dhcp_packet, dhcp.op)),
-		/* op == BOOTREPLY ? */
+		/* op == (BOOTREPLY | BOOTREQUEST) ? */
 		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K,
-				DHCP_OP_CODE_BOOTREPLY, 1, 0),
+				(port == DHCP_PORT_CLIENT) ?
+				DHCP_OP_CODE_BOOTREPLY :
+				DHCP_OP_CODE_BOOTREQUEST, 1, 0),
 		/* ignore */
 		BPF_STMT(BPF_RET + BPF_K, 0),
 		/* A <- DHCP header type */
@@ -394,6 +396,10 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port, uint32_t xid)
 		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ARPHRD_ETHER, 1, 0),
 		/* ignore */
 		BPF_STMT(BPF_RET + BPF_K, 0),
+		/* A <- UDP destination port */
+		BPF_STMT(BPF_LD + BPF_H + BPF_ABS,
+				offsetof(struct dhcp_packet, udp.dest)),
+		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, DHCP_PORT_SERVER, 3, 0),
 		/* A <- client identifier */
 		BPF_STMT(BPF_LD + BPF_W + BPF_ABS,
 				offsetof(struct dhcp_packet, dhcp.xid)),
