@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <netinet/ip.h>
 
 #include "net.h"
 #include "net-private.h"
@@ -333,6 +334,39 @@ char **net_domain_list_parse(const uint8_t *raw, size_t raw_len)
 		l_string_append(growable, domain_name_escape(p + 1, *p));
 		p += *p + 1;
 	}
+
+	return ret;
+}
+
+LIB_EXPORT bool l_net_get_address(int ifindex, struct in_addr *out)
+{
+	struct ifreq ifr;
+	int sk, err;
+	struct sockaddr_in *server_ip;
+	bool ret = false;
+
+	sk = socket(PF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	if (sk < 0)
+		return false;
+
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_ifindex = ifindex;
+
+	err = ioctl(sk, SIOCGIFNAME, &ifr);
+	if (err < 0)
+		goto done;
+
+	err = ioctl(sk, SIOCGIFADDR, &ifr);
+	if (err < 0)
+		goto done;
+
+	server_ip = (struct sockaddr_in *) &ifr.ifr_addr;
+	out->s_addr = server_ip->sin_addr.s_addr;
+
+	ret = true;
+
+done:
+	close(sk);
 
 	return ret;
 }
