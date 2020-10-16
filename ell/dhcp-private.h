@@ -106,9 +106,10 @@ typedef void (*dhcp_transport_rx_cb_t)(const void *, size_t, void *);
 
 struct dhcp_transport {
 	int (*open)(struct dhcp_transport *s, uint32_t xid);
-	int (*broadcast)(struct dhcp_transport *transport,
+	int (*l2_send)(struct dhcp_transport *transport,
 						uint32_t saddr, uint16_t sport,
 						uint32_t daddr, uint16_t dport,
+						const uint8_t *dest_mac,
 						const void *data, size_t len);
 	int (*bind)(struct dhcp_transport *transport, uint32_t saddr);
 	int (*send)(struct dhcp_transport *transport,
