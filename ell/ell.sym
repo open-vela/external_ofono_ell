@@ -368,6 +368,7 @@ global:
 	l_debug_enable_full;
 	l_debug_disable;
 	/* net */
+	l_net_get_address;
 	l_net_get_mac_address;
 	l_net_get_name;
 	l_net_hostname_is_root;
