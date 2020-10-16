@@ -673,9 +673,10 @@ static int fake_transport_send(struct dhcp_transport *transport,
 	return len;
 }
 
-static int fake_transport_broadcast(struct dhcp_transport *transprot,
+static int fake_transport_l2_send(struct dhcp_transport *transprot,
 					uint32_t saddr, uint16_t sport,
 					uint32_t daddr, uint16_t dport,
+					const uint8_t *dest_mac,
 					const void *data, size_t len)
 {
 	assert(len <= sizeof(client_packet));
@@ -702,7 +703,7 @@ static void test_discover(const void *data)
 	const struct l_dhcp_lease *lease;
 
 	transport->send = fake_transport_send;
-	transport->broadcast = fake_transport_broadcast;
+	transport->l2_send = fake_transport_l2_send;
 	transport->ifindex = 42;
 
 	client = l_dhcp_client_new(42);
