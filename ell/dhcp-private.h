@@ -33,7 +33,21 @@ enum dhcp_op_code {
 	DHCP_OP_CODE_BOOTREPLY = 2,
 };
 
+#define DHCP_MIN_OPTIONS_SIZE 312
+
 #define DHCP_MAGIC 0x63825363
+
+/* RFC 2132, Section 9.3. Option Overload */
+#define DHCP_OPTION_OVERLOAD 52
+enum dhcp_option_overload {
+	DHCP_OVERLOAD_FILE = 1,
+	DHCP_OVERLOAD_SNAME = 2,
+	DHCP_OVERLOAD_BOTH = 3,
+};
+
+#define DHCP_OPTION_PARAMETER_REQUEST_LIST 55 /* Section 9.8 */
+#define DHCP_OPTION_MAXIMUM_MESSAGE_SIZE 57 /* Section 9.10 */
+#define DHCP_OPTION_CLIENT_IDENTIFIER 61 /* Section 9.14 */
 
 /* RFC 2131, Figure 1 */
 struct dhcp_message {
