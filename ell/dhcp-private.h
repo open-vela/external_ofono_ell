@@ -27,6 +27,17 @@ enum {
 	DHCP_PORT_CLIENT = 68,
 };
 
+enum dhcp_message_type {
+	DHCP_MESSAGE_TYPE_DISCOVER = 1,
+	DHCP_MESSAGE_TYPE_OFFER = 2,
+	DHCP_MESSAGE_TYPE_REQUEST = 3,
+	DHCP_MESSAGE_TYPE_DECLINE = 4,
+	DHCP_MESSAGE_TYPE_ACK = 5,
+	DHCP_MESSAGE_TYPE_NAK = 6,
+	DHCP_MESSAGE_TYPE_RELEASE = 7,
+	DHCP_MESSAGE_TYPE_INFORM = 8,
+};
+
 /* RFC 2131, Table 1 */
 enum dhcp_op_code {
 	DHCP_OP_CODE_BOOTREQUEST = 1,
@@ -44,6 +55,11 @@ enum dhcp_option_overload {
 	DHCP_OVERLOAD_SNAME = 2,
 	DHCP_OVERLOAD_BOTH = 3,
 };
+
+/* RFC 2132, Section 9.6. DHCP Message Type */
+#define DHCP_OPTION_MESSAGE_TYPE 53
+#define DHCP_OPTION_PAD 0 /* RFC 2132, Section 3.1 */
+#define DHCP_OPTION_END 255 /* RFC 2132, Section 3.2 */
 
 #define DHCP_OPTION_PARAMETER_REQUEST_LIST 55 /* Section 9.8 */
 #define DHCP_OPTION_MAXIMUM_MESSAGE_SIZE 57 /* Section 9.10 */
@@ -140,3 +156,20 @@ struct l_dhcp_lease {
 struct l_dhcp_lease *_dhcp_lease_new(void);
 void _dhcp_lease_free(struct l_dhcp_lease *lease);
 struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter);
+
+struct dhcp_message_builder {
+	unsigned int max;
+	uint8_t *pos;
+	uint8_t *start;
+};
+
+bool _dhcp_message_builder_init(struct dhcp_message_builder *builder,
+				struct dhcp_message *message,
+				size_t len, uint8_t type);
+bool _dhcp_message_builder_append(struct dhcp_message_builder *builder,
+					uint8_t code, size_t optlen,
+					const void *optval);
+bool _dhcp_message_builder_append_prl(struct dhcp_message_builder *builder,
+					const unsigned long *reqopts);
+uint8_t *_dhcp_message_builder_finalize(struct dhcp_message_builder *builder,
+					size_t *outlen);
