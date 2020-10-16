@@ -53,14 +53,6 @@
 #define DHCP_OPTION_PAD 0 /* RFC 2132, Section 3.1 */
 #define DHCP_OPTION_END 255 /* RFC 2132, Section 3.2 */
 
-/* RFC 2132, Section 9.3. Option Overload */
-#define DHCP_OPTION_OVERLOAD 52
-enum dhcp_option_overload {
-	DHCP_OVERLOAD_FILE = 1,
-	DHCP_OVERLOAD_SNAME = 2,
-	DHCP_OVERLOAD_BOTH = 3,
-};
-
 /* RFC 2132, Section 9.6. DHCP Message Type */
 #define DHCP_OPTION_MESSAGE_TYPE 53
 enum dhcp_message_type {
@@ -73,10 +65,6 @@ enum dhcp_message_type {
 	DHCP_MESSAGE_TYPE_RELEASE = 7,
 	DHCP_MESSAGE_TYPE_INFORM = 8,
 };
-
-#define DHCP_OPTION_PARAMETER_REQUEST_LIST 55 /* Section 9.8 */
-#define DHCP_OPTION_MAXIMUM_MESSAGE_SIZE 57 /* Section 9.10 */
-#define DHCP_OPTION_CLIENT_IDENTIFIER 61 /* Section 9.14 */
 
 enum dhcp_state {
 	DHCP_STATE_INIT,
@@ -405,8 +393,6 @@ static inline int dhcp_message_optimize(struct dhcp_message *message,
 
 	return len;
 }
-
-#define DHCP_MIN_OPTIONS_SIZE 312
 
 struct l_dhcp_client {
 	enum dhcp_state state;
