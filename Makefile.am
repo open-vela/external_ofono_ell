@@ -326,7 +326,8 @@ unit_test_data_files = unit/settings.test unit/dbus.conf
 
 examples = examples/dbus-service examples/https-client-test \
 		examples/https-server-test examples/dbus-client \
-		examples/dhcp-client examples/dhcp6-client
+		examples/dhcp-client examples/dhcp6-client \
+		examples/dhcp-server
 
 if GLIB
 examples += examples/glib-eventloop
@@ -344,6 +345,7 @@ examples_glib_eventloop_CFLAGS = @GLIB_CFLAGS@
 examples_glib_eventloop_LDADD = ell/libell-private.la @GLIB_LIBS@
 examples_dhcp_client_LDADD = ell/libell-private.la
 examples_dhcp6_client_LDADD = ell/libell-private.la
+examples_dhcp_server_LDADD = ell/libell-private.la
 
 noinst_PROGRAMS += tools/certchain-verify tools/genl-discover \
 		   tools/genl-watch tools/genl-request tools/gpio
