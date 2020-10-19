@@ -21,6 +21,7 @@
  */
 
 struct l_dhcp_client;
+struct l_dhcp_server;
 
 enum {
 	DHCP_PORT_SERVER = 67,
@@ -140,6 +141,9 @@ int _dhcp_option_append(uint8_t **buf, size_t *buflen, uint8_t code,
 bool _dhcp_client_set_transport(struct l_dhcp_client *client,
 					struct dhcp_transport *transport);
 void _dhcp_client_override_xid(struct l_dhcp_client *client, uint32_t xid);
+
+bool _dhcp_server_set_transport(struct l_dhcp_server *server,
+					struct dhcp_transport *transport);
 
 struct l_dhcp_lease {
 	uint32_t address;
