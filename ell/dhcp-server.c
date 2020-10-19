@@ -62,6 +62,8 @@ struct l_dhcp_server {
 	l_dhcp_server_event_cb_t event_handler;
 	void *user_data;
 	l_dhcp_destroy_cb_t event_destroy;
+
+	struct dhcp_transport *transport;
 };
 
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -79,6 +81,23 @@ struct l_dhcp_server {
 #define SERVER_DEBUG(fmt, args...)					\
 	l_util_debug(server->debug_handler, server->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
+
+static void listener_event(const void *data, size_t len, void *user_data)
+{
+}
+
+bool _dhcp_server_set_transport(struct l_dhcp_server *server,
+					struct dhcp_transport *transport)
+{
+	if (unlikely(!server))
+		return false;
+
+	if (server->transport)
+		_dhcp_transport_free(server->transport);
+
+	server->transport = transport;
+	return true;
+}
 
 LIB_EXPORT struct l_dhcp_server *l_dhcp_server_new(int ifindex)
 {
@@ -109,6 +128,7 @@ LIB_EXPORT void l_dhcp_server_destroy(struct l_dhcp_server *server)
 	if (server->event_destroy)
 		server->event_destroy(server->user_data);
 
+	_dhcp_transport_free(server->transport);
 	l_free(server->ifname);
 
 	l_queue_destroy(server->lease_list,
@@ -165,7 +185,21 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 			return false;
 	}
 
+	if (!server->transport) {
+		server->transport = _dhcp_default_transport_new(server->ifindex,
+					server->ifname, DHCP_PORT_SERVER);
+		if (!server->transport)
+			return false;
+	}
+
 	SERVER_DEBUG("Starting DHCP server on %s", server->ifname);
+
+	if (server->transport->open)
+		if (server->transport->open(server->transport, 0) < 0)
+			return false;
+
+	_dhcp_transport_set_rx_callback(server->transport, listener_event,
+						server);
 
 	server->started = true;
 
@@ -179,6 +213,9 @@ LIB_EXPORT bool l_dhcp_server_stop(struct l_dhcp_server *server)
 
 	if (!server->started)
 		return true;
+
+	if (server->transport->close)
+		server->transport->close(server->transport);
 
 	server->started = false;
 
