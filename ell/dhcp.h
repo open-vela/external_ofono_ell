@@ -31,6 +31,7 @@ extern "C" {
 
 struct l_dhcp_client;
 struct l_dhcp_lease;
+struct l_netlink;
 struct l_dhcp_server;
 
 /* RFC 2132 */
@@ -84,6 +85,9 @@ bool l_dhcp_client_set_interface_name(struct l_dhcp_client *client,
 							const char *ifname);
 bool l_dhcp_client_set_hostname(struct l_dhcp_client *client,
 							const char *hostname);
+
+bool l_dhcp_client_set_rtnl(struct l_dhcp_client *client,
+					struct l_netlink *rtnl);
 
 const struct l_dhcp_lease *l_dhcp_client_get_lease(
 					const struct l_dhcp_client *client);
