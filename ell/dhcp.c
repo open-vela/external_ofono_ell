@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <net/if_arp.h>
 #include <errno.h>
+#include <arpa/inet.h>
 
 #include "private.h"
 #include "random.h"
@@ -38,6 +39,8 @@
 #include "timeout.h"
 #include "dhcp.h"
 #include "dhcp-private.h"
+#include "netlink.h"
+#include "rtnl.h"
 
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
@@ -178,6 +181,9 @@ struct l_dhcp_client {
 	struct l_timeout *timeout_resend;
 	struct l_timeout *timeout_lease;
 	struct l_dhcp_lease *lease;
+	struct l_netlink *rtnl;
+	uint32_t rtnl_add_cmdid;
+	struct l_rtnl_address *rtnl_configured_address;
 	uint8_t attempt;
 	l_dhcp_client_event_cb_t event_handler;
 	void *event_data;
@@ -583,6 +589,24 @@ error:
 	l_dhcp_client_stop(client);
 }
 
+static void dhcp_client_address_add_cb(int error, uint16_t type,
+						const void *data, uint32_t len,
+						void *user_data)
+{
+	struct l_dhcp_client *client = user_data;
+
+	client->rtnl_add_cmdid = 0;
+
+	if (error < 0 && error != -EEXIST) {
+		l_rtnl_address_free(client->rtnl_configured_address);
+		client->rtnl_configured_address = NULL;
+		CLIENT_DEBUG("Unable to set address on ifindex: %u: %d(%s)",
+				client->ifindex, error,
+				strerror(-error));
+		return;
+	}
+}
+
 static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 					const struct dhcp_message *ack,
 					size_t len)
@@ -625,6 +649,38 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 	if (client->state == DHCP_STATE_REQUESTING ||
 			client->state == DHCP_STATE_REBOOTING)
 		r = L_DHCP_CLIENT_EVENT_LEASE_OBTAINED;
+
+	if (client->rtnl) {
+		struct l_rtnl_address *a;
+		L_AUTO_FREE_VAR(char *, ip) =
+			l_dhcp_lease_get_address(client->lease);
+		uint8_t prefix_len;
+		uint32_t l = l_dhcp_lease_get_lifetime(client->lease);
+		L_AUTO_FREE_VAR(char *, netmask) =
+				l_dhcp_lease_get_netmask(client->lease);
+		L_AUTO_FREE_VAR(char *, broadcast) =
+				l_dhcp_lease_get_broadcast(client->lease);
+		struct in_addr in_addr;
+
+		if (inet_pton(AF_INET, netmask, &in_addr) > 0)
+			prefix_len = __builtin_popcountl(in_addr.s_addr);
+		else
+			prefix_len = 24;
+
+		a = l_rtnl_address_new(ip, prefix_len);
+		l_rtnl_address_set_noprefixroute(a, true);
+		l_rtnl_address_set_lifetimes(a, l, l);
+		l_rtnl_address_set_broadcast(a, broadcast);
+
+		client->rtnl_add_cmdid =
+			l_rtnl_ifaddr_add(client->rtnl, client->ifindex, a,
+						dhcp_client_address_add_cb,
+						client, NULL);
+		if (client->rtnl_add_cmdid)
+			client->rtnl_configured_address = a;
+		else
+			CLIENT_DEBUG("Configuring address via RTNL failed");
+	}
 
 	return r;
 }
@@ -989,6 +1045,19 @@ LIB_EXPORT bool l_dhcp_client_stop(struct l_dhcp_client *client)
 	if (unlikely(!client))
 		return false;
 
+	if (client->rtnl_add_cmdid) {
+		l_netlink_cancel(client->rtnl, client->rtnl_add_cmdid);
+		client->rtnl_add_cmdid = 0;
+	}
+
+	if (client->rtnl_configured_address) {
+		l_rtnl_ifaddr_delete(client->rtnl, client->ifindex,
+					client->rtnl_configured_address,
+					NULL, NULL, NULL);
+		l_rtnl_address_free(client->rtnl_configured_address);
+		client->rtnl_configured_address = NULL;
+	}
+
 	l_timeout_remove(client->timeout_resend);
 	client->timeout_resend = NULL;
 
@@ -1040,5 +1109,18 @@ LIB_EXPORT bool l_dhcp_client_set_debug(struct l_dhcp_client *client,
 	client->debug_destroy = destroy;
 	client->debug_data = user_data;
 
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp_client_set_rtnl(struct l_dhcp_client *client,
+					struct l_netlink *rtnl)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP_STATE_INIT))
+		return false;
+
+	client->rtnl = rtnl;
 	return true;
 }
