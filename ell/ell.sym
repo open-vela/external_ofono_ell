@@ -243,6 +243,19 @@ global:
 	l_dhcp_client_stop;
 	l_dhcp_client_set_event_handler;
 	l_dhcp_client_set_debug;
+	l_dhcp_server_new;
+	l_dhcp_server_destroy;
+	l_dhcp_server_start;
+	l_dhcp_server_stop;
+	l_dhcp_server_set_ip_range;
+	l_dhcp_server_set_debug;
+	l_dhcp_server_set_lease_time;
+	l_dhcp_server_set_event_handler;
+	l_dhcp_server_set_ip_address;
+	l_dhcp_server_set_interface_name;
+	l_dhcp_server_set_netmaks;
+	l_dhcp_server_set_gateway;
+	l_dhcp_server_set_dns;
 	/* dhcp6 */
 	l_dhcp6_client_new;
 	l_dhcp6_client_destroy;
