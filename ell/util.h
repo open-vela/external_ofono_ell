@@ -391,6 +391,13 @@ static inline int l_secure_memcmp(const void *a, const void *b,
 	return res;
 }
 
+bool l_memeq(const uint8_t *field, size_t size, uint8_t byte);
+
+static inline bool l_memeqzero(const uint8_t *field, size_t size)
+{
+	return l_memeq(field, size, 0);
+}
+
 #ifdef __cplusplus
 }
 #endif
