@@ -20,6 +20,7 @@ global:
 	l_util_hexdumpv;
 	l_util_debug;
 	l_util_get_debugfs_path;
+	l_memeq;
 	/* test */
 	l_test_init;
 	l_test_run;
