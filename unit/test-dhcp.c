@@ -365,9 +365,13 @@ static void test_option_8(const void *data)
 
 static void test_option_set(const void *data)
 {
-	static uint8_t result[64] = {'A', 'B', 'C', 'D' };
+	struct dhcp_message_builder builder;
+	struct dhcp_message *message;
+	size_t outlen;
+	uint8_t *msg_out;
+	unsigned int i;
+	static uint8_t result[sizeof(struct dhcp_message) + 64];
 	static uint8_t options[64] = {
-			'A', 'B', 'C', 'D',
 			160, 2, 0x11, 0x12,
 			0,
 			31, 8, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
@@ -377,51 +381,38 @@ static void test_option_set(const void *data)
 			255
 	};
 
-	size_t len, oldlen;
-	int pos, i;
-	uint8_t *opt;
+	message = (struct dhcp_message *)result;
 
-	assert(_dhcp_option_append(NULL, NULL, 0, 0, NULL) == -EINVAL);
+	/* test a few failure conditions */
+	assert(!_dhcp_message_builder_init(NULL, NULL, 0, 0));
+	assert(!_dhcp_message_builder_init(&builder, message, 0, 0));
 
-	len = 0;
-	opt = &result[0];
-	assert(_dhcp_option_append(&opt, NULL, 0, 0, NULL) == -EINVAL);
-	assert(opt == &result[0] && len == 0);
+	_dhcp_message_builder_init(&builder, message, sizeof(result),
+					DHCP_MESSAGE_TYPE_DISCOVER);
+	_dhcp_message_builder_append(&builder, 160, 2, options + 2);
+	_dhcp_message_builder_append(&builder, 0, 0, NULL);
+	_dhcp_message_builder_append(&builder, 31, 8, options + 7);
+	_dhcp_message_builder_append(&builder, 0, 0, NULL);
+	_dhcp_message_builder_append(&builder, 55, 3, options + 18);
+	_dhcp_message_builder_append(&builder, 17, 7, options + 23);
+	msg_out = _dhcp_message_builder_finalize(&builder, &outlen);
 
-	assert(_dhcp_option_append(&opt, &len, 0, 0, NULL) == -ENOBUFS);
-	assert(opt == &result[0] && len == 0);
+	/*
+	 * The builde APIs automatically append the type passed in during init
+	 * so we can skip over that in order to test the expected static data
+	 */
 
-	opt = &result[4];
-	len = 1;
-	assert(_dhcp_option_append(&opt, &len, 0, 0, NULL) >= 0);
-	assert(opt == &result[5] && len == 0);
+	msg_out += sizeof(struct dhcp_message) + 3;
 
-	pos = 4;
-	len = 60;
-	while (pos < 64 && options[pos] != 255) {
-		opt = &result[pos];
-		oldlen = len;
+	for (i = 0; i < outlen - sizeof(struct dhcp_message); i++) {
+		if (msg_out[i] != options[i]) {
+			if (verbose) {
+				l_info("byte[%d] did not match 0x%02x 0x%02x",
+					i, msg_out[i], options[i]);
+			}
 
-		assert(_dhcp_option_append(&opt, &len, options[pos],
-						options[pos + 1],
-						&options[pos + 2]) >= 0);
-
-		if (options[pos] == 0) {
-			assert(opt == &result[pos + 1]);
-			assert(len == oldlen - 1);
-			pos++;
-		} else {
-			assert(opt == &result[pos + 2 + options[pos + 1]]);
-			assert(len == oldlen - 2 - options[pos + 1]);
-			pos += 2 + options[pos + 1];
+			assert(false);
 		}
-	}
-
-	for (i = 0; i < pos; i++) {
-		if (verbose)
-			l_info("%2d: 0x%02x(0x%02x)\n",
-					i, result[i], options[i]);
-		assert(result[i] == options[i]);
 	}
 }
 
