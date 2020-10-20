@@ -111,6 +111,14 @@ static struct l_dhcp_lease *find_lease_by_mac(struct l_dhcp_server *server,
 	return l_queue_find(server->lease_list, match_lease_mac, mac);
 }
 
+static void remove_lease(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease)
+{
+	l_queue_remove(server->lease_list, lease);
+
+	_dhcp_lease_free(lease);
+}
+
 /* Clear the old lease and create the new one */
 static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
 				const uint8_t *mac,
@@ -503,6 +511,16 @@ static void listener_event(const void *data, size_t len, void *user_data)
 			send_nak(server, message);
 			break;
 		}
+		break;
+	case DHCP_MESSAGE_TYPE_DECLINE:
+		SERVER_DEBUG("Received DECLINE");
+
+		if (!server_id_opt || !requested_ip_opt || !lease)
+			break;
+
+		if (requested_ip_opt == lease->address)
+			remove_lease(server, lease);
+
 		break;
 	}
 }
