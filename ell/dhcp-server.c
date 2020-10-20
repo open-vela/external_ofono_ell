@@ -383,6 +383,30 @@ static void send_offer(struct l_dhcp_server *server,
 		SERVER_DEBUG("Failed to send OFFER");
 }
 
+static void send_inform(struct l_dhcp_server *server,
+				const struct dhcp_message *client_msg)
+{
+	struct dhcp_message_builder builder;
+	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
+	L_AUTO_FREE_VAR(struct dhcp_message *, reply);
+
+	reply = (struct dhcp_message *) l_new(uint8_t, len);
+
+	server_message_init(server, client_msg, reply);
+
+	_dhcp_message_builder_init(&builder, reply, len, DHCP_MESSAGE_TYPE_ACK);
+
+	add_server_options(server, &builder);
+
+	_dhcp_message_builder_finalize(&builder, &len);
+
+	if (server->transport->l2_send(server->transport, server->address,
+					DHCP_PORT_SERVER, reply->ciaddr,
+					DHCP_PORT_CLIENT, reply->chaddr,
+					reply, len) < 0)
+		SERVER_DEBUG("Failed to send INFORM");
+}
+
 static void send_nak(struct l_dhcp_server *server,
 			const struct dhcp_message *client_msg)
 {
@@ -546,6 +570,11 @@ static void listener_event(const void *data, size_t len, void *user_data)
 			lease_release(server, lease,
 						l_time_to_secs(l_time_now()));
 
+		break;
+	case DHCP_MESSAGE_TYPE_INFORM:
+		SERVER_DEBUG("Received INFORM");
+
+		send_inform(server, message);
 		break;
 	}
 }
