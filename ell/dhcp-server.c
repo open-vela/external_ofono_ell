@@ -195,6 +195,20 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 	return lease;
 }
 
+static void lease_release(struct l_dhcp_server *server,
+			struct l_dhcp_lease *lease, uint32_t expire)
+{
+	l_queue_remove(server->lease_list, lease);
+
+	lease->lifetime = expire;
+
+	l_queue_insert(server->lease_list, lease, compare_lifetime, NULL);
+
+	if (server->event_handler)
+		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
+					server->user_data, lease);
+}
+
 static bool match_lease_ip(const void *data, const void *user_data)
 {
 	const struct l_dhcp_lease *lease = data;
@@ -520,6 +534,17 @@ static void listener_event(const void *data, size_t len, void *user_data)
 
 		if (requested_ip_opt == lease->address)
 			remove_lease(server, lease);
+
+		break;
+	case DHCP_MESSAGE_TYPE_RELEASE:
+		SERVER_DEBUG("Received RELEASE");
+
+		if (!server_id_opt || !lease)
+			break;
+
+		if (message->ciaddr == lease->address)
+			lease_release(server, lease,
+						l_time_to_secs(l_time_now()));
 
 		break;
 	}
