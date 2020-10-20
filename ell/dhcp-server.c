@@ -41,6 +41,9 @@
 /* 8 hours */
 #define DEFAULT_DHCP_LEASE_SEC (8*60*60)
 
+/* 5 minutes  */
+#define OFFER_TIME (5*60)
+
 struct l_dhcp_server {
 	bool started;
 	int ifindex;
@@ -82,8 +85,335 @@ struct l_dhcp_server {
 	l_util_debug(server->debug_handler, server->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
 
+static bool is_expired_lease(struct l_dhcp_lease *lease)
+{
+	if (lease->lifetime < l_time_to_secs(l_time_now()))
+		return true;
+
+	return false;
+}
+
+static bool match_lease_mac(const void *data, const void *user_data)
+{
+	const struct l_dhcp_lease *lease = data;
+	const uint8_t *mac = user_data;
+
+	return !memcmp(lease->mac, mac, 6);
+}
+
+static struct l_dhcp_lease *find_lease_by_mac(struct l_dhcp_server *server,
+						const uint8_t *mac)
+{
+	return l_queue_find(server->lease_list, match_lease_mac, mac);
+}
+
+/* Clear the old lease and create the new one */
+static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
+				const uint8_t *mac,
+				struct l_dhcp_lease **lease_out)
+{
+	struct l_dhcp_lease *lease;
+
+	if (yiaddr == 0)
+		return -ENXIO;
+
+	if (ntohl(yiaddr) < server->start_ip)
+		return -ENXIO;
+
+	if (ntohl(yiaddr) > server->end_ip)
+		return -ENXIO;
+
+	if (l_memeq(mac, ETH_ALEN, 0xff))
+		return -ENXIO;
+
+	if (l_memeqzero(mac, ETH_ALEN))
+		return -ENXIO;
+
+	lease = find_lease_by_mac(server, mac);
+
+	if (lease) {
+		l_queue_remove(server->lease_list, lease);
+
+		*lease_out = lease;
+
+		return 0;
+	}
+
+	*lease_out = l_new(struct l_dhcp_lease, 1);
+
+	return 0;
+}
+
+static int compare_lifetime(const void *a, const void *b, void *user_data)
+{
+	const struct l_dhcp_lease *lease1 = a;
+	const struct l_dhcp_lease *lease2 = b;
+
+	return lease2->lifetime - lease1->lifetime;
+}
+
+static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
+					uint32_t expire, const uint8_t *chaddr,
+					uint32_t yiaddr)
+{
+	struct l_dhcp_lease *lease = NULL;
+	int ret;
+
+	ret = get_lease(server, yiaddr, chaddr, &lease);
+	if (ret != 0)
+		return NULL;
+
+	memset(lease, 0, sizeof(*lease));
+
+	memcpy(lease->mac, chaddr, ETH_ALEN);
+	lease->address = yiaddr;
+
+	if (expire == 0)
+		lease->lifetime = l_time_to_secs(l_time_now()) +
+						server->lease_seconds;
+	else
+		lease->lifetime = expire;
+
+	l_queue_insert(server->lease_list, lease, compare_lifetime, NULL);
+
+	SERVER_DEBUG("added lease IP %s for "MAC " lifetime=%u",
+			IP_STR(yiaddr), MAC_STR(chaddr),
+			lease->lifetime);
+
+	return lease;
+}
+
+static bool match_lease_ip(const void *data, const void *user_data)
+{
+	const struct l_dhcp_lease *lease = data;
+
+	return lease->address == L_PTR_TO_UINT(user_data);
+}
+
+static struct l_dhcp_lease *find_lease_by_ip(struct l_dhcp_server *server,
+						uint32_t nip)
+{
+	return l_queue_find(server->lease_list, match_lease_ip,
+				L_UINT_TO_PTR(nip));
+}
+
+static bool check_requested_ip(struct l_dhcp_server *server,
+				uint32_t requested_nip)
+{
+	struct l_dhcp_lease *lease;
+
+	if (requested_nip == 0)
+		return false;
+
+	if (ntohl(requested_nip) < server->start_ip)
+		return false;
+
+	if (htonl(requested_nip) > server->end_ip)
+		return false;
+
+	lease = find_lease_by_ip(server, requested_nip);
+	if (!lease)
+		return true;
+
+	if (!is_expired_lease(lease))
+		return false;
+
+	return true;
+}
+
+/* Check if the IP is taken; if it is, add it to the lease table */
+static bool arp_check(uint32_t ip, const uint8_t *safe_mac)
+{
+	/* TODO: Add ARP checking */
+	return true;
+}
+
+static uint32_t find_free_or_expired_ip(struct l_dhcp_server *server,
+						const uint8_t *safe_mac)
+{
+	uint32_t ip_addr;
+	struct l_dhcp_lease *lease;
+
+	for (ip_addr = server->start_ip; ip_addr <= server->end_ip; ip_addr++) {
+		/* Get IP in network order to return/check for matches */
+		uint32_t ip_nl = htonl(ip_addr);
+
+		/* e.g. 192.168.55.0 */
+		if ((ip_addr & 0xff) == 0)
+			continue;
+
+		/* e.g. 192.168.55.255 */
+		if ((ip_addr & 0xff) == 0xff)
+			continue;
+
+		lease = find_lease_by_ip(server, ip_nl);
+		if (lease)
+			continue;
+
+		if (arp_check(ip_nl, safe_mac))
+			return ip_nl;
+	}
+
+	lease = l_queue_peek_tail(server->lease_list);
+	if (!lease)
+		return 0;
+
+	if (!is_expired_lease(lease))
+		return 0;
+
+	if (!arp_check(lease->address, safe_mac))
+		return 0;
+
+	return lease->address;
+}
+
+static void server_message_init(struct l_dhcp_server *server,
+				const struct dhcp_message *client_msg,
+				struct dhcp_message *reply)
+{
+	reply->xid = client_msg->xid;
+	memcpy(reply->chaddr, client_msg->chaddr, sizeof(client_msg->chaddr));
+	reply->flags = client_msg->flags;
+	reply->giaddr = client_msg->giaddr;
+	reply->ciaddr = client_msg->ciaddr;
+}
+
+static void add_server_options(struct l_dhcp_server *server,
+				struct dhcp_message_builder *builder)
+{
+	int i;
+
+	if (server->netmask)
+		_dhcp_message_builder_append(builder, L_DHCP_OPTION_SUBNET_MASK,
+						4, &server->netmask);
+
+	if (server->gateway)
+		_dhcp_message_builder_append(builder, L_DHCP_OPTION_ROUTER,
+						4, &server->gateway);
+
+	if (server->dns_list) {
+		for (i = 0; server->dns_list[i]; i++);
+
+		_dhcp_message_builder_append(builder,
+					L_DHCP_OPTION_DOMAIN_NAME_SERVER,
+					i * 4, server->dns_list);
+	}
+}
+
+static void send_offer(struct l_dhcp_server *server,
+			const struct dhcp_message *client_msg,
+			struct l_dhcp_lease *lease, uint32_t requested_ip)
+{
+	struct dhcp_message_builder builder;
+	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
+	L_AUTO_FREE_VAR(struct dhcp_message *, reply);
+	uint32_t lease_time = L_CPU_TO_BE32(server->lease_seconds);
+
+	reply = (struct dhcp_message *) l_new(uint8_t, len);
+
+	if (lease)
+		reply->yiaddr = lease->address;
+	else if (check_requested_ip(server, requested_ip))
+		reply->yiaddr = requested_ip;
+	else
+		reply->yiaddr = find_free_or_expired_ip(server,
+							client_msg->chaddr);
+
+	if (!reply->yiaddr) {
+		SERVER_DEBUG("Could not find lease or send offer");
+		return;
+	}
+
+	lease = add_lease(server, OFFER_TIME, client_msg->chaddr,
+				reply->yiaddr);
+	if (!lease) {
+		SERVER_DEBUG("No free IP addresses, OFFER abandoned");
+		return;
+	}
+
+	server_message_init(server, client_msg, reply);
+
+	_dhcp_message_builder_init(&builder, reply, len,
+					DHCP_MESSAGE_TYPE_OFFER);
+
+	_dhcp_message_builder_append(&builder,
+					L_DHCP_OPTION_IP_ADDRESS_LEASE_TIME,
+					4, &lease_time);
+
+	_dhcp_message_builder_append(&builder, L_DHCP_OPTION_SERVER_IDENTIFIER,
+					4, &server->address);
+
+	add_server_options(server, &builder);
+
+	_dhcp_message_builder_finalize(&builder, &len);
+
+	SERVER_DEBUG("Sending OFFER of %s to "MAC, IP_STR(reply->yiaddr),
+			MAC_STR(reply->chaddr));
+
+	if (server->transport->l2_send(server->transport, server->address,
+					DHCP_PORT_SERVER,
+					reply->ciaddr, DHCP_PORT_CLIENT,
+					reply->chaddr, reply, len) < 0)
+		SERVER_DEBUG("Failed to send OFFER");
+}
+
 static void listener_event(const void *data, size_t len, void *user_data)
 {
+	struct l_dhcp_server *server = user_data;
+	const struct dhcp_message *message = data;
+	struct dhcp_message_iter iter;
+	uint8_t t, l;
+	const void *v;
+	struct l_dhcp_lease *lease;
+	uint8_t type = 0;
+	uint32_t server_id_opt = 0;
+	uint32_t requested_ip_opt = 0;
+
+	SERVER_DEBUG("");
+
+	if (!_dhcp_message_iter_init(&iter, message, len))
+		return;
+
+	while (_dhcp_message_iter_next(&iter, &t, &l, &v)) {
+		switch (t) {
+		case DHCP_OPTION_MESSAGE_TYPE:
+			if (l == 1)
+				type = l_get_u8(v);
+
+			break;
+		case L_DHCP_OPTION_SERVER_IDENTIFIER:
+			if (l == 4)
+				server_id_opt = l_get_u32(v);
+
+			if (server->address != server_id_opt)
+				return;
+
+			break;
+		case L_DHCP_OPTION_REQUESTED_IP_ADDRESS:
+			if (l == 4)
+				requested_ip_opt = l_get_u32(v);
+
+			break;
+		}
+	}
+
+	if (type == 0)
+		return;
+
+	lease = find_lease_by_mac(server, message->chaddr);
+	if (!lease)
+		SERVER_DEBUG("No lease found for "MAC,
+					MAC_STR(message->chaddr));
+
+	switch (type) {
+	case DHCP_MESSAGE_TYPE_DISCOVER:
+		SERVER_DEBUG("Received DISCOVER, requested IP %s",
+					IP_STR(requested_ip_opt));
+
+		send_offer(server, message, lease, requested_ip_opt);
+
+		break;
+	}
 }
 
 bool _dhcp_server_set_transport(struct l_dhcp_server *server,
