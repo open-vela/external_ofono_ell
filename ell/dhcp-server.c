@@ -44,6 +44,10 @@
 /* 5 minutes  */
 #define OFFER_TIME (5*60)
 
+static const uint8_t MAC_BCAST_ADDR[ETH_ALEN] = {
+	0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
+
 struct l_dhcp_server {
 	bool started;
 	int ifindex;
@@ -357,6 +361,73 @@ static void send_offer(struct l_dhcp_server *server,
 		SERVER_DEBUG("Failed to send OFFER");
 }
 
+static void send_nak(struct l_dhcp_server *server,
+			const struct dhcp_message *client_msg)
+{
+	struct dhcp_message_builder builder;
+	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
+	L_AUTO_FREE_VAR(struct dhcp_message *, reply);
+
+	reply = (struct dhcp_message *) l_new(uint8_t, len);
+
+	server_message_init(server, client_msg, reply);
+
+	_dhcp_message_builder_init(&builder, reply, len, DHCP_MESSAGE_TYPE_NAK);
+
+	_dhcp_message_builder_finalize(&builder, &len);
+
+	if (server->transport->l2_send(server->transport, server->address,
+					DHCP_PORT_SERVER, reply->ciaddr,
+					DHCP_PORT_CLIENT, MAC_BCAST_ADDR,
+					reply, len) < 0)
+		SERVER_DEBUG("Failed to send NACK");
+}
+
+static void send_ack(struct l_dhcp_server *server,
+			const struct dhcp_message *client_msg, uint32_t dest)
+{
+	struct dhcp_message_builder builder;
+	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
+	L_AUTO_FREE_VAR(struct dhcp_message *, reply);
+	uint32_t lease_time = L_CPU_TO_BE32(server->lease_seconds);
+	struct l_dhcp_lease *lease;
+
+	reply = (struct dhcp_message *) l_new(uint8_t, len);
+
+	server_message_init(server, client_msg, reply);
+
+	_dhcp_message_builder_init(&builder, reply, len, DHCP_MESSAGE_TYPE_ACK);
+
+	reply->yiaddr = dest;
+
+	_dhcp_message_builder_append(&builder,
+					L_DHCP_OPTION_IP_ADDRESS_LEASE_TIME,
+					4, &lease_time);
+
+	add_server_options(server, &builder);
+
+	_dhcp_message_builder_append(&builder, L_DHCP_OPTION_SERVER_IDENTIFIER,
+					4, &server->address);
+
+	_dhcp_message_builder_finalize(&builder, &len);
+
+	SERVER_DEBUG("Sending ACK to %s", IP_STR(reply->yiaddr));
+
+	if (server->transport->l2_send(server->transport, server->address,
+					DHCP_PORT_SERVER, reply->ciaddr,
+					DHCP_PORT_CLIENT,
+					reply->chaddr, reply, len) < 0) {
+		SERVER_DEBUG("Failed to send ACK");
+		return;
+	}
+
+	lease = add_lease(server, 0, reply->chaddr, reply->yiaddr);
+
+	if (server->event_handler)
+		server->event_handler(server, L_DHCP_SERVER_EVENT_NEW_LEASE,
+					server->user_data, lease);
+}
+
 static void listener_event(const void *data, size_t len, void *user_data)
 {
 	struct l_dhcp_server *server = user_data;
@@ -412,6 +483,26 @@ static void listener_event(const void *data, size_t len, void *user_data)
 
 		send_offer(server, message, lease, requested_ip_opt);
 
+		break;
+	case DHCP_MESSAGE_TYPE_REQUEST:
+		SERVER_DEBUG("Received REQUEST, requested IP %s",
+				IP_STR(requested_ip_opt));
+
+		if (requested_ip_opt == 0) {
+			requested_ip_opt = message->ciaddr;
+			if (requested_ip_opt == 0)
+				break;
+		}
+
+		if (lease && requested_ip_opt == lease->address) {
+			send_ack(server, message, lease->address);
+			break;
+		}
+
+		if (server_id_opt || !lease) {
+			send_nak(server, message);
+			break;
+		}
 		break;
 	}
 }
