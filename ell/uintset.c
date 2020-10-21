@@ -485,7 +485,8 @@ LIB_EXPORT struct l_uintset *l_uintset_clone(const struct l_uintset *original)
 	if (unlikely(!original))
 		return NULL;
 
-	bitmap_size = (original->size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+	bitmap_size = sizeof(unsigned long) *
+		((original->size + BITS_PER_LONG - 1) / BITS_PER_LONG);
 
 	clone = l_uintset_new_from_range(original->min, original->max);
 	memcpy(clone->bits, original->bits, bitmap_size);
