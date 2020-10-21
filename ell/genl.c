@@ -795,13 +795,27 @@ static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 		if (!(nlmsg->nlmsg_flags & NLM_F_ACK_TLVS))
 			goto done;
 
+		/*
+		 * If the message is capped, then err->msg.nlmsg_len contains
+		 * the length of the original message and thus can't be used
+		 * to calculate the offset
+		 */
 		if (!(nlmsg->nlmsg_flags & NLM_F_CAPPED))
 			offset = err->msg.nlmsg_len - sizeof(struct nlmsghdr);
 
-		if (nlmsg->nlmsg_len < offset)
+		/*
+		 * Attributes start past struct nlmsgerr.  The offset is 0
+		 * for NLM_F_CAPPED messages.  Otherwise the original message
+		 * is included, and thus the offset takes err->msg.nlmsg_len
+		 * into account
+		 */
+		nla = (void *)(err + 1) + offset;
+
+		/* Calculate bytes taken up by header + nlmsgerr contents */
+		offset += sizeof(struct nlmsghdr) + sizeof(struct nlmsgerr);
+		if (nlmsg->nlmsg_len <= offset)
 			goto done;
 
-		nla = (void *)(err + 1) + offset;
 		len = nlmsg->nlmsg_len - offset;
 
 		for (; NLA_OK(nla, len); nla = NLA_NEXT(nla, len)) {
