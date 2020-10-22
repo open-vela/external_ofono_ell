@@ -26,9 +26,11 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <linux/ipv6.h>
+#include <linux/rtnetlink.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -40,7 +42,10 @@
 #include "time.h"
 #include "io.h"
 #include "time-private.h"
+#include "queue.h"
 #include "net.h"
+#include "netlink.h"
+#include "rtnl.h"
 #include "icmp6.h"
 #include "icmp6-private.h"
 
@@ -232,6 +237,8 @@ struct l_icmp6_client {
 	struct l_io *io;
 
 	struct l_icmp6_router *ra;
+	struct l_netlink *rtnl;
+	struct l_queue *routes;
 
 	l_icmp6_client_event_cb_t event_handler;
 	void *event_data;
@@ -252,6 +259,66 @@ static inline void icmp6_client_event_notify(struct l_icmp6_client *client,
 		client->event_handler(client, event, client->event_data);
 }
 
+static bool icmp6_client_remove_route(void *data, void *user_data)
+{
+	struct l_icmp6_client *client = user_data;
+	struct l_rtnl_route *r = data;
+
+	if (client->rtnl)
+		l_rtnl_route_delete(client->rtnl, client->ifindex, r,
+				NULL, NULL, NULL);
+
+	l_free(r);
+	return true;
+}
+
+static void icmp6_client_setup_routes(struct l_icmp6_client *client)
+{
+	struct l_icmp6_router *ra = client->ra;
+	struct l_rtnl_route *rt;
+	char buf[INET6_ADDRSTRLEN];
+	unsigned int i;
+
+	rt = l_rtnl_route_new_gateway(inet_ntop(AF_INET6, ra->address,
+							buf, sizeof(buf)));
+	if (!rt) {
+		CLIENT_DEBUG("Unable to parse RA 'from' address");
+		return;
+	}
+
+	l_rtnl_route_set_preference(rt, ra->pref);
+	l_rtnl_route_set_protocol(rt, RTPROT_RA);
+	l_rtnl_route_set_mtu(rt, ra->mtu);
+	l_queue_push_tail(client->routes, rt);
+
+	if (client->rtnl)
+		l_rtnl_route_add(client->rtnl, client->ifindex, rt,
+					NULL, NULL, NULL);
+
+	for (i = 0; i < ra->n_prefixes; i++) {
+		struct route_info *info = &ra->prefixes[i];
+
+		if (info->valid_lifetime == 0)
+			continue;
+
+		if (!inet_ntop(AF_INET6, info->address, buf, sizeof(buf)))
+			continue;
+
+		rt = l_rtnl_route_new_prefix(buf, info->prefix_len);
+		if (!rt)
+			continue;
+
+		l_rtnl_route_set_preference(rt, info->preference);
+		l_rtnl_route_set_protocol(rt, RTPROT_RA);
+		l_rtnl_route_set_mtu(rt, ra->mtu);
+		l_queue_push_tail(client->routes, rt);
+
+		if (client->rtnl)
+			l_rtnl_route_add(client->rtnl, client->ifindex, rt,
+						NULL, NULL, NULL);
+	}
+}
+
 static int icmp6_client_handle_message(struct l_icmp6_client *client,
 						struct nd_router_advert *ra,
 						size_t len,
@@ -262,6 +329,18 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 	if (!r)
 		return -EBADMSG;
 
+	if (!client->ra) {
+		client->ra = r;
+		icmp6_client_event_notify(client,
+					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND);
+		icmp6_client_setup_routes(client);
+		return 0;
+	}
+
+	/*
+	 * TODO: Figure out if the RA has updated info and update routes
+	 * accordingly.
+	 */
 	_icmp6_router_free(client->ra);
 	client->ra = r;
 	return 0;
@@ -295,9 +374,10 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 	if (icmp6_client_handle_message(client, ra, l, &src) < 0)
 		goto done;
 
-	icmp6_client_event_notify(client, L_ICMP6_CLIENT_EVENT_ROUTER_FOUND);
 	/* Stop solicitations */
-	l_icmp6_client_stop(client);
+	client->retransmit_time = 0;
+	l_timeout_remove(client->timeout_send);
+	client->timeout_send = NULL;
 
 done:
 	l_free(ra);
@@ -341,6 +421,7 @@ LIB_EXPORT struct l_icmp6_client *l_icmp6_client_new(uint32_t ifindex)
 	struct l_icmp6_client *client = l_new(struct l_icmp6_client, 1);
 
 	client->ifindex = ifindex;
+	client->routes = l_queue_new();
 
 	return client;
 }
@@ -351,6 +432,7 @@ LIB_EXPORT void l_icmp6_client_free(struct l_icmp6_client *client)
 		return;
 
 	l_icmp6_client_stop(client);
+	l_queue_destroy(client->routes, NULL);
 	l_free(client);
 }
 
@@ -410,6 +492,9 @@ LIB_EXPORT bool l_icmp6_client_stop(struct l_icmp6_client *client)
 
 	l_io_destroy(client->io);
 	client->io = NULL;
+
+	l_queue_foreach_remove(client->routes,
+					icmp6_client_remove_route, client);
 
 	client->retransmit_time = 0;
 	l_timeout_remove(client->timeout_send);
@@ -490,6 +575,16 @@ LIB_EXPORT bool l_icmp6_client_set_nodelay(struct l_icmp6_client *client,
 
 	client->nodelay = nodelay;
 
+	return true;
+}
+
+LIB_EXPORT bool l_icmp6_client_set_rtnl(struct l_icmp6_client *client,
+						struct l_netlink *rtnl)
+{
+	if (unlikely(!client))
+		return false;
+
+	client->rtnl = rtnl;
 	return true;
 }
 
