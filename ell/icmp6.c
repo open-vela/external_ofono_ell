@@ -28,6 +28,7 @@
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <linux/ipv6.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -253,9 +254,10 @@ static inline void icmp6_client_event_notify(struct l_icmp6_client *client,
 
 static int icmp6_client_handle_message(struct l_icmp6_client *client,
 						struct nd_router_advert *ra,
+						size_t len,
 						const struct in6_addr *src)
 {
-	struct l_icmp6_router *r = _icmp6_router_parse(ra, src->s6_addr);
+	struct l_icmp6_router *r = _icmp6_router_parse(ra, len, src->s6_addr);
 
 	if (!r)
 		return -EBADMSG;
@@ -290,7 +292,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 		goto done;
 	}
 
-	if (icmp6_client_handle_message(client, ra, &src) < 0)
+	if (icmp6_client_handle_message(client, ra, l, &src) < 0)
 		goto done;
 
 	icmp6_client_event_notify(client, L_ICMP6_CLIENT_EVENT_ROUTER_FOUND);
@@ -500,13 +502,18 @@ struct l_icmp6_router *_icmp6_router_new()
 
 void _icmp6_router_free(struct l_icmp6_router *r)
 {
+	l_free(r->prefixes);
 	l_free(r);
 }
 
 struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
+						size_t len,
 						const uint8_t src[static 16])
 {
 	struct l_icmp6_router *r;
+	const uint8_t *opts;
+	uint32_t opts_len;
+	uint32_t n_prefixes = 0;
 
 	if (ra->nd_ra_type != ND_ROUTER_ADVERT)
 		return NULL;
@@ -514,14 +521,80 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	if (ra->nd_ra_code != 0)
 		return NULL;
 
+	opts = (uint8_t *) (ra + 1);
+	opts_len = len - sizeof(struct nd_router_advert);
+
+	while (opts_len) {
+		uint8_t t;
+		uint32_t l;
+
+		if (opts_len < 2)
+			return NULL;
+
+		l = opts[1] * 8;
+		if (!l || opts_len < l)
+			return NULL;
+
+		t = opts[0];
+
+		switch (t) {
+		case ND_OPT_PREFIX_INFORMATION:
+			if (l != 32)
+				return NULL;
+
+			if (opts[2] > 128)
+				return NULL;
+
+			if (opts[3] & ND_OPT_PI_FLAG_ONLINK)
+				n_prefixes += 1;
+			break;
+		}
+
+		opts += l;
+		opts_len -= l;
+	}
+
+
 	r = _icmp6_router_new();
 	memcpy(r->address, src, sizeof(r->address));
+	r->prefixes = l_new(struct route_info, n_prefixes);
+	r->n_prefixes = n_prefixes;
 
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
 		r->managed = true;
 
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_OTHER)
 		r->other = true;
+
+	opts = (uint8_t *) (ra + 1);
+	opts_len = len - sizeof(struct nd_router_advert);
+	n_prefixes = 0;
+
+	while (opts_len) {
+		uint8_t t = opts[0];
+		uint32_t l = opts[1] * 8;
+
+		switch (t) {
+		case ND_OPT_PREFIX_INFORMATION:
+		{
+			struct route_info *i = &r->prefixes[n_prefixes];
+
+			if (!(opts[3] & ND_OPT_PI_FLAG_ONLINK))
+				break;
+
+			i->prefix_len = opts[2];
+			i->valid_lifetime = l_get_be32(opts + 4);
+			i->preferred_lifetime = l_get_be32(opts + 8);
+			memcpy(i->address, opts + 16, 16);
+
+			n_prefixes += 1;
+			break;
+		}
+		}
+
+		opts += l;
+		opts_len -= l ;
+	}
 
 	return r;
 }
