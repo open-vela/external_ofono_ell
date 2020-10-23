@@ -570,6 +570,12 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_OTHER)
 		r->other = true;
 
+	r->pref = (ra->nd_ra_flags_reserved >> 3) & 0x3;
+	if (r->pref == 0x2) /* If invalid, reset to medium */
+		r->pref = 0;
+
+	r->lifetime = L_BE16_TO_CPU(ra->nd_ra_router_lifetime);
+
 	opts = (uint8_t *) (ra + 1);
 	opts_len = len - sizeof(struct nd_router_advert);
 	n_prefixes = 0;

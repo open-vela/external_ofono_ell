@@ -32,6 +32,8 @@ struct l_icmp6_router {
 	uint8_t address[16];
 	bool managed : 1;
 	bool other : 1;
+	uint8_t pref;
+	uint16_t lifetime;
 	uint32_t mtu;
 	uint32_t n_prefixes;
 	struct route_info *prefixes;
