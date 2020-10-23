@@ -538,6 +538,10 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 		t = opts[0];
 
 		switch (t) {
+		case ND_OPT_MTU:
+			if (l != 8)
+				return NULL;
+			break;
 		case ND_OPT_PREFIX_INFORMATION:
 			if (l != 32)
 				return NULL;
@@ -575,6 +579,15 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 		uint32_t l = opts[1] * 8;
 
 		switch (t) {
+		case ND_OPT_MTU:
+			if (r->mtu)
+				break;
+
+			r->mtu = l_get_be32(opts + 4);
+			if (r->mtu < IPV6_MIN_MTU)
+				r->mtu = 0;
+
+			break;
 		case ND_OPT_PREFIX_INFORMATION:
 		{
 			struct route_info *i = &r->prefixes[n_prefixes];
