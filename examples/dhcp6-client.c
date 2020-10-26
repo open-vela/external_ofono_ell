@@ -115,6 +115,7 @@ static void event_handler(struct l_dhcp6_client *client,
 int main(int argc, char *argv[])
 {
 	struct l_netlink *rtnl;
+	struct l_icmp6_client *icmp6;
 	int ifindex;
 	uint8_t mac[6];
 
@@ -149,6 +150,11 @@ int main(int argc, char *argv[])
 	l_dhcp6_client_set_debug(client, do_debug, "[DHCP6] ", NULL);
 	l_dhcp6_client_set_lla_randomized(client, true);
 	l_dhcp6_client_set_rtnl(client, rtnl);
+
+	icmp6 = l_dhcp6_client_get_icmp6(client);
+	l_icmp6_client_set_rtnl(icmp6, rtnl);
+	l_icmp6_client_set_route_priority(icmp6, 300);
+
 	l_dhcp6_client_start(client);
 
 	l_main_run_with_signal(signal_handler, NULL);
