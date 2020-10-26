@@ -63,6 +63,8 @@ bool l_icmp6_client_set_address(struct l_icmp6_client *client,
 bool l_icmp6_client_set_nodelay(struct l_icmp6_client *client, bool nodelay);
 bool l_icmp6_client_set_rtnl(struct l_icmp6_client *client,
 						struct l_netlink *rtnl);
+bool l_icmp6_client_set_route_priority(struct l_icmp6_client *client,
+						uint32_t priority);
 
 bool l_icmp6_router_get_managed(const struct l_icmp6_router *r);
 bool l_icmp6_router_get_other(const struct l_icmp6_router *r);

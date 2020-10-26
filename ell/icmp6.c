@@ -238,6 +238,7 @@ struct l_icmp6_client {
 
 	struct l_icmp6_router *ra;
 	struct l_netlink *rtnl;
+	uint32_t route_priority;
 	struct l_queue *routes;
 
 	l_icmp6_client_event_cb_t event_handler;
@@ -289,6 +290,7 @@ static void icmp6_client_setup_routes(struct l_icmp6_client *client)
 	l_rtnl_route_set_preference(rt, ra->pref);
 	l_rtnl_route_set_protocol(rt, RTPROT_RA);
 	l_rtnl_route_set_mtu(rt, ra->mtu);
+	l_rtnl_route_set_priority(rt, client->route_priority);
 	l_queue_push_tail(client->routes, rt);
 
 	if (client->rtnl)
@@ -311,6 +313,7 @@ static void icmp6_client_setup_routes(struct l_icmp6_client *client)
 		l_rtnl_route_set_preference(rt, info->preference);
 		l_rtnl_route_set_protocol(rt, RTPROT_RA);
 		l_rtnl_route_set_mtu(rt, ra->mtu);
+		l_rtnl_route_set_priority(rt, client->route_priority);
 		l_queue_push_tail(client->routes, rt);
 
 		if (client->rtnl)
@@ -585,6 +588,16 @@ LIB_EXPORT bool l_icmp6_client_set_rtnl(struct l_icmp6_client *client,
 		return false;
 
 	client->rtnl = rtnl;
+	return true;
+}
+
+LIB_EXPORT bool l_icmp6_client_set_route_priority(struct l_icmp6_client *client,
+							uint32_t priority)
+{
+	if (unlikely(!client))
+		return false;
+
+	client->route_priority = priority;
 	return true;
 }
 
