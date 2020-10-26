@@ -32,6 +32,7 @@ extern "C" {
 struct l_dhcp6_client;
 struct l_dhcp6_lease;
 struct l_netlink;
+struct l_icmp6_client;
 
 enum l_dhcp6_option {
 	L_DHCP6_OPTION_DNS_SERVERS		= 23,
@@ -78,6 +79,8 @@ bool l_dhcp6_client_set_rtnl(struct l_dhcp6_client *client,
 						struct l_netlink *rtnl);
 bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 								bool stateless);
+
+struct l_icmp6_client *l_dhcp6_client_get_icmp6(struct l_dhcp6_client *client);
 
 bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option);

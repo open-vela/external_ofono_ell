@@ -1476,6 +1476,11 @@ LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 	client->ifindex = ifindex;
 	client->request_na = true;
 
+	client->icmp6 = l_icmp6_client_new(ifindex);
+	l_icmp6_client_set_event_handler(client->icmp6,
+						dhcp6_client_icmp6_event,
+						client, NULL);
+
 	client->request_options = l_uintset_new(256);
 	client_enable_option(client, L_DHCP6_OPTION_DOMAIN_LIST);
 	client_enable_option(client, L_DHCP6_OPTION_DNS_SERVERS);
@@ -1490,6 +1495,8 @@ LIB_EXPORT void l_dhcp6_client_destroy(struct l_dhcp6_client *client)
 
 	if (client->state != DHCP6_STATE_INIT)
 		l_dhcp6_client_stop(client);
+
+	l_icmp6_client_free(client->icmp6);
 
 	if (client->event_destroy)
 		client->event_destroy(client->event_data);
@@ -1691,6 +1698,15 @@ LIB_EXPORT bool l_dhcp6_client_set_stateless(struct l_dhcp6_client *client,
 	return true;
 }
 
+LIB_EXPORT struct l_icmp6_client *l_dhcp6_client_get_icmp6(
+						struct l_dhcp6_client *client)
+{
+	if (unlikely(!client))
+		return NULL;
+
+	return client->icmp6;
+}
+
 LIB_EXPORT bool l_dhcp6_client_add_request_option(struct l_dhcp6_client *client,
 						enum l_dhcp6_option option)
 {
@@ -1752,11 +1768,7 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 		return true;
 	}
 
-	client->icmp6 = l_icmp6_client_new(client->ifindex);
 	l_icmp6_client_set_address(client->icmp6, client->addr);
-	l_icmp6_client_set_event_handler(client->icmp6,
-						dhcp6_client_icmp6_event,
-						client, NULL);
 	l_icmp6_client_set_debug(client->icmp6, client->debug_handler,
 					client->debug_data,
 					client->debug_destroy);
@@ -1797,8 +1809,8 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 	_dhcp6_lease_free(client->lease);
 	client->lease = NULL;
 
-	l_icmp6_client_free(client->icmp6);
-	client->icmp6 = NULL;
+	if (!client->nora)
+		l_icmp6_client_stop(client->icmp6);
 
 	l_timeout_remove(client->timeout_send);
 	client->timeout_send = NULL;
