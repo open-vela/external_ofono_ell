@@ -94,7 +94,8 @@ struct dhcp6_transport {
 };
 
 struct dhcp6_transport *_dhcp6_default_transport_new(uint32_t ifindex,
-								uint16_t port);
+						const struct in6_addr *addr,
+						uint16_t port);
 void _dhcp6_transport_free(struct dhcp6_transport *transport);
 void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
 					dhcp6_transport_rx_cb_t rx_cb,
