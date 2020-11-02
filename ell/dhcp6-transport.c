@@ -42,6 +42,7 @@ struct dhcp6_default_transport {
 	struct l_io *io;
 	int udp_fd;
 	uint16_t port;
+	struct in6_addr local;
 };
 
 static bool _dhcp6_default_transport_read_handler(struct l_io *io,
@@ -85,7 +86,9 @@ static int _dhcp6_default_transport_send(struct dhcp6_transport *s,
 	return 0;
 }
 
-static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port)
+static int kernel_raw_socket_open(uint32_t ifindex,
+					const struct in6_addr *local,
+					uint16_t port)
 {
 	static int yes = 1;
 	static int no = 0;
@@ -109,7 +112,7 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port)
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin6_family = AF_INET6;
-	addr.sin6_addr = in6addr_any;
+	memcpy(&addr.sin6_addr, local, sizeof(struct in6_addr));
 	addr.sin6_port = L_CPU_TO_BE16(port);
 	addr.sin6_scope_id = ifindex;
 
@@ -132,7 +135,8 @@ static int _dhcp6_default_transport_open(struct dhcp6_transport *s)
 	if (transport->io)
 		return -EALREADY;
 
-	fd = kernel_raw_socket_open(s->ifindex, transport->port);
+	fd = kernel_raw_socket_open(s->ifindex, &transport->local,
+						transport->port);
 	if (fd < 0)
 		return fd;
 
@@ -171,7 +175,8 @@ void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
 }
 
 struct dhcp6_transport *_dhcp6_default_transport_new(uint32_t ifindex,
-								uint16_t port)
+						const struct in6_addr *addr,
+						uint16_t port)
 {
 	struct dhcp6_default_transport *transport;
 
@@ -183,6 +188,7 @@ struct dhcp6_transport *_dhcp6_default_transport_new(uint32_t ifindex,
 
 	transport->super.ifindex = ifindex;
 	transport->port = port;
+	memcpy(&transport->local, addr, sizeof(struct in6_addr));
 
 	return &transport->super;
 }

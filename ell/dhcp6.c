@@ -1743,6 +1743,7 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 	if (!client->transport) {
 		client->transport =
 			_dhcp6_default_transport_new(client->ifindex,
+							&in6addr_any,
 							DHCP6_PORT_CLIENT);
 
 		if (!client->transport)
