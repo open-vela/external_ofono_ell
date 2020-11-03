@@ -26,10 +26,12 @@
 
 #include <sys/socket.h>
 #include <linux/if_arp.h>
+#include <linux/if_addr.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <netinet/ip.h>
+#include <ifaddrs.h>
 
 #include "net.h"
 #include "net-private.h"
@@ -369,4 +371,44 @@ done:
 	close(sk);
 
 	return ret;
+}
+
+bool l_net_get_link_local_address(int ifindex, struct in6_addr *out)
+{
+	L_AUTO_FREE_VAR(char *, ifname) = l_net_get_name(ifindex);
+	struct ifaddrs *ifa;
+	struct ifaddrs *cur;
+	bool r = false;
+
+	if (!ifname)
+		return false;
+
+	if (getifaddrs(&ifa) == -1)
+		return false;
+
+	for (cur = ifa; cur; cur = cur->ifa_next) {
+		struct sockaddr_in6 *si6;
+
+		if (cur->ifa_addr == NULL)
+			continue;
+
+		if (cur->ifa_addr->sa_family != AF_INET6)
+			continue;
+
+		if (strcmp(cur->ifa_name, ifname))
+			continue;
+
+		si6 = (struct sockaddr_in6 *) cur->ifa_addr;
+		if (!IN6_IS_ADDR_LINKLOCAL(&si6->sin6_addr))
+			continue;
+
+		memcpy(out, &si6->sin6_addr, sizeof(struct in6_addr));
+
+		r = true;
+		goto done;
+	}
+
+done:
+	freeifaddrs(ifa);
+	return r;
 }
