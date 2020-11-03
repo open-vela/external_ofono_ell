@@ -27,6 +27,7 @@
 #include <stdint.h>
 
 struct in_addr;
+struct in6_addr;
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ char *l_net_get_name(uint32_t ifindex);
 bool l_net_hostname_is_root(const char *hostname);
 bool l_net_hostname_is_localhost(const char *hostname);
 bool l_net_get_address(int ifindex, struct in_addr *out);
+bool l_net_get_link_local_address(int ifindex, struct in6_addr *out);
 
 #ifdef __cplusplus
 }
