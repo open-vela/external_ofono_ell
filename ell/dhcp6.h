@@ -62,6 +62,8 @@ const struct l_dhcp6_lease *l_dhcp6_client_get_lease(
 					const struct l_dhcp6_client *client);
 bool l_dhcp6_client_set_address(struct l_dhcp6_client *client, uint8_t type,
 				const uint8_t *addr, size_t addr_len);
+bool l_dhcp6_client_set_link_local_address(struct l_dhcp6_client *client,
+						const char *ll);
 bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 				l_dhcp6_debug_cb_t function,
 				void *user_data, l_dhcp6_destroy_cb_t destroy);
