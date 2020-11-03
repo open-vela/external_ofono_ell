@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <linux/if_arp.h>
+#include <arpa/inet.h>
 
 #include <ell/ell.h>
 
@@ -114,10 +115,12 @@ static void event_handler(struct l_dhcp6_client *client,
 
 int main(int argc, char *argv[])
 {
+	struct in6_addr in6;
 	struct l_netlink *rtnl;
 	struct l_icmp6_client *icmp6;
 	int ifindex;
 	uint8_t mac[6];
+	char ll_str[INET6_ADDRSTRLEN];
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s <interface index>\n", argv[0]);
@@ -131,6 +134,14 @@ int main(int argc, char *argv[])
 				ifindex);
 		return EXIT_FAILURE;
 	}
+
+	if (!l_net_get_link_local_address(ifindex, &in6)) {
+		fprintf(stderr, "Unable to get link-local address\n");
+		return EXIT_FAILURE;
+	}
+
+	inet_ntop(AF_INET6, &in6, ll_str, sizeof(ll_str));
+	fprintf(stdout, "Binding to Link-Local address:  %s\n", ll_str);
 
 	l_log_set_stderr();
 	l_debug_enable("*");
@@ -146,6 +157,7 @@ int main(int argc, char *argv[])
 
 	client = l_dhcp6_client_new(ifindex);
 	l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, 6);
+	l_dhcp6_client_set_link_local_address(client, ll_str);
 	l_dhcp6_client_set_event_handler(client, event_handler, NULL, NULL);
 	l_dhcp6_client_set_debug(client, do_debug, "[DHCP6] ", NULL);
 	l_dhcp6_client_set_lla_randomized(client, true);
