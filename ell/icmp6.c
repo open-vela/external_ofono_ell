@@ -46,6 +46,7 @@
 #include "net.h"
 #include "netlink.h"
 #include "rtnl.h"
+#include "missing.h"
 #include "icmp6.h"
 #include "icmp6-private.h"
 
@@ -80,9 +81,6 @@ static int icmp6_open_router_common(const struct icmp6_filter *filter,
 	int yes = 1;
 	int no = 0;
 	int nhops = 255;
-	struct ifreq ifr = {
-		.ifr_ifindex = ifindex,
-	};
 
 	s = socket(AF_INET6, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_ICMPV6);
 	if (s < 0)
@@ -112,12 +110,21 @@ static int icmp6_open_router_common(const struct icmp6_filter *filter,
 	if (r < 0)
 		goto fail;
 
-	r = ioctl(s, SIOCGIFNAME, &ifr);
-	if (r < 0)
-		goto fail;
+	r = setsockopt(s, SOL_SOCKET, SO_BINDTOIFINDEX,
+						&ifindex, sizeof(ifindex));
+	if (r < 0 && errno == ENOPROTOOPT) {
+		struct ifreq ifr = {
+			.ifr_ifindex = ifindex,
+		};
 
-	r = setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
+		r = ioctl(s, SIOCGIFNAME, &ifr);
+		if (r < 0)
+			goto fail;
+
+		r = setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
 				ifr.ifr_name, strlen(ifr.ifr_name) + 1);
+	}
+
 	if (r < 0)
 		goto fail;
 
