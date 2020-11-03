@@ -472,6 +472,11 @@ LIB_EXPORT bool l_icmp6_client_start(struct l_icmp6_client *client)
 		client->have_mac = true;
 	}
 
+	client->io = l_io_new(s);
+	l_io_set_close_on_destroy(client->io, true);
+	l_io_set_read_handler(client->io, icmp6_client_read_handler,
+					client, NULL);
+
 	if (!client->nodelay)
 		delay = _time_pick_interval_secs(0, 1);
 
@@ -481,11 +486,6 @@ LIB_EXPORT bool l_icmp6_client_start(struct l_icmp6_client *client)
 
 	if (client->nodelay)
 		icmp6_client_timeout_send(client->timeout_send, client);
-
-	client->io = l_io_new(s);
-	l_io_set_close_on_destroy(client->io, true);
-	l_io_set_read_handler(client->io, icmp6_client_read_handler,
-					client, NULL);
 
 	return true;
 }
