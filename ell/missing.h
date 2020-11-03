@@ -21,6 +21,7 @@
  */
 
 #include <sys/syscall.h>
+#include <sys/socket.h>
 
 #ifndef __NR_getrandom
 #  if defined __x86_64__
@@ -61,4 +62,8 @@ static inline void explicit_bzero(void *s, size_t n)
 	memset(s, 0, n);
 	__asm__ __volatile__ ("" : : "r"(s) : "memory");
 }
+#endif
+
+#ifndef SO_BINDTOIFINDEX
+#define SO_BINDTOIFINDEX 62
 #endif
