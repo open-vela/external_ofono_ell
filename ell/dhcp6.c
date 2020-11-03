@@ -24,6 +24,7 @@
 #include <config.h>
 #endif
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <linux/types.h>
 #include <linux/if_arp.h>
@@ -407,6 +408,8 @@ struct l_dhcp6_client {
 	uint8_t addr[6];
 	uint8_t addr_len;
 	uint8_t addr_type;
+
+	struct in6_addr ll_address;
 
 	l_dhcp6_debug_cb_t debug_handler;
 	l_dhcp6_destroy_cb_t debug_destroy;
@@ -1554,6 +1557,24 @@ LIB_EXPORT bool l_dhcp6_client_set_address(struct l_dhcp6_client *client,
 	return true;
 }
 
+/*
+ * Set the link local address to use instead of binding to the in6addr_any
+ * address by default.  This allows multiple clients to coexist simulatenously
+ * on different ifindexes
+ */
+LIB_EXPORT bool l_dhcp6_client_set_link_local_address(
+						struct l_dhcp6_client *client,
+						const char *ll)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (inet_pton(AF_INET6, ll, &client->ll_address) != 1)
+		return false;
+
+	return true;
+}
+
 LIB_EXPORT bool l_dhcp6_client_set_debug(struct l_dhcp6_client *client,
 						l_dhcp6_debug_cb_t function,
 						void *user_data,
@@ -1743,7 +1764,7 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 	if (!client->transport) {
 		client->transport =
 			_dhcp6_default_transport_new(client->ifindex,
-							&in6addr_any,
+							&client->ll_address,
 							DHCP6_PORT_CLIENT);
 
 		if (!client->transport)
