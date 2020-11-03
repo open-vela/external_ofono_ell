@@ -31,9 +31,12 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include <unistd.h>
 
 #include "private.h"
+#include "missing.h"
 #include "io.h"
 #include "dhcp6-private.h"
 
@@ -115,6 +118,32 @@ static int kernel_raw_socket_open(uint32_t ifindex,
 	memcpy(&addr.sin6_addr, local, sizeof(struct in6_addr));
 	addr.sin6_port = L_CPU_TO_BE16(port);
 	addr.sin6_scope_id = ifindex;
+
+	/*
+	 * If binding to the wildcard address, make sure to bind to use
+	 * BINDTOIFINDEX / BINDTODEVICE so that multiple clients can be
+	 * started on different interfaces
+	 */
+	if (l_memeqzero(&addr.sin6_addr, sizeof(struct in6_addr))) {
+		int r = setsockopt(s, SOL_SOCKET, SO_BINDTOIFINDEX,
+						&ifindex, sizeof(ifindex));
+
+		if (r < 0 && errno == ENOPROTOOPT) {
+			struct ifreq ifr = {
+				.ifr_ifindex = ifindex,
+			};
+
+			r = ioctl(s, SIOCGIFNAME, &ifr);
+			if (r < 0)
+				goto error;
+
+			r = setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
+					ifr.ifr_name, strlen(ifr.ifr_name) + 1);
+		}
+
+		if (r < 0)
+			goto error;
+	}
 
 	if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0)
 		goto error;
