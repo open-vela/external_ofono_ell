@@ -634,12 +634,13 @@ LIB_EXPORT const char *l_util_get_debugfs_path(void)
 	return path;
 }
 
-LIB_EXPORT bool l_memeq(const uint8_t *field, size_t size, uint8_t byte)
+LIB_EXPORT bool l_memeq(const void *field, size_t size, uint8_t byte)
 {
+	const uint8_t *mem = field;
 	size_t i;
 
 	for (i = 0; i < size; i++)
-		if (field[i] != byte)
+		if (mem[i] != byte)
 			return false;
 
 	return true;
