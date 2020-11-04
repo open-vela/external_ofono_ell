@@ -135,7 +135,7 @@ fail:
 	return -errno;
 }
 
-static int icmp6_open_router_solicition(int ifindex)
+static int icmp6_open_router_solicitation(int ifindex)
 {
 	struct icmp6_filter filter;
 	int s;
@@ -459,7 +459,7 @@ LIB_EXPORT bool l_icmp6_client_start(struct l_icmp6_client *client)
 
 	CLIENT_DEBUG("Starting ICMPv6 Client");
 
-	s = icmp6_open_router_solicition(client->ifindex);
+	s = icmp6_open_router_solicitation(client->ifindex);
 	if (s < 0)
 		return false;
 
