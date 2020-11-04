@@ -1041,6 +1041,10 @@ static uint32_t _rtnl_ifaddr_change(struct l_netlink *rtnl, uint16_t nlmsg_type,
 	void *buf;
 	size_t bufsize;
 	uint32_t id;
+	int flags = 0;
+
+	if  (nlmsg_type == RTM_NEWADDR)
+		flags = NLM_F_CREATE | NLM_F_REPLACE;
 
 	bufsize = NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
 					RTA_SPACE(sizeof(struct in6_addr)) +
@@ -1092,7 +1096,8 @@ static uint32_t _rtnl_ifaddr_change(struct l_netlink *rtnl, uint16_t nlmsg_type,
 	}
 
 done:
-	id = l_netlink_send(rtnl, nlmsg_type, 0, ifamsg, buf - (void *) ifamsg,
+	id = l_netlink_send(rtnl, nlmsg_type, flags,
+				ifamsg, buf - (void *) ifamsg,
 				cb, user_data, destroy);
 	l_free(ifamsg);
 
