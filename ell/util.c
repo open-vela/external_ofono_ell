@@ -527,6 +527,9 @@ LIB_EXPORT void l_util_hexdumpv(bool in, const struct iovec *iov,
 	size_t c;
 	const uint8_t *buf;
 
+	if (likely(!function))
+		return;
+
 	if (unlikely(!iov || !n_iov))
 		return;
 
