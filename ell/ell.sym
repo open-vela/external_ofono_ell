@@ -595,6 +595,7 @@ global:
 	l_rtnl_address_get_valid_lifetime;
 	l_rtnl_address_get_preferred_lifetime;
 	l_rtnl_address_set_lifetimes;
+	l_rtnl_address_set_scope;
 	l_rtnl_route_new_gateway;
 	l_rtnl_route_new_prefix;
 	l_rtnl_route_free;

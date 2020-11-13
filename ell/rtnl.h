@@ -51,6 +51,7 @@ uint32_t l_rtnl_address_get_preferred_lifetime(
 bool l_rtnl_address_set_lifetimes(struct l_rtnl_address *addr,
 						uint32_t preferred_lifetime,
 						uint32_t valid_lifetime);
+bool l_rtnl_address_set_scope(struct l_rtnl_address *addr, uint8_t scope);
 
 struct l_rtnl_route *l_rtnl_route_new_gateway(const char *gw);
 struct l_rtnl_route *l_rtnl_route_new_prefix(const char *ip,

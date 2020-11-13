@@ -263,6 +263,16 @@ LIB_EXPORT bool l_rtnl_address_set_lifetimes(struct l_rtnl_address *addr,
 	return true;
 }
 
+LIB_EXPORT bool l_rtnl_address_set_scope(struct l_rtnl_address *addr,
+								uint8_t scope)
+{
+	if (unlikely(!addr))
+		return false;
+
+	addr->scope = scope;
+	return true;
+}
+
 struct l_rtnl_route {
 	uint8_t family;
 	uint8_t scope;
