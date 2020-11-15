@@ -253,7 +253,7 @@ global:
 	l_dhcp_server_set_event_handler;
 	l_dhcp_server_set_ip_address;
 	l_dhcp_server_set_interface_name;
-	l_dhcp_server_set_netmaks;
+	l_dhcp_server_set_netmask;
 	l_dhcp_server_set_gateway;
 	l_dhcp_server_set_dns;
 	/* dhcp6 */
