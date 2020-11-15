@@ -268,6 +268,7 @@ global:
 	l_dhcp6_client_set_no_rapid_commit;
 	l_dhcp6_client_set_nodelay;
 	l_dhcp6_client_set_nora;
+	l_dhcp6_client_set_rtnl;
 	l_dhcp6_client_set_stateless;
 	l_dhcp6_client_get_icmp6;
 	l_dhcp6_client_add_request_option;
