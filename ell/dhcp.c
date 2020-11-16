@@ -471,19 +471,30 @@ static void dhcp_client_timeout_resend(struct l_timeout *timeout,
 {
 	struct l_dhcp_client *client = user_data;
 	unsigned int next_timeout = 0;
+	int r;
 
 	CLIENT_DEBUG("");
 
 	switch (client->state) {
 	case DHCP_STATE_SELECTING:
-		if (dhcp_client_send_discover(client) < 0)
+		r = dhcp_client_send_discover(client);
+		if (r < 0) {
+			CLIENT_DEBUG("Sending discover failed: %s",
+								strerror(-r));
 			goto error;
+		}
+
 		break;
 	case DHCP_STATE_RENEWING:
 	case DHCP_STATE_REQUESTING:
 	case DHCP_STATE_REBINDING:
-		if (dhcp_client_send_request(client) < 0)
+		r = dhcp_client_send_request(client);
+		if (r < 0) {
+			CLIENT_DEBUG("Sending Request failed: %s",
+								strerror(-r));
 			goto error;
+		}
+
 		break;
 	case DHCP_STATE_INIT:
 	case DHCP_STATE_INIT_REBOOT:
@@ -562,14 +573,18 @@ static void dhcp_client_t1_expired(struct l_timeout *timeout, void *user_data)
 {
 	struct l_dhcp_client *client = user_data;
 	uint32_t next_timeout;
+	int r;
 
 	CLIENT_DEBUG("");
 
 	CLIENT_ENTER_STATE(DHCP_STATE_RENEWING);
 	client->attempt = 1;
 
-	if (dhcp_client_send_request(client) < 0)
+	r = dhcp_client_send_request(client);
+	if  (r < 0) {
+		CLIENT_DEBUG("Sending request failed: %s", strerror(-r));
 		goto error;
+	}
 
 	next_timeout = client->lease->t2 - client->lease->t1;
 	l_timeout_modify_ms(client->timeout_lease,
@@ -769,6 +784,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 	case DHCP_STATE_RENEWING:
 	case DHCP_STATE_REBINDING:
 		if (msg_type == DHCP_MESSAGE_TYPE_NAK) {
+			CLIENT_DEBUG("Received NAK, Stopping...");
 			l_dhcp_client_stop(client);
 
 			dhcp_client_event_notify(client,
@@ -810,6 +826,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 			uint32_t next_timeout =
 					dhcp_fuzz_secs(client->lease->t1);
 
+			CLIENT_DEBUG("T1 expiring in %u ms", next_timeout);
 			client->timeout_lease =
 				l_timeout_create_ms(next_timeout,
 							dhcp_client_t1_expired,
