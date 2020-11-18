@@ -350,8 +350,8 @@ static void send_offer(struct l_dhcp_server *server,
 		return;
 	}
 
-	lease = add_lease(server, OFFER_TIME, client_msg->chaddr,
-				reply->yiaddr);
+	lease = add_lease(server, l_time_to_secs(l_time_now()) + OFFER_TIME,
+				client_msg->chaddr, reply->yiaddr);
 	if (!lease) {
 		SERVER_DEBUG("No free IP addresses, OFFER abandoned");
 		return;
