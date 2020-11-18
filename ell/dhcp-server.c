@@ -190,7 +190,7 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 
 	SERVER_DEBUG("added lease IP %s for "MAC " lifetime=%u",
 			IP_STR(yiaddr), MAC_STR(chaddr),
-			lease->lifetime);
+			server->lease_seconds);
 
 	return lease;
 }
