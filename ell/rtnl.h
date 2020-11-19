@@ -35,6 +35,8 @@ struct l_rtnl_route;
 
 struct l_rtnl_address *l_rtnl_address_new(const char *ip, uint8_t prefix_len);
 void l_rtnl_address_free(struct l_rtnl_address *addr);
+bool l_rtnl_address_get_address(const struct l_rtnl_address *addr,
+				char *out_buf);
 uint8_t l_rtnl_address_get_family(const struct l_rtnl_address *addr);
 uint8_t l_rtnl_address_get_prefix_length(const struct l_rtnl_address *addr);
 bool l_rtnl_address_get_broadcast(const struct l_rtnl_address *addr,

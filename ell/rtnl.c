@@ -150,6 +150,17 @@ LIB_EXPORT void l_rtnl_address_free(struct l_rtnl_address *addr)
 	l_free(addr);
 }
 
+LIB_EXPORT bool l_rtnl_address_get_address(const struct l_rtnl_address *addr,
+						char *out_buf)
+{
+	if (unlikely(!addr))
+		return false;
+
+	return !address_to_string(addr->family, &addr->in_addr,
+						&addr->in6_addr,
+						out_buf);
+}
+
 LIB_EXPORT uint8_t l_rtnl_address_get_family(const struct l_rtnl_address *addr)
 {
 	if (unlikely(!addr))
