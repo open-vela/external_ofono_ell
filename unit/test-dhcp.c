@@ -782,33 +782,69 @@ static void server_event(struct l_dhcp_server *server,
 	}
 }
 
-static void test_complete_run(const void *data)
+static struct l_dhcp_client *client_init(const uint8_t *mac)
 {
-	static const uint8_t addr1[6] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
-	static const uint8_t addr2[6] = { 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c };
+	struct l_dhcp_client *client = l_dhcp_client_new(42);
+	struct dhcp_transport *transport = l_new(struct dhcp_transport, 1);
 
+	assert(l_dhcp_client_set_address(client, ARPHRD_ETHER, mac, 6));
+	assert(l_dhcp_client_set_interface_name(client, "fake"));
+	assert(l_dhcp_client_set_hostname(client, "<hostname>"));
+	_dhcp_client_override_xid(client, 0x4d7c67c6);
+	assert(l_dhcp_client_set_event_handler(client,
+				event_handler_lease_obtained, NULL, NULL));
+
+	if (verbose)
+		l_dhcp_client_set_debug(client, do_debug, "[DHCP1] ", NULL);
+
+	transport->send = fake_transport_send;
+	transport->l2_send = fake_transport_l2_send;
+	transport->ifindex = 42;
+
+	assert(_dhcp_client_set_transport(client, transport));
+
+	return client;
+}
+
+static bool client_connect(struct l_dhcp_client *client,
+				struct l_dhcp_server *server)
+{
+	struct dhcp_transport *srv_transport =
+					_dhcp_server_get_transport(server);
+	struct dhcp_transport *cli_transport =
+					_dhcp_client_get_transport(client);
+	if (!l_dhcp_client_start(client))
+		return false;
+
+	/* RX DISCOVER */
+	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	assert(l2_send_called);
+	l2_send_called = false;
+
+	/* RX OFFER */
+	cli_transport->rx_cb(server_packet, server_packet_len, client);
+
+	/* RX REQUEST */
+	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	assert(l2_send_called);
+	l2_send_called = false;
+
+	/* RX ACK */
+	cli_transport->rx_cb(server_packet, server_packet_len, client);
+
+	assert(event_handler_called);
+
+	return true;
+}
+
+static struct l_dhcp_server *server_init()
+{
 	char *dns[] = { "192.168.1.1", "192.168.1.254", NULL };
-	struct l_dhcp_client *client1;
-	struct l_dhcp_client *client2;
-	struct l_dhcp_server *server;
-	struct dhcp_transport *cli_transport1 = l_new(struct dhcp_transport, 1);
-	struct dhcp_transport *cli_transport2 = l_new(struct dhcp_transport, 1);
-
+	struct l_dhcp_server *server = l_dhcp_server_new(41);
 	struct dhcp_transport *srv_transport = l_new(struct dhcp_transport, 1);
-	const struct l_dhcp_lease *cli_lease;
-	/* client IP address */
-	char *cli_addr;
-	/* servers IP address */
-	char *srv_addr;
-	char *tmp_addr;
-	char **dns_list;
-
-	server = l_dhcp_server_new(41);
 
 	assert(l_dhcp_server_set_interface_name(server, "fake"));
 	assert(l_dhcp_server_set_ip_address(server, "192.168.1.1"));
-	assert(l_dhcp_server_set_ip_range(server, "192.168.1.2",
-						"192.168.1.100"));
 	assert(l_dhcp_server_set_netmask(server, "255.255.255.0"));
 	assert(l_dhcp_server_set_gateway(server, "192.168.1.1"));
 	assert(l_dhcp_server_set_dns(server, dns));
@@ -825,60 +861,37 @@ static void test_complete_run(const void *data)
 
 	assert(l_dhcp_server_start(server));
 
-	client1 = l_dhcp_client_new(42);
+	return server;
+}
 
-	assert(l_dhcp_client_set_address(client1, ARPHRD_ETHER, addr1, 6));
-	assert(l_dhcp_client_set_interface_name(client1, "fake"));
-	assert(l_dhcp_client_set_hostname(client1, "<hostname>"));
-	_dhcp_client_override_xid(client1, 0x4d7c67c6);
-	assert(l_dhcp_client_set_event_handler(client1,
-				event_handler_lease_obtained, NULL, NULL));
+static void test_complete_run(const void *data)
+{
+	static const uint8_t addr1[6] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
+	static const uint8_t addr2[6] = { 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c };
+	struct dhcp_transport *srv_transport;
 
-	if (verbose)
-		l_dhcp_client_set_debug(client1, do_debug, "[DHCP1] ", NULL);
+	struct l_dhcp_client *client1;
+	struct l_dhcp_client *client2;
+	struct l_dhcp_server *server;
 
-	cli_transport1->send = fake_transport_send;
-	cli_transport1->l2_send = fake_transport_l2_send;
-	cli_transport1->ifindex = 42;
+	const struct l_dhcp_lease *cli_lease;
+	/* client IP address */
+	char *cli_addr;
+	/* servers IP address */
+	char *srv_addr;
+	char *tmp_addr;
+	char **dns_list;
 
-	assert(_dhcp_client_set_transport(client1, cli_transport1));
+	server = server_init();
 
-	assert(l_dhcp_client_start(client1));
+	assert(l_dhcp_server_set_ip_range(server, "192.168.1.2",
+						"192.168.1.100"));
 
-	client2 = l_dhcp_client_new(43);
-	assert(l_dhcp_client_set_address(client2, ARPHRD_ETHER, addr2, 6));
-	assert(l_dhcp_client_set_interface_name(client2, "fake"));
-	assert(l_dhcp_client_set_hostname(client2, "<hostname>"));
-	_dhcp_client_override_xid(client2, 0x5d7c67c6);
-	assert(l_dhcp_client_set_event_handler(client2,
-				event_handler_lease_obtained, NULL, NULL));
+	srv_transport = _dhcp_server_get_transport(server);
 
-	if (verbose)
-		l_dhcp_client_set_debug(client2, do_debug, "[DHCP2] ", NULL);
+	client1 = client_init(addr1);
 
-	cli_transport2->send = fake_transport_send;
-	cli_transport2->l2_send = fake_transport_l2_send;
-	cli_transport2->ifindex = 42;
-
-	assert(_dhcp_client_set_transport(client2, cli_transport2));
-
-	/* RX DISCOVER */
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
-	assert(l2_send_called);
-	l2_send_called = false;
-
-	/* RX OFFER */
-	cli_transport1->rx_cb(server_packet, server_packet_len, client1);
-
-	/* RX REQUEST */
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
-	assert(l2_send_called);
-	l2_send_called = false;
-
-	/* RX ACK */
-	cli_transport1->rx_cb(server_packet, server_packet_len, client1);
-
-	assert(event_handler_called);
+	client_connect(client1, server);
 
 	cli_lease = l_dhcp_client_get_lease(client1);
 	assert(cli_lease);
@@ -909,26 +922,9 @@ static void test_complete_run(const void *data)
 	assert(!strcmp(dns_list[1], "192.168.1.254"));
 	l_strv_free(dns_list);
 
-	/* Second client connect */
-	assert(l_dhcp_client_start(client2));
+	client2 = client_init(addr2);
 
-	/* RX DISCOVER */
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
-	assert(l2_send_called);
-	l2_send_called = false;
-
-	/* RX OFFER */
-	cli_transport2->rx_cb(server_packet, server_packet_len, client2);
-
-	/* RX REQUEST */
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
-	assert(l2_send_called);
-	l2_send_called = false;
-
-	/* RX ACK */
-	cli_transport2->rx_cb(server_packet, server_packet_len, client2);
-
-	assert(event_handler_called);
+	client_connect(client2, server);
 
 	cli_lease = l_dhcp_client_get_lease(client2);
 	assert(cli_lease);
