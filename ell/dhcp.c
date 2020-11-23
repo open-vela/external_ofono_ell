@@ -367,6 +367,19 @@ static int dhcp_client_send_discover(struct l_dhcp_client *client)
 					discover, len);
 }
 
+static int dhcp_client_send_unicast(struct l_dhcp_client *client,
+					struct dhcp_message *request,
+					unsigned int len)
+{
+	struct sockaddr_in si;
+
+	memset(&si, 0, sizeof(si));
+	si.sin_family = AF_INET;
+	si.sin_port = L_CPU_TO_BE16(DHCP_PORT_SERVER);
+	si.sin_addr.s_addr = client->lease->server_address;
+	return client->transport->send(client->transport, &si, request, len);
+}
+
 static int dhcp_client_send_request(struct l_dhcp_client *client)
 {
 	struct dhcp_message_builder builder;
@@ -450,20 +463,52 @@ static int dhcp_client_send_request(struct l_dhcp_client *client)
 	 * 'server identifier' option for any unicast requests to the DHCP
 	 * server.
 	 */
-	if (client->state == DHCP_STATE_RENEWING) {
-		struct sockaddr_in si;
-		memset(&si, 0, sizeof(si));
-		si.sin_family = AF_INET;
-		si.sin_port = L_CPU_TO_BE16(DHCP_PORT_SERVER);
-		si.sin_addr.s_addr = client->lease->server_address;
-		return client->transport->send(client->transport,
-							&si, request, len);
-	}
+	if (client->state == DHCP_STATE_RENEWING)
+		return dhcp_client_send_unicast(client, request, len);
 
 	return client->transport->l2_send(client->transport,
 					INADDR_ANY, DHCP_PORT_CLIENT,
 					INADDR_BROADCAST, DHCP_PORT_SERVER,
 					NULL, request, len);
+}
+
+static void dhcp_client_send_release(struct l_dhcp_client *client)
+{
+	struct dhcp_message_builder builder;
+	size_t optlen = DHCP_MIN_OPTIONS_SIZE;
+	size_t len = sizeof(struct dhcp_message) + optlen;
+	L_AUTO_FREE_VAR(struct dhcp_message *, request);
+	int err;
+	struct sockaddr_in si;
+
+	CLIENT_DEBUG("");
+
+	memset(&si, 0, sizeof(si));
+	si.sin_family = AF_INET;
+	si.sin_port = L_CPU_TO_BE16(DHCP_PORT_SERVER);
+	si.sin_addr.s_addr = client->lease->server_address;
+
+	request = (struct dhcp_message *) l_new(uint8_t, len);
+
+	_dhcp_message_builder_init(&builder, request, len,
+					DHCP_MESSAGE_TYPE_RELEASE);
+
+	err = client_message_init(client, request, &builder);
+	if (err < 0)
+		return;
+
+	request->ciaddr = client->lease->address;
+
+	if (!_dhcp_message_builder_append(&builder,
+					L_DHCP_OPTION_SERVER_IDENTIFIER,
+					4, &client->lease->server_address)) {
+		CLIENT_DEBUG("Failed to append server ID");
+		return;
+	}
+
+	_dhcp_message_builder_finalize(&builder, &len);
+
+	dhcp_client_send_unicast(client, request, len);
 }
 
 static void dhcp_client_timeout_resend(struct l_timeout *timeout,
@@ -1062,6 +1107,17 @@ LIB_EXPORT bool l_dhcp_client_stop(struct l_dhcp_client *client)
 {
 	if (unlikely(!client))
 		return false;
+
+	/*
+	 * RFC 2131 Section 4.4.6
+	 * "If the client no longer requires use of its assigned network address
+	 * (e.g., the client is gracefully shut down), the client sends a
+	 * DHCPRELEASE message to the server.""
+	 */
+	if (client->state == DHCP_STATE_BOUND ||
+			client->state == DHCP_STATE_RENEWING ||
+			client->state == DHCP_STATE_REBINDING)
+		dhcp_client_send_release(client);
 
 	if (client->rtnl_add_cmdid) {
 		l_netlink_cancel(client->rtnl, client->rtnl_add_cmdid);
