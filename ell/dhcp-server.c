@@ -592,6 +592,14 @@ bool _dhcp_server_set_transport(struct l_dhcp_server *server,
 	return true;
 }
 
+struct dhcp_transport *_dhcp_server_get_transport(struct l_dhcp_server *server)
+{
+	if (unlikely(!server))
+		return NULL;
+
+	return server->transport;
+}
+
 LIB_EXPORT struct l_dhcp_server *l_dhcp_server_new(int ifindex)
 {
 	struct l_dhcp_server *server = l_new(struct l_dhcp_server, 1);
