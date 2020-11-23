@@ -214,6 +214,11 @@ cert_files = unit/cert-chain.pem \
 			unit/cert-server-key-pkcs8.pem \
 			unit/cert-client.pem \
 			unit/cert-client-key-pkcs1.pem \
+			unit/cert-client-key-pkcs1-des.pem \
+			unit/cert-client-key-pkcs1-des3.pem \
+			unit/cert-client-key-pkcs1-aes128.pem \
+			unit/cert-client-key-pkcs1-aes192.pem \
+			unit/cert-client-key-pkcs1-aes256.pem \
 			unit/cert-client-key-pkcs8.pem \
 			unit/cert-client-key-pkcs8-md5-des.pem \
 			unit/cert-client-key-pkcs8-sha1-des.pem \
@@ -419,6 +424,21 @@ unit/cert-server: unit/cert-server.pem unit/cert-ca.pem
 
 unit/cert-client-key-pkcs1.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
+
+unit/cert-client-key-pkcs1-des.pem: unit/cert-client-key-pkcs1.pem
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -des -passout pass:abc
+
+unit/cert-client-key-pkcs1-des3.pem: unit/cert-client-key-pkcs1.pem
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -des3 -passout pass:abc
+
+unit/cert-client-key-pkcs1-aes128.pem: unit/cert-client-key-pkcs1.pem
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -aes128 -passout pass:abc
+
+unit/cert-client-key-pkcs1-aes192.pem: unit/cert-client-key-pkcs1.pem
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -aes192 -passout pass:abc
+
+unit/cert-client-key-pkcs1-aes256.pem: unit/cert-client-key-pkcs1.pem
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -aes256 -passout pass:abc
 
 unit/cert-client-key-pkcs8.pem: unit/cert-client-key-pkcs1.pem
 	$(AM_V_GEN)openssl pkcs8 -topk8 -nocrypt -in $< -out $@
