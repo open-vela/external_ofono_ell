@@ -144,6 +144,7 @@ void _dhcp_client_override_xid(struct l_dhcp_client *client, uint32_t xid);
 
 bool _dhcp_server_set_transport(struct l_dhcp_server *server,
 					struct dhcp_transport *transport);
+struct dhcp_transport *_dhcp_server_get_transport(struct l_dhcp_server *server);
 
 struct l_dhcp_lease {
 	uint32_t address;
