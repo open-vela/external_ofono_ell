@@ -1025,6 +1025,15 @@ bool _dhcp_client_set_transport(struct l_dhcp_client *client,
 	return true;
 }
 
+struct dhcp_transport *_dhcp_client_get_transport(struct l_dhcp_client *client)
+{
+	if (unlikely(!client))
+		return NULL;
+
+	return client->transport;
+}
+
+
 void _dhcp_client_override_xid(struct l_dhcp_client *client, uint32_t xid)
 {
 	client->override_xid = true;
