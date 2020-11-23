@@ -211,15 +211,16 @@ cert_tests = unit/test-pem \
 cert_files = unit/cert-chain.pem \
 			unit/cert-entity-int.pem \
 			unit/cert-server.pem \
-			unit/cert-client.pem \
 			unit/cert-server-key-pkcs8.pem \
+			unit/cert-client.pem \
+			unit/cert-client-key-pkcs1.pem \
 			unit/cert-client-key-pkcs8.pem \
-			unit/cert-client-key-md5-des.pem \
-			unit/cert-client-key-sha1-des.pem \
-			unit/cert-client-key-v2-des.pem \
-			unit/cert-client-key-v2-des-ede3.pem \
-			unit/cert-client-key-v2-aes128.pem \
-			unit/cert-client-key-v2-aes256.pem \
+			unit/cert-client-key-pkcs8-md5-des.pem \
+			unit/cert-client-key-pkcs8-sha1-des.pem \
+			unit/cert-client-key-pkcs8-v2-des.pem \
+			unit/cert-client-key-pkcs8-v2-des-ede3.pem \
+			unit/cert-client-key-pkcs8-v2-aes128.pem \
+			unit/cert-client-key-pkcs8-v2-aes256.pem \
 			unit/cert-no-keyid.pem
 
 cert_checks = unit/cert-intca \
@@ -416,37 +417,37 @@ unit/cert-server.pem: unit/cert-server.csr unit/cert-ca.pem unit/gencerts.cnf
 unit/cert-server: unit/cert-server.pem unit/cert-ca.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca.pem $<
 
-unit/cert-client-key.pem:
+unit/cert-client-key-pkcs1.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
 
-unit/cert-client-key-pkcs8.pem: unit/cert-client-key.pem
+unit/cert-client-key-pkcs8.pem: unit/cert-client-key-pkcs1.pem
 	$(AM_V_GEN)openssl pkcs8 -topk8 -nocrypt -in $< -out $@
 
-unit/cert-client-key-md5-des.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-md5-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v1 PBE-MD5-DES -passout pass:abc
 
-unit/cert-client-key-sha1-des.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-sha1-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v1 PBE-SHA1-DES -passout pass:abc
 
-unit/cert-client-key-v2-des.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-v2-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v2 des-cbc -v2prf hmacWithSHA1 -passout pass:abc
 
-unit/cert-client-key-v2-des-ede3.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-v2-des-ede3.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v2 des-ede3-cbc -v2prf hmacWithSHA224 -passout pass:abc
 
-unit/cert-client-key-v2-aes128.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-v2-aes128.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v2 aes128 -v2prf hmacWithSHA256 -passout pass:abc
 
-unit/cert-client-key-v2-aes256.pem: unit/cert-client-key-pkcs8.pem
+unit/cert-client-key-pkcs8-v2-aes256.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
 			-topk8 -v2 aes256 -v2prf hmacWithSHA512 -passout pass:abc
 
-unit/cert-client.csr: unit/cert-client-key.pem unit/gencerts.cnf
+unit/cert-client.csr: unit/cert-client-key-pkcs1.pem unit/gencerts.cnf
 	$(AM_V_GEN)openssl req -new -extensions cert_ext \
 			-config $(srcdir)/unit/gencerts.cnf \
 			-subj '/O=Bar Example Organization/CN=Bar Example Organization/emailAddress=bar@mail.example' \
@@ -512,7 +513,7 @@ unit/cert-ca2.pem: unit/cert-ca-key.pem unit/gencerts.cnf
 			-subj '/O=International Union of Example Organizations/CN=Certificate issuer guy/emailAddress=ca-no-akid@mail.example' \
 			-key $< -sha256 -days 10000 -out $@
 
-unit/cert-no-keyid.csr: unit/cert-client-key.pem unit/gencerts.cnf
+unit/cert-no-keyid.csr: unit/cert-client-key-pkcs1.pem unit/gencerts.cnf
 	$(AM_V_GEN)openssl req -new \
 			-config $(srcdir)/unit/gencerts.cnf \
 			-subj '/O=Baz Example Organization/CN=Baz Example Organization/emailAddress=baz@mail.example' \
@@ -539,9 +540,9 @@ unit/key-ciphertext.dat: unit/plaintext.txt unit/cert-client.pem
 unit/key-ciphertext.h: unit/key-ciphertext.dat
 	$(AM_V_GEN)xxd -i < $< > $@
 
-unit/key-signature.dat: unit/plaintext.txt unit/cert-client-key.pem
+unit/key-signature.dat: unit/plaintext.txt unit/cert-client-key-pkcs1.pem
 	$(AM_V_GEN)openssl rsautl -sign -pkcs -in $< \
-			-inkey $(builddir)/unit/cert-client-key.pem -out $@
+			-inkey $(builddir)/unit/cert-client-key-pkcs1.pem -out $@
 
 unit/key-signature.h: unit/key-signature.dat
 	$(AM_V_GEN)xxd -i < $< > $@
