@@ -962,6 +962,47 @@ static void test_complete_run(const void *data)
 	l_dhcp_server_destroy(server);
 }
 
+static void test_expired_ip_reuse(const void *data)
+{
+	uint8_t addr[6] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x00};
+	struct l_dhcp_server *server = server_init();
+	struct dhcp_transport *srv_transport =
+					_dhcp_server_get_transport(server);
+	struct l_dhcp_client *client_new;
+	const struct l_dhcp_lease *lease;
+	const char *cli_addr;
+	int i;
+
+	l_dhcp_server_set_ip_range(server, "192.168.1.2", "192.168.1.11");
+	_dhcp_server_set_max_expired_clients(server, 10);
+
+	/*
+	 * Connect and release 10 clients, this should max out the expired
+	 * queue (since we are setting it to 10) and force the first client that
+	 * expired to be removed allowing 192.168.1.2 to be reused for a new
+	 * client
+	 */
+	for (i = 0; i < 10; i++) {
+		struct l_dhcp_client *client;
+
+		addr[5] = i;
+		client = client_init(addr);
+		client_connect(client, server);
+
+		l_dhcp_client_stop(client);
+		srv_transport->rx_cb(client_packet, client_packet_len, server);
+	}
+
+	addr[5] = i + 1;
+	client_new = client_init(addr);
+	client_connect(client_new, server);
+
+	lease = l_dhcp_client_get_lease(client_new);
+	assert(lease);
+	cli_addr = l_dhcp_lease_get_address(lease);
+	assert(!strcmp(cli_addr, "192.168.1.2"));
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -986,6 +1027,7 @@ int main(int argc, char *argv[])
 	l_test_add("discover", test_discover, NULL);
 
 	l_test_add("complete run", test_complete_run, NULL);
+	l_test_add("expired IP reuse", test_expired_ip_reuse, NULL);
 
 	return l_test_run();
 }
