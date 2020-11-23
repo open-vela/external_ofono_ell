@@ -42,7 +42,7 @@ bool served;
 static void https_io_disconnect(struct l_io *io, void *user_data)
 {
 	if (!served)
-		printf("Disconnected before serving a page\n");
+		fprintf(stderr, "Disconnected before serving a page\n");
 	l_main_quit();
 }
 
@@ -54,7 +54,7 @@ static bool https_io_read(struct l_io *io, void *user_data)
 	l = read(l_io_get_fd(io), buf, sizeof(buf));
 	if (l == 0) {
 		if (!served)
-			printf("EOF before serving a page\n");
+			fprintf(stderr, "EOF before serving a page\n");
 		l_main_quit();
 	} else if (l > 0)
 		l_tls_handle_rx(tls, buf, l);
@@ -66,7 +66,7 @@ static void https_tls_disconnected(enum l_tls_alert_desc reason, bool remote,
 					void *user_data)
 {
 	if (reason)
-		printf("TLS error: %s\n", l_tls_alert_to_str(reason));
+		fprintf(stderr, "TLS error: %s\n", l_tls_alert_to_str(reason));
 	l_main_quit();
 }
 
@@ -93,7 +93,7 @@ static void https_tls_write(const uint8_t *data, size_t len, void *user_data)
 	while (len) {
 		r = send(l_io_get_fd(io), data, len, MSG_NOSIGNAL);
 		if (r < 0) {
-			printf("send: %s\n", strerror(errno));
+			fprintf(stderr, "send: %s\n", strerror(errno));
 			l_main_quit();
 			break;
 		}
@@ -123,6 +123,7 @@ int main(int argc, char *argv[])
 	struct l_certchain *cert;
 	struct l_key *priv_key;
 	struct l_queue *ca_cert = NULL;
+	bool encrypted;
 
 	if (argc != 4 && argc != 5) {
 		printf("Usage: %s <server-cert-path> <server-key-path> "
@@ -146,11 +147,11 @@ int main(int argc, char *argv[])
 	addr.sin_port = htons(1234);
 
 	if (bind(listenfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-		printf("bind: %s\n", strerror(errno));
+		fprintf(stderr, "bind: %s\n", strerror(errno));
 		return -1;
 	}
 	if (listen(listenfd, 1) == -1) {
-		printf("listen: %s\n", strerror(errno));
+		fprintf(stderr, "listen: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -159,12 +160,33 @@ int main(int argc, char *argv[])
 	fd = accept(listenfd, NULL, NULL);
 	close(listenfd);
 	if (fd == -1) {
-		printf("accept: %s\n", strerror(errno));
+		fprintf(stderr, "accept: %s\n", strerror(errno));
 		return -1;
 	}
 
 	if (!l_main_init())
 		return -1;
+
+	cert = l_pem_load_certificate_chain(argv[1]);
+	if (!cert) {
+		fprintf(stderr, "Couldn't load the server certificate\n");
+		return -1;
+	}
+
+	priv_key = l_pem_load_private_key(argv[2], argv[3], &encrypted);
+	if (!priv_key) {
+		fprintf(stderr, "Couldn't load the server private key%s\n",
+			encrypted ? " (encrypted)" : "");
+		return -1;
+	}
+
+	if (argc >= 5) {
+		ca_cert = l_pem_load_certificate_list(argv[4]);
+		if (!ca_cert) {
+			fprintf(stderr, "Couldn't load the CA certificates\n");
+			return -1;
+		}
+	}
 
 	io = l_io_new(fd);
 	l_io_set_close_on_destroy(io, true);
@@ -177,12 +199,6 @@ int main(int argc, char *argv[])
 	if (getenv("TLS_DEBUG"))
 		l_tls_set_debug(tls, https_tls_debug_cb, NULL, NULL);
 
-	cert = l_pem_load_certificate_chain(argv[1]);
-	priv_key = l_pem_load_private_key(argv[2], argv[3], NULL);
-
-	if (argc >= 5)
-		ca_cert = l_pem_load_certificate_list(argv[4]);
-
 	auth_ok = l_tls_set_auth_data(tls, cert, priv_key) &&
 		(argc <= 4 || l_tls_set_cacert(tls, ca_cert)) &&
 		l_tls_start(tls);
@@ -190,7 +206,7 @@ int main(int argc, char *argv[])
 	if (tls && auth_ok)
 		l_main_run();
 	else {
-		printf("TLS setup failed\n");
+		fprintf(stderr, "TLS setup failed\n");
 		l_queue_destroy(ca_cert, (l_queue_destroy_func_t) l_cert_free);
 		l_certchain_free(cert);
 		l_key_free(priv_key);

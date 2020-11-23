@@ -67,7 +67,7 @@ static void https_tls_disconnected(enum l_tls_alert_desc reason, bool remote,
 					void *user_data)
 {
 	if (reason)
-		printf("TLS error: %s\n", l_tls_alert_to_str(reason));
+		fprintf(stderr, "TLS error: %s\n", l_tls_alert_to_str(reason));
 	l_main_quit();
 }
 
@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
 	struct l_certchain *cert = NULL;
 	struct l_key *priv_key = NULL;
 	struct l_queue *ca_cert = NULL;
+	bool encrypted;
 
 	if (argc != 2 && argc != 3 && argc != 6) {
 		printf("Usage: %s <https-host-name> [<ca-cert-path> "
@@ -153,19 +154,19 @@ int main(int argc, char *argv[])
 	hostname = argv[1];
 	he = gethostbyname(hostname);
 	if (!he) {
-		printf("gethostbyname: %s\n", strerror(errno));
+		fprintf(stderr, "gethostbyname: %s\n", strerror(errno));
 		return -1;
 	}
 
 	addr_list = (struct in_addr **) he->h_addr_list;
 	if (!addr_list) {
-		printf("No host addresses found\n");
+		fprintf(stderr, "No host addresses found\n");
 		return -1;
 	}
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0) {
-		printf("socket: %s\n", strerror(errno));
+		fprintf(stderr, "socket: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -174,7 +175,7 @@ int main(int argc, char *argv[])
 	addr.sin_port = htons(443);
 	memcpy(&addr.sin_addr, addr_list[0], sizeof(addr.sin_addr));
 	if (connect(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		printf("connect: %s\n", strerror(errno));
+		fprintf(stderr, "connect: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -192,14 +193,32 @@ int main(int argc, char *argv[])
 	if (getenv("TLS_DEBUG"))
 		l_tls_set_debug(tls, https_tls_debug_cb, NULL, NULL);
 
-	if (argc >= 3)
+	if (argc >= 3) {
 		ca_cert = l_pem_load_certificate_list(argv[2]);
+		if (!cert) {
+			fprintf(stderr, "Couldn't load the CA certificates\n");
+			return -1;
+		}
+	}
 
-	if (argc >= 4)
+	if (argc >= 4) {
 		cert = l_pem_load_certificate_chain(argv[3]);
+		if (!cert) {
+			fprintf(stderr,
+				"Couldn't load the server certificate\n");
+			return -1;
+		}
+	}
 
-	if (argc >= 6)
-		priv_key = l_pem_load_private_key(argv[4], argv[5], NULL);
+	if (argc >= 6) {
+		priv_key = l_pem_load_private_key(argv[4], argv[5], &encrypted);
+		if (!priv_key) {
+			fprintf(stderr,
+				"Couldn't load the client private key%s\n",
+				encrypted ? " (encrypted)" : "");
+			return -1;
+		}
+	}
 
 	auth_ok = (argc <= 2 || l_tls_set_cacert(tls, ca_cert)) &&
 		(argc <= 5 ||
@@ -209,7 +228,7 @@ int main(int argc, char *argv[])
 	if (tls && auth_ok)
 		l_main_run();
 	else {
-		printf("TLS setup failed\n");
+		fprintf(stderr, "TLS setup failed\n");
 		l_queue_destroy(ca_cert, (l_queue_destroy_func_t) l_cert_free);
 		l_certchain_free(cert);
 		l_key_free(priv_key);
