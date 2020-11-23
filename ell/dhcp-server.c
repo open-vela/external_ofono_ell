@@ -666,6 +666,17 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	}
 }
 
+bool _dhcp_server_set_max_expired_clients(struct l_dhcp_server *server,
+						unsigned int max_expired)
+{
+	if (unlikely(!server))
+		return false;
+
+	server->max_expired = max_expired;
+
+	return true;
+}
+
 bool _dhcp_server_set_transport(struct l_dhcp_server *server,
 					struct dhcp_transport *transport)
 {

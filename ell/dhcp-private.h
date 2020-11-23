@@ -147,6 +147,9 @@ bool _dhcp_server_set_transport(struct l_dhcp_server *server,
 					struct dhcp_transport *transport);
 struct dhcp_transport *_dhcp_server_get_transport(struct l_dhcp_server *server);
 
+bool _dhcp_server_set_max_expired_clients(struct l_dhcp_server *server,
+						unsigned int max_expired);
+
 struct l_dhcp_lease {
 	uint32_t address;
 	uint32_t server_address;
