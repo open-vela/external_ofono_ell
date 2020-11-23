@@ -764,6 +764,24 @@ static void do_debug(const char *str, void *user_data)
 	l_info("%s%s", prefix, str);
 }
 
+static char *new_client;
+static char *expired_client;
+
+static void server_event(struct l_dhcp_server *server,
+					enum l_dhcp_server_event event,
+					void *user_data,
+					const struct l_dhcp_lease *lease)
+{
+	switch (event) {
+	case L_DHCP_SERVER_EVENT_NEW_LEASE:
+		new_client = l_dhcp_lease_get_address(lease);
+		break;
+	case L_DHCP_SERVER_EVENT_LEASE_EXPIRED:
+		expired_client = l_dhcp_lease_get_address(lease);
+		break;
+	}
+}
+
 static void test_complete_run(const void *data)
 {
 	static const uint8_t addr1[6] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
@@ -794,6 +812,8 @@ static void test_complete_run(const void *data)
 	assert(l_dhcp_server_set_netmask(server, "255.255.255.0"));
 	assert(l_dhcp_server_set_gateway(server, "192.168.1.1"));
 	assert(l_dhcp_server_set_dns(server, dns));
+	assert(l_dhcp_server_set_event_handler(server, server_event,
+						NULL, NULL));
 
 	if (verbose)
 		l_dhcp_server_set_debug(server, do_debug, "[DHCP SERV] ", NULL);
@@ -865,6 +885,11 @@ static void test_complete_run(const void *data)
 	cli_addr = l_dhcp_lease_get_address(cli_lease);
 	assert(cli_addr);
 	assert(!strcmp(cli_addr, "192.168.1.2"));
+	assert(new_client);
+	assert(!strcmp(new_client, cli_addr));
+	l_free(new_client);
+	new_client = NULL;
+
 	srv_addr = l_dhcp_lease_get_server_id(cli_lease);
 	assert(!strcmp(srv_addr, "192.168.1.1"));
 	l_free(srv_addr);
@@ -910,14 +935,30 @@ static void test_complete_run(const void *data)
 	cli_addr = l_dhcp_lease_get_address(cli_lease);
 	assert(cli_addr);
 	assert(!strcmp(cli_addr, "192.168.1.3"));
+	assert(new_client);
+	assert(!strcmp(new_client, cli_addr));
+	l_free(new_client);
+	new_client = NULL;
 	srv_addr = l_dhcp_lease_get_server_id(cli_lease);
 	assert(!strcmp(srv_addr, "192.168.1.1"));
 	l_free(srv_addr);
 	l_free(cli_addr);
 
-
 	l_dhcp_client_stop(client1);
+
+	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	assert(expired_client);
+	assert(!strcmp(expired_client, "192.168.1.2"));
+	l_free(expired_client);
+	expired_client = NULL;
+
 	l_dhcp_client_stop(client2);
+	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	assert(expired_client);
+	assert(!strcmp(expired_client, "192.168.1.3"));
+	l_free(expired_client);
+	expired_client = NULL;
+
 	l_dhcp_client_destroy(client1);
 	l_dhcp_client_destroy(client2);
 
