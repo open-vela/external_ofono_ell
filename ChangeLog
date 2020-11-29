@@ -1,3 +1,8 @@
+ver 0.34:
+	Add support for DHCP v6 Rapid Commit.
+	Add support for ICMP v6 implementation.
+	Add support for PKCS#1 formatted private keys.
+
 ver 0.33:
 	Fix issue with uintset and number of bytes copied.
 	Fix issue with overflow in DHCP lease T2 computation.
