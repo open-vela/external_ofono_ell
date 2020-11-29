@@ -1,3 +1,6 @@
+ver 0.35:
+	Fix issue with declaration of exported symbols.
+
 ver 0.34:
 	Add support for DHCP v6 Rapid Commit.
 	Add support for ICMP v6 implementation.
