@@ -373,7 +373,7 @@ done:
 	return ret;
 }
 
-bool l_net_get_link_local_address(int ifindex, struct in6_addr *out)
+LIB_EXPORT bool l_net_get_link_local_address(int ifindex, struct in6_addr *out)
 {
 	L_AUTO_FREE_VAR(char *, ifname) = l_net_get_name(ifindex);
 	struct ifaddrs *ifa;

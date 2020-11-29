@@ -507,7 +507,7 @@ LIB_EXPORT bool l_rtnl_route_set_protocol(struct l_rtnl_route *rt,
 	return true;
 }
 
-uint8_t l_rtnl_route_get_scope(const struct l_rtnl_route *rt)
+LIB_EXPORT uint8_t l_rtnl_route_get_scope(const struct l_rtnl_route *rt)
 {
 	if (unlikely(!rt))
 		return RT_SCOPE_NOWHERE;
@@ -515,7 +515,7 @@ uint8_t l_rtnl_route_get_scope(const struct l_rtnl_route *rt)
 	return rt->scope;
 }
 
-bool l_rtnl_route_set_scope(struct l_rtnl_route *rt, uint8_t scope)
+LIB_EXPORT bool l_rtnl_route_set_scope(struct l_rtnl_route *rt, uint8_t scope)
 {
 	if (unlikely(!rt))
 		return false;
