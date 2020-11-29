@@ -545,7 +545,7 @@ LIB_EXPORT bool l_icmp6_client_set_event_handler(struct l_icmp6_client *client,
 	return true;
 }
 
-bool l_icmp6_client_set_debug(struct l_icmp6_client *client,
+LIB_EXPORT bool l_icmp6_client_set_debug(struct l_icmp6_client *client,
 				l_icmp6_debug_cb_t function,
 				void *user_data, l_icmp6_destroy_cb_t destroy)
 {

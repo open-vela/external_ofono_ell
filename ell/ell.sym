@@ -237,6 +237,7 @@ global:
 	l_dhcp_client_add_request_option;
 	l_dhcp_client_set_address;
 	l_dhcp_client_set_interface_name;
+	l_dhcp_client_set_rtnl;
 	l_dhcp_client_set_hostname;
 	l_dhcp_client_get_lease;
 	l_dhcp_client_start;
@@ -585,7 +586,7 @@ global:
 	l_gpio_reader_get;
 	/* rtnl */
 	l_rtnl_address_new;
-	l_rtl_address_free;
+	l_rtnl_address_free;
 	l_rtnl_address_get_address;
 	l_rtnl_address_get_family;
 	l_rtnl_address_get_prefix_length;
@@ -635,6 +636,8 @@ global:
 	l_rtnl_route6_dump;
 	l_rtnl_route6_add_gateway;
 	l_rtnl_route6_delete_gateway;
+	l_rtnl_route_add;
+	l_rtnl_route_delete;
 	l_rtnl_ifaddr_add;
 	l_rtnl_ifaddr_delete;
 /* icmp6 */
