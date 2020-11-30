@@ -1714,7 +1714,7 @@ LIB_EXPORT bool l_genl_msg_enter_nested(struct l_genl_msg *msg, uint16_t type)
 	if (!msg_grow(msg, NLA_HDRLEN))
 		return false;
 
-	msg->nests[msg->nesting_level].type = type;
+	msg->nests[msg->nesting_level].type = type | NLA_F_NESTED;
 	msg->nests[msg->nesting_level].offset = msg->len;
 	msg->nesting_level += 1;
 
