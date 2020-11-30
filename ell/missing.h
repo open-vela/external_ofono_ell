@@ -67,3 +67,13 @@ static inline void explicit_bzero(void *s, size_t n)
 #ifndef SO_BINDTOIFINDEX
 #define SO_BINDTOIFINDEX 62
 #endif
+
+#ifndef HAVE_RAWMEMCHR
+static inline void *rawmemchr(const void *s, int c)
+{
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wstringop-overflow=\"")
+	return memchr(s, c, (size_t) -1);
+_Pragma("GCC diagnostic pop")
+}
+#endif
