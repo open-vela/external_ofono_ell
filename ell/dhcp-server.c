@@ -24,6 +24,7 @@
 #include <config.h>
 #endif
 
+#include <linux/types.h>
 #include <net/ethernet.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
