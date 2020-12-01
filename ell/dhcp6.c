@@ -1849,6 +1849,9 @@ LIB_EXPORT bool l_dhcp6_client_stop(struct l_dhcp6_client *client)
 	l_timeout_remove(client->timeout_lease);
 	client->timeout_lease = NULL;
 
+	l_free(client->duid);
+	client->duid = NULL;
+
 	if (client->transport && client->transport->close)
 		client->transport->close(client->transport);
 
