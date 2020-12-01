@@ -421,6 +421,7 @@ struct l_dhcp6_client {
 	bool request_pd : 1;
 	bool request_na : 1;
 	bool no_rapid_commit : 1;
+	bool lla_randomized : 1;
 };
 
 static const struct in6_addr all_nodes = DHCP6_ADDR_LINKLOCAL_ALL_NODES;
@@ -584,6 +585,25 @@ static void client_duid_generate_addr_plus_time(struct l_dhcp6_client *client)
 	l_put_be32(time_stamp, client->duid->identifier + 2);
 	memcpy(client->duid->identifier + 2 + 4, client->addr,
 							client->addr_len);
+}
+
+static void client_duid_generate_addr(struct l_dhcp6_client *client)
+{
+	if (client->duid)
+		return;
+
+	/*
+	 * RFC 7844, Section 4.3 Client Identifier DHCPv6 Option:
+	 * "When using the anonymity profile in conjunction with randomized
+	 * link-layer addresses, DHCPv6 clients MUST use DUID format
+	 * number 3 -- link-layer address.  The value of the link-layer
+	 * address should be the value currently assigned to the interface.
+	 */
+	client->duid_len = 4 + client->addr_len;
+	client->duid = l_malloc(client->duid_len);
+	client->duid->type = L_CPU_TO_BE16(DUID_TYPE_LINK_LAYER_ADDR);
+	l_put_be16(client->addr_type, client->duid->identifier);
+	memcpy(client->duid->identifier + 2, client->addr, client->addr_len);
 }
 
 static void set_retransmission_delay(struct l_dhcp6_client *client,
@@ -1625,21 +1645,7 @@ LIB_EXPORT bool l_dhcp6_client_set_lla_randomized(struct l_dhcp6_client *client,
 	if (unlikely(client->state != DHCP6_STATE_INIT))
 		return false;
 
-	if (client->duid)
-		return false;
-
-	/*
-	 * RFC 7844, Section 4.3 Client Identifier DHCPv6 Option:
-	 * "When using the anonymity profile in conjunction with randomized
-	 * link-layer addresses, DHCPv6 clients MUST use DUID format
-	 * number 3 -- link-layer address.  The value of the link-layer
-	 * address should be the value currently assigned to the interface.
-	 */
-	client->duid_len = 4 + client->addr_len;
-	client->duid = l_malloc(client->duid_len);
-	client->duid->type = L_CPU_TO_BE16(DUID_TYPE_LINK_LAYER_ADDR);
-	l_put_be16(client->addr_type, client->duid->identifier);
-	memcpy(client->duid->identifier + 2, client->addr, client->addr_len);
+	client->lla_randomized = randomized;
 
 	return true;
 }
@@ -1759,7 +1765,10 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 		l_dhcp6_client_set_address(client, ARPHRD_ETHER, mac, ETH_ALEN);
 	}
 
-	client_duid_generate_addr_plus_time(client);
+	if (client->lla_randomized)
+		client_duid_generate_addr(client);
+	else
+		client_duid_generate_addr_plus_time(client);
 
 	if (!client->transport) {
 		client->transport =
