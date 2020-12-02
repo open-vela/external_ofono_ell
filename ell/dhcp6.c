@@ -960,7 +960,15 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 	uint32_t t2 = _dhcp6_lease_get_t2(client->lease);
 
 	client->lease_start_t = l_time_now();
-	dhcp6_client_event_notify(client, L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
+
+	/* TODO: Emit IP_CHANGED if any addresses were removed / added */
+	if (client->state == DHCP6_STATE_REQUESTING ||
+			client->state == DHCP6_STATE_SOLICITING)
+		dhcp6_client_event_notify(client,
+					L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
+	else
+		dhcp6_client_event_notify(client,
+					L_DHCP6_CLIENT_EVENT_LEASE_RENEWED);
 
 	l_timeout_remove(client->timeout_lease);
 	client->timeout_lease = NULL;
@@ -1373,13 +1381,11 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 
 		/* Fall through */
 	case DHCP6_STATE_REQUESTING:
+	case DHCP6_STATE_RENEWING:
+	case DHCP6_STATE_REBINDING:
 		r = dhcp6_client_receive_reply(client, message, len);
 		if (r < 0)
 			return;
-		break;
-	case DHCP6_STATE_RENEWING:
-		break;
-	case DHCP6_STATE_REBINDING:
 		break;
 	case DHCP6_STATE_RELEASING:
 		break;
@@ -1388,15 +1394,15 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	if (r == (int) client->state)
 		return;
 
-	dhcp6_client_new_transaction(client, r);
-
-	if (client->state == DHCP6_STATE_BOUND) {
+	if (r == DHCP6_STATE_BOUND) {
 		l_timeout_remove(client->timeout_send);
 		client->timeout_send = NULL;
-
 		dhcp6_client_setup_lease(client);
+		dhcp6_client_new_transaction(client, r);
 		return;
 	}
+
+	dhcp6_client_new_transaction(client, r);
 
 	if (dhcp6_client_send_next(client) < 0)
 		l_dhcp6_client_stop(client);
