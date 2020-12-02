@@ -853,6 +853,7 @@ static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 						enum dhcp6_state new_state)
 {
 	client->attempt = 0;
+	client->attempt_delay = 0;
 	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
 	client->transaction_start_t = 0;
 
