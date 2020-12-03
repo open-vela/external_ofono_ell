@@ -47,6 +47,8 @@
 #define ANNOUNCE_NUM		2
 #define ANNOUNCE_INTERVAL	2
 
+#define DEFEND_INTERVAL		10
+
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_STR(a) a[0], a[1], a[2], a[3], a[4], a[5]
 
@@ -66,6 +68,7 @@
 enum acd_state {
 	ACD_STATE_PROBE,
 	ACD_STATE_ANNOUNCED,
+	ACD_STATE_DEFEND,
 };
 
 struct l_acd {
@@ -250,6 +253,17 @@ static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
 	}
 }
 
+static void defend_wait_timeout(struct l_timeout *timeout, void *user_data)
+{
+	struct l_acd *acd = user_data;
+
+	l_timeout_remove(acd->timeout);
+	acd->timeout = NULL;
+
+	/* Successfully defended address */
+	acd->state = ACD_STATE_ANNOUNCED;
+}
+
 static bool acd_read_handler(struct l_io *io, void *user_data)
 {
 	struct l_acd *acd = user_data;
@@ -298,7 +312,61 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 			acd->event_func(L_ACD_EVENT_CONFLICT, acd->user_data);
 
 		l_acd_stop(acd);
+
+		break;
 	case ACD_STATE_ANNOUNCED:
+		/* Only defend packets with a source conflict */
+		if (!source_conflict)
+			return true;
+
+		/*
+		 * RFC 5227 - Section 2.4 (b)
+		 * [If the host] "has not seen any other conflicting ARP packets
+		 * within the last DEFEND_INTERVAL seconds, MAY elect to attempt
+		 * to defend its address by recording the time that the
+		 * conflicting ARP packet was received, and then broadcasting
+		 * one single ARP Announcement"
+		 */
+		acd->state = ACD_STATE_DEFEND;
+
+		/*
+		 * We still have an initial announcement to send, but rather
+		 * than wait for that (potentially 2 seconds) we can remove
+		 * the timeout, send annouce now, and still transition to the
+		 * defending state.
+		 */
+		if (acd->timeout)
+			l_timeout_remove(acd->timeout);
+
+		acd_send_packet(acd, acd->ip);
+
+		ACD_DEBUG("Defending address");
+
+		acd->timeout = l_timeout_create(DEFEND_INTERVAL,
+						defend_wait_timeout, acd, NULL);
+
+		break;
+	case ACD_STATE_DEFEND:
+		if (!source_conflict)
+			return true;
+
+		l_timeout_remove(acd->timeout);
+		acd->timeout = NULL;
+
+		ACD_DEBUG("Lost address");
+		/*
+		* RFC 5227 Section 2.4(b)
+		* "if this is not the first conflicting ARP packet the host has seen,
+		* and the time recorded for the previous conflicting ARP packet is
+		* recent, within DEFEND_INTERVAL seconds, then the host MUST
+		* immediately cease using this address and signal an error to the
+		* configuring agent"
+		*/
+		if (acd->event_func)
+			acd->event_func(L_ACD_EVENT_LOST, acd->user_data);
+
+		l_acd_stop(acd);
+
 		break;
 	}
 
