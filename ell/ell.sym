@@ -661,6 +661,7 @@ global:
 	l_acd_stop;
 	l_acd_destroy;
 	l_acd_set_debug;
+	l_acd_set_skip_probes;
 local:
 	*;
 };

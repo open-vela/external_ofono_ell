@@ -90,6 +90,8 @@ struct l_acd {
 	l_acd_debug_cb_t debug_handler;
 	l_acd_destroy_func_t debug_destroy;
 	void *debug_data;
+
+	bool skip_probes : 1;
 };
 
 static int acd_open_socket(int ifindex)
@@ -409,7 +411,24 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 	l_io_set_read_handler(acd->io, acd_read_handler, acd, NULL);
 
 	acd->ip = ntohl(ia.s_addr);
-	acd->state = ACD_STATE_PROBE;
+
+	/*
+	 * Optimization to allows skipping the probe stage. The RFC does not
+	 * mention allowing this, but probes take an eternity and would
+	 * drastically increase connection times for wifi/eth. It is still
+	 * recommended that probes be used for statically configured IP's where
+	 * no DHCP server is involved.
+	 */
+	if (acd->skip_probes) {
+		ACD_DEBUG("Skipping probes and sending announcements");
+
+		acd->retries = 1;
+
+		announce_wait_timeout(NULL, acd);
+
+		return true;
+	} else
+		acd->state = ACD_STATE_PROBE;
 
 	delay = acd_random_delay_ms(PROBE_WAIT);
 
@@ -481,6 +500,20 @@ LIB_EXPORT bool l_acd_set_debug(struct l_acd *acd,
 	acd->debug_handler = function;
 	acd->debug_data = user_data;
 	acd->debug_destroy = destory;
+
+	return true;
+}
+
+LIB_EXPORT bool l_acd_set_skip_probes(struct l_acd *acd, bool skip)
+{
+	if (unlikely(!acd))
+		return false;
+
+	/* ACD has already been started */
+	if (acd->io)
+		return false;
+
+	acd->skip_probes = skip;
 
 	return true;
 }
