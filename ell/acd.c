@@ -78,6 +78,7 @@ struct l_acd {
 	uint8_t mac[ETH_ALEN];
 
 	enum acd_state state;
+	enum l_acd_defend_policy policy;
 
 	struct l_io *io;
 	struct l_timeout *timeout;
@@ -322,6 +323,25 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 			return true;
 
 		/*
+		 * RFC 5227 - Section 2.4 (a)
+		 *
+		 * "Upon receiving a conflicting ARP packet, a host MAY elect to
+		 * immediately cease using the address, and signal an error to
+		 * the configuring agent as described above."
+		 */
+		if (acd->policy == L_ACD_DEFEND_POLICY_NONE) {
+			ACD_DEBUG("Conflict detected, giving up address");
+
+			if (acd->event_func)
+				acd->event_func(L_ACD_EVENT_LOST,
+							acd->user_data);
+
+			l_acd_stop(acd);
+
+			break;
+		}
+
+		/*
 		 * RFC 5227 - Section 2.4 (b)
 		 * [If the host] "has not seen any other conflicting ARP packets
 		 * within the last DEFEND_INTERVAL seconds, MAY elect to attempt
@@ -352,6 +372,29 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		if (!source_conflict)
 			return true;
 
+		/*
+		 * RFC 5227 Section 2.4 (c)
+		 * "If a host has been configured such that it should not give
+		 * up its address under any circumstances ... then it MAY elect
+		 * to defend its address indefinitely."
+		 */
+		if (acd->policy == L_ACD_DEFEND_POLICY_INFINITE) {
+			ACD_DEBUG("Conflict "MAC" found with infinite policy",
+					MAC_STR(arp.arp_sha));
+
+			/*
+			 * Nothing to do at this point. We are in the DEFEND
+			 * state meaning there is a defend wait timeout pending.
+			 * Once that fires it will transition back into
+			 * ANNOUNCED. Once in ANNOUNCED and another conflict is
+			 * received, a single announcement will be sent. This
+			 * ensures a maximum of only 1 announcement every
+			 * DEFEND_INTERVAL seconds as long as conflicting
+			 * packets are being received.
+			 */
+			break;
+		}
+
 		l_timeout_remove(acd->timeout);
 		acd->timeout = NULL;
 
@@ -380,6 +423,7 @@ LIB_EXPORT struct l_acd *l_acd_new(int ifindex)
 	struct l_acd *acd = l_new(struct l_acd, 1);
 
 	acd->ifindex = ifindex;
+	acd->policy = L_ACD_DEFEND_POLICY_DEFEND;
 
 	return acd;
 }
@@ -514,6 +558,21 @@ LIB_EXPORT bool l_acd_set_skip_probes(struct l_acd *acd, bool skip)
 		return false;
 
 	acd->skip_probes = skip;
+
+	return true;
+}
+
+LIB_EXPORT bool l_acd_set_defend_policy(struct l_acd *acd,
+				enum l_acd_defend_policy policy)
+{
+	if (unlikely(!acd))
+		return false;
+
+	/* ACD has already been started */
+	if (acd->io)
+		return false;
+
+	acd->policy = policy;
 
 	return true;
 }
