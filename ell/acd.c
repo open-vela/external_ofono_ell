@@ -22,17 +22,52 @@
 #include <config.h>
 #endif
 
+#include <unistd.h>
 #include <sys/socket.h>
+#include <netpacket/packet.h>
+#include <netinet/if_ether.h>
+#include <net/if_arp.h>
 #include <arpa/inet.h>
 
 #include "private.h"
 #include "acd.h"
 #include "util.h"
+#include "io.h"
+#include "net.h"
+#include "timeout.h"
+#include "random.h"
+
+/* IPv4 Address Conflict Detection (RFC 5227) */
+#define PROBE_WAIT		1
+#define PROBE_NUM		3
+#define PROBE_MIN		1
+#define PROBE_MAX		2
+
+#define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
+#define MAC_STR(a) a[0], a[1], a[2], a[3], a[4], a[5]
+
+#define IP_STR(uint_ip) \
+({ \
+	struct in_addr _in; \
+	char *_out; \
+	_in.s_addr = uint_ip; \
+	_out = inet_ntoa(_in); \
+	_out; \
+})
+
+#define ACD_DEBUG(fmt, args...)					\
+	l_util_debug(acd->debug_handler, acd->debug_data,		\
+			"%s:%i " fmt, __func__, __LINE__, ## args)
 
 struct l_acd {
 	int ifindex;
 
 	uint32_t ip;
+	uint8_t mac[ETH_ALEN];
+
+	struct l_io *io;
+	struct l_timeout *timeout;
+	unsigned int retries;
 
 	l_acd_event_func_t event_func;
 	l_acd_destroy_func_t destroy;
@@ -42,6 +77,158 @@ struct l_acd {
 	l_acd_destroy_func_t debug_destroy;
 	void *debug_data;
 };
+
+static int acd_open_socket(int ifindex)
+{
+	struct sockaddr_ll dest;
+	int fd;
+
+	fd = socket(PF_PACKET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	if (fd < 0)
+		return -errno;
+
+	memset(&dest, 0, sizeof(dest));
+
+	dest.sll_family = AF_PACKET;
+	dest.sll_protocol = htons(ETH_P_ARP);
+	dest.sll_ifindex = ifindex;
+	dest.sll_halen = ETH_ALEN;
+	memset(dest.sll_addr, 0xFF, ETH_ALEN);
+
+	if (bind(fd, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
+		int err = errno;
+		close(fd);
+		return -err;
+	}
+
+	return fd;
+}
+
+static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
+{
+	struct sockaddr_ll dest;
+	struct ether_arp p;
+	uint32_t ip_source;
+	uint32_t ip_target;
+	int n;
+	int fd = l_io_get_fd(acd->io);
+
+	memset(&dest, 0, sizeof(dest));
+
+	dest.sll_family = AF_PACKET;
+	dest.sll_protocol = htons(ETH_P_ARP);
+	dest.sll_ifindex = acd->ifindex;
+	dest.sll_halen = ETH_ALEN;
+	memset(dest.sll_addr, 0xFF, ETH_ALEN);
+
+	ip_source = htonl(source_ip);
+	ip_target = htonl(acd->ip);
+	p.arp_hrd = htons(ARPHRD_ETHER);
+	p.arp_pro = htons(ETHERTYPE_IP);
+	p.arp_hln = ETH_ALEN;
+	p.arp_pln = 4;
+	p.arp_op = htons(ARPOP_REQUEST);
+
+	ACD_DEBUG("sending packet with target IP %s", IP_STR(ip_target));
+
+	memcpy(&p.arp_sha, acd->mac, ETH_ALEN);
+	memcpy(&p.arp_spa, &ip_source, sizeof(p.arp_spa));
+	memcpy(&p.arp_tpa, &ip_target, sizeof(p.arp_tpa));
+
+	n = sendto(fd, &p, sizeof(p), 0,
+			(struct sockaddr*) &dest, sizeof(dest));
+	if (n < 0)
+		n = -errno;
+
+	return n;
+}
+
+static uint32_t acd_random_delay_ms(uint32_t max_sec)
+{
+	uint32_t rand;
+
+	l_getrandom(&rand, sizeof(rand));
+
+	return rand % (max_sec * 1000);
+}
+
+static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
+{
+	struct l_acd *acd = user_data;
+	uint32_t delay;
+
+	ACD_DEBUG("Sending ACD Probe");
+
+	l_timeout_remove(acd->timeout);
+	acd->timeout = NULL;
+
+	if (acd_send_packet(acd, 0) < 0) {
+		ACD_DEBUG("Failed to send ACD probe");
+		return;
+	}
+
+	acd->retries++;
+
+	if (acd->retries < PROBE_NUM) {
+		/*
+		 * RFC 5227 - Section 2.1.1
+		 *
+		 * "... and should then send PROBE_NUM probe packets, each of
+		 * these probe packets spaced randomly and uniformly, PROBE_MIN
+		 * to PROBE_MAX seconds apart."
+		 */
+		delay = acd_random_delay_ms(PROBE_MAX - PROBE_MIN);
+		delay += PROBE_MIN * 1000;
+		acd->timeout = l_timeout_create_ms(delay, probe_wait_timeout,
+							acd, NULL);
+	} else
+		ACD_DEBUG("Done probing");
+
+}
+
+static bool acd_read_handler(struct l_io *io, void *user_data)
+{
+	struct l_acd *acd = user_data;
+	struct ether_arp arp;
+	ssize_t len;
+	int source_conflict;
+	int target_conflict;
+	bool probe;
+	uint32_t ip;
+
+	memset(&arp, 0, sizeof(arp));
+	len = read(l_io_get_fd(acd->io), &arp, sizeof(arp));
+	if (len < 0)
+		return false;
+
+	if (len != sizeof(arp))
+		return true;
+
+	if (arp.arp_op != htons(ARPOP_REPLY) &&
+			arp.arp_op != htons(ARPOP_REQUEST))
+		return true;
+
+	if (memcmp(arp.arp_sha, acd->mac, ETH_ALEN) == 0)
+		return true;
+
+	ip = htonl(acd->ip);
+	source_conflict = !memcmp(arp.arp_spa, &ip, sizeof(uint32_t));
+	probe = l_memeqzero(arp.arp_spa, sizeof(uint32_t));
+	target_conflict = probe &&
+		!memcmp(arp.arp_tpa, &ip, sizeof(uint32_t));
+
+	if (!source_conflict && !target_conflict) {
+		ACD_DEBUG("No target or source conflict detected for %s",
+				IP_STR(ip));
+		return true;
+	}
+
+	ACD_DEBUG("%s conflict detected for %s",
+			target_conflict ? "Target" : "Source",
+			IP_STR(ip));
+
+	return true;
+}
 
 LIB_EXPORT struct l_acd *l_acd_new(int ifindex)
 {
@@ -55,6 +242,8 @@ LIB_EXPORT struct l_acd *l_acd_new(int ifindex)
 LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 {
 	struct in_addr ia;
+	int fd;
+	uint32_t delay;
 
 	if (unlikely(!acd || !ip))
 		return false;
@@ -62,7 +251,34 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 	if (inet_pton(AF_INET, ip, &ia) != 1)
 		return false;
 
+	fd = acd_open_socket(acd->ifindex);
+	if (fd < 0)
+		return false;
+
+	if (l_memeqzero(acd->mac, ETH_ALEN) &&
+			!l_net_get_mac_address(acd->ifindex, acd->mac)) {
+		close(fd);
+		return false;
+	}
+
+	acd->io = l_io_new(fd);
+	l_io_set_close_on_destroy(acd->io, true);
+	l_io_set_read_handler(acd->io, acd_read_handler, acd, NULL);
+
 	acd->ip = ntohl(ia.s_addr);
+
+	delay = acd_random_delay_ms(PROBE_WAIT);
+
+	ACD_DEBUG("Waiting %ums to send probe", delay);
+
+	/*
+	 * RFC 5227 - Section 2.1.1
+	 * "When ready to begin probing, the host should then wait for a random
+	 *  time interval selected uniformly in the range zero to PROBE_WAIT
+	 *  seconds..."
+	 */
+	acd->timeout = l_timeout_create_ms(delay, probe_wait_timeout,
+							acd, NULL);
 
 	return true;
 }
@@ -86,6 +302,16 @@ LIB_EXPORT bool l_acd_stop(struct l_acd *acd)
 {
 	if (unlikely(!acd))
 		return false;
+
+	if (acd->timeout) {
+		l_timeout_remove(acd->timeout);
+		acd->timeout = NULL;
+	}
+
+	if (acd->io) {
+		l_io_destroy(acd->io);
+		acd->io = NULL;
+	}
 
 	return true;
 }
