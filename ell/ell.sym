@@ -654,6 +654,13 @@ global:
 	l_icmp6_client_set_route_priority;
 	l_icmp6_router_get_managed;
 	l_icmp6_router_get_other;
+	/* acd */
+	l_acd_new;
+	l_acd_start;
+	l_acd_set_event_handler;
+	l_acd_stop;
+	l_acd_destroy;
+	l_acd_set_debug;
 local:
 	*;
 };

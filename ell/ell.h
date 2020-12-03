@@ -64,3 +64,4 @@
 #include <ell/time.h>
 #include <ell/gpio.h>
 #include <ell/path.h>
+#include <ell/acd.h>
