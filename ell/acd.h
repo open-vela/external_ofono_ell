@@ -50,6 +50,7 @@ bool l_acd_stop(struct l_acd *acd);
 void l_acd_destroy(struct l_acd *acd);
 bool l_acd_set_debug(struct l_acd *acd, l_acd_debug_cb_t function,
 			void *user_data, l_acd_destroy_func_t destory);
+bool l_acd_set_skip_probes(struct l_acd *acd, bool skip);
 #ifdef __cplusplus
 }
 #endif
