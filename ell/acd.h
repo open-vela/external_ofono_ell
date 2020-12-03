@@ -34,6 +34,7 @@ struct l_acd;
 enum l_acd_event {
 	L_ACD_EVENT_AVAILABLE,
 	L_ACD_EVENT_CONFLICT,
+	L_ACD_EVENT_LOST,
 };
 
 typedef void (*l_acd_event_func_t)(enum l_acd_event event, void *user_data);
