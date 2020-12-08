@@ -511,6 +511,8 @@ LIB_EXPORT void l_acd_destroy(struct l_acd *acd)
 	if (unlikely(!acd))
 		return;
 
+	l_acd_stop(acd);
+
 	if (acd->destroy)
 		acd->destroy(acd->user_data);
 
