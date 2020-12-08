@@ -130,6 +130,7 @@ static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
 	int fd = l_io_get_fd(acd->io);
 
 	memset(&dest, 0, sizeof(dest));
+	memset(&p, 0, sizeof(p));
 
 	dest.sll_family = AF_PACKET;
 	dest.sll_protocol = htons(ETH_P_ARP);
