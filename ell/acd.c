@@ -161,9 +161,6 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 {
 	struct l_acd *acd = user_data;
 
-	l_timeout_remove(acd->timeout);
-	acd->timeout = NULL;
-
 	if (acd->state == ACD_STATE_PROBE) {
 		ACD_DEBUG("No conflicts found for %s, announcing address",
 				IP_STR(acd->ip));
@@ -190,12 +187,13 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 			return;
 		}
 
-		acd->timeout = l_timeout_create(ANNOUNCE_INTERVAL,
-						announce_wait_timeout,
-						acd, NULL);
+		l_timeout_modify(acd->timeout, ANNOUNCE_INTERVAL);
 
 		return;
 	}
+
+	l_timeout_remove(acd->timeout);
+	acd->timeout = NULL;
 
 	ACD_DEBUG("Done announcing");
 }
@@ -206,9 +204,6 @@ static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
 	uint32_t delay;
 
 	ACD_DEBUG("Sending ACD Probe");
-
-	l_timeout_remove(acd->timeout);
-	acd->timeout = NULL;
 
 	if (acd_send_packet(acd, 0) < 0) {
 		ACD_DEBUG("Failed to send ACD probe");
@@ -226,14 +221,16 @@ static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
 		 * to PROBE_MAX seconds apart."
 		 */
 		delay = _time_pick_interval_secs(PROBE_MIN, PROBE_MAX);
-		acd->timeout = l_timeout_create_ms(delay, probe_wait_timeout,
-							acd, NULL);
+		l_timeout_modify_ms(acd->timeout, delay);
 	} else {
 		/*
 		 * Wait for ANNOUNCE_WAIT seconds after probe period before
 		 * announcing address.
 		 */
 		ACD_DEBUG("Done probing");
+
+		l_timeout_remove(acd->timeout);
+		acd->timeout = NULL;
 
 		acd->retries = 1;
 
