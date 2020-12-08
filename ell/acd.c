@@ -125,8 +125,6 @@ static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
 {
 	struct sockaddr_ll dest;
 	struct ether_arp p;
-	uint32_t ip_source;
-	uint32_t ip_target;
 	int n;
 	int fd = l_io_get_fd(acd->io);
 
@@ -138,19 +136,17 @@ static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
 	dest.sll_halen = ETH_ALEN;
 	memset(dest.sll_addr, 0xFF, ETH_ALEN);
 
-	ip_source = htonl(source_ip);
-	ip_target = htonl(acd->ip);
 	p.arp_hrd = htons(ARPHRD_ETHER);
 	p.arp_pro = htons(ETHERTYPE_IP);
 	p.arp_hln = ETH_ALEN;
 	p.arp_pln = 4;
 	p.arp_op = htons(ARPOP_REQUEST);
 
-	ACD_DEBUG("sending packet with target IP %s", IP_STR(ip_target));
+	ACD_DEBUG("sending packet with target IP %s", IP_STR(acd->ip));
 
 	memcpy(&p.arp_sha, acd->mac, ETH_ALEN);
-	memcpy(&p.arp_spa, &ip_source, sizeof(p.arp_spa));
-	memcpy(&p.arp_tpa, &ip_target, sizeof(p.arp_tpa));
+	memcpy(&p.arp_spa, &source_ip, sizeof(p.arp_spa));
+	memcpy(&p.arp_tpa, &acd->ip, sizeof(p.arp_tpa));
 
 	n = sendto(fd, &p, sizeof(p), 0,
 			(struct sockaddr*) &dest, sizeof(dest));
@@ -178,7 +174,7 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 
 	if (acd->state == ACD_STATE_PROBE) {
 		ACD_DEBUG("No conflicts found for %s, announcing address",
-				IP_STR(htonl(acd->ip)));
+				IP_STR(acd->ip));
 
 		acd->state = ACD_STATE_ANNOUNCED;
 
@@ -275,7 +271,6 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 	int source_conflict;
 	int target_conflict;
 	bool probe;
-	uint32_t ip;
 
 	memset(&arp, 0, sizeof(arp));
 	len = read(l_io_get_fd(acd->io), &arp, sizeof(arp));
@@ -292,15 +287,14 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 	if (memcmp(arp.arp_sha, acd->mac, ETH_ALEN) == 0)
 		return true;
 
-	ip = htonl(acd->ip);
-	source_conflict = !memcmp(arp.arp_spa, &ip, sizeof(uint32_t));
+	source_conflict = !memcmp(arp.arp_spa, &acd->ip, sizeof(uint32_t));
 	probe = l_memeqzero(arp.arp_spa, sizeof(uint32_t));
 	target_conflict = probe &&
-		!memcmp(arp.arp_tpa, &ip, sizeof(uint32_t));
+		!memcmp(arp.arp_tpa, &acd->ip, sizeof(uint32_t));
 
 	if (!source_conflict && !target_conflict) {
 		ACD_DEBUG("No target or source conflict detected for %s",
-				IP_STR(ip));
+				IP_STR(acd->ip));
 		return true;
 	}
 
@@ -309,7 +303,7 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		/* No reason to continue probing */
 		ACD_DEBUG("%s conflict detected for %s",
 				target_conflict ? "Target" : "Source",
-				IP_STR(ip));
+				IP_STR(acd->ip));
 
 		if (acd->event_func)
 			acd->event_func(L_ACD_EVENT_CONFLICT, acd->user_data);
@@ -454,7 +448,7 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 	l_io_set_close_on_destroy(acd->io, true);
 	l_io_set_read_handler(acd->io, acd_read_handler, acd, NULL);
 
-	acd->ip = ntohl(ia.s_addr);
+	acd->ip = ia.s_addr;
 
 	/*
 	 * Optimization to allows skipping the probe stage. The RFC does not
