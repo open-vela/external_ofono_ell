@@ -36,6 +36,7 @@
 #include "net.h"
 #include "timeout.h"
 #include "random.h"
+#include "time-private.h"
 
 /* IPv4 Address Conflict Detection (RFC 5227) */
 #define PROBE_WAIT		1
@@ -156,15 +157,6 @@ static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
 	return n;
 }
 
-static uint32_t acd_random_delay_ms(uint32_t max_sec)
-{
-	uint32_t rand;
-
-	l_getrandom(&rand, sizeof(rand));
-
-	return rand % (max_sec * 1000);
-}
-
 static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 {
 	struct l_acd *acd = user_data;
@@ -233,8 +225,7 @@ static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
 		 * these probe packets spaced randomly and uniformly, PROBE_MIN
 		 * to PROBE_MAX seconds apart."
 		 */
-		delay = acd_random_delay_ms(PROBE_MAX - PROBE_MIN);
-		delay += PROBE_MIN * 1000;
+		delay = _time_pick_interval_secs(PROBE_MIN, PROBE_MAX);
 		acd->timeout = l_timeout_create_ms(delay, probe_wait_timeout,
 							acd, NULL);
 	} else {
@@ -468,7 +459,7 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 	} else
 		acd->state = ACD_STATE_PROBE;
 
-	delay = acd_random_delay_ms(PROBE_WAIT);
+	delay = _time_pick_interval_secs(0, PROBE_WAIT);
 
 	ACD_DEBUG("Waiting %ums to send probe", delay);
 
