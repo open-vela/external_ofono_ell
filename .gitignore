@@ -79,6 +79,7 @@ examples/glib-eventloop
 examples/dhcp-client
 examples/dhcp6-client
 examples/dhcp-server
+examples/acd-client
 test-suite.log
 tools/certchain-verify
 tools/genl-discover
