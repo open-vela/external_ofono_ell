@@ -415,7 +415,8 @@ static struct l_cipher *pkcs5_cipher_from_pbes2_params(
 
 struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 						size_t id_asn1_len,
-						const char *password)
+						const char *password,
+						bool *out_is_block)
 {
 	uint8_t tag;
 	const uint8_t *oid, *params, *salt, *iter_count_buf;
@@ -436,9 +437,13 @@ struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 	if (asn1_der_find_elem(id_asn1, id_asn1_len, 2, &tag, &tmp_len))
 		return NULL;
 
-	if (asn1_oid_eq(&pkcs5_pbes2_oid, oid_len, oid))
+	if (asn1_oid_eq(&pkcs5_pbes2_oid, oid_len, oid)) {
+		if (out_is_block)
+			*out_is_block = true;
+
 		return pkcs5_cipher_from_pbes2_params(params, params_len,
 							password);
+	}
 
 	/* RFC8018 section A.3 */
 
@@ -484,5 +489,9 @@ struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 	}
 
 	explicit_bzero(derived_key, 16);
+
+	if (out_is_block)
+		*out_is_block = true;
+
 	return cipher;
 }
