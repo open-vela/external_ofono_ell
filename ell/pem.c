@@ -581,18 +581,24 @@ static struct l_cipher *cipher_from_dek_info(const char *algid, const char *para
 
 	l_checksum_free(md5);
 
-	if (!ok)
-		return NULL;
+	if (!ok) {
+		cipher = NULL;
+		goto cleanup;
+	}
 
 	cipher  = l_cipher_new(type, key, key_len);
 	if (!cipher)
-		return NULL;
+		goto cleanup;
 
 	if (l_cipher_set_iv(cipher, iv, iv_len))
-		return cipher;
+		goto cleanup;
 
 	l_cipher_free(cipher);
-	return NULL;
+	cipher = NULL;
+
+cleanup:
+	explicit_bzero(key, sizeof(key));
+	return cipher;
 }
 
 static struct l_key *pem_load_private_key(uint8_t *content,
@@ -821,8 +827,10 @@ static struct l_key *pem_load_private_key(uint8_t *content,
 		ptr += sizeof(pkcs1_rsa_encryption);
 		memcpy(ptr, private_key, private_key_len);
 		ptr += private_key_len;
+		explicit_bzero(private_key, private_key_len);
 		l_free(private_key);
 
+		explicit_bzero(content, len);
 		l_free(content);
 		content = one_asymmetric_key;
 		len = ptr - one_asymmetric_key;
