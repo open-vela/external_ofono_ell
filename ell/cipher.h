@@ -37,6 +37,7 @@ enum l_cipher_type {
 	L_CIPHER_DES = 4,
 	L_CIPHER_DES_CBC,
 	L_CIPHER_DES3_EDE_CBC,
+	L_CIPHER_RC2_CBC,
 };
 
 struct l_cipher *l_cipher_new(enum l_cipher_type type,
