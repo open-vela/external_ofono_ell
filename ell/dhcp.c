@@ -41,6 +41,7 @@
 #include "dhcp-private.h"
 #include "netlink.h"
 #include "rtnl.h"
+#include "acd.h"
 
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
@@ -190,6 +191,7 @@ struct l_dhcp_client {
 	l_dhcp_destroy_cb_t event_destroy;
 	l_dhcp_debug_cb_t debug_handler;
 	l_dhcp_destroy_cb_t debug_destroy;
+	struct l_acd *acd;
 	void *debug_data;
 	bool have_addr : 1;
 	bool override_xid : 1;
@@ -777,6 +779,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 	uint8_t t, l;
 	const void *v;
 	int r;
+	struct in_addr ia;
 
 	CLIENT_DEBUG("");
 
@@ -877,6 +880,41 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 							dhcp_client_t1_expired,
 							client, NULL);
 		}
+
+		/* ACD is already running, no need to re-announce */
+		if (client->acd)
+			break;
+
+		client->acd = l_acd_new(client->ifindex);
+
+		if (client->debug_handler)
+			l_acd_set_debug(client->acd, client->debug_handler,
+					client->debug_data,
+					client->debug_destroy);
+
+		/*
+		 * TODO: There is no mechanism yet to deal with IPs leased by
+		 * the DHCP server which conflict with other devices. For now
+		 * the ACD object is being initialized to defend infinitely
+		 * which is effectively no different than the non-ACD behavior
+		 * (ignore conflicts and continue using address). The only
+		 * change is that announcements will be sent if conflicts are
+		 * found.
+		 */
+		l_acd_set_defend_policy(client->acd,
+						L_ACD_DEFEND_POLICY_INFINITE);
+		l_acd_set_skip_probes(client->acd, true);
+
+		ia.s_addr = client->lease->address;
+
+		/* For unit testing we don't want this to be a fatal error */
+		if (!l_acd_start(client->acd, inet_ntoa(ia))) {
+			CLIENT_DEBUG("Failed to start ACD on %s, continuing",
+						inet_ntoa(ia));
+			l_acd_destroy(client->acd);
+			client->acd = NULL;
+		}
+
 		break;
 	case DHCP_STATE_INIT_REBOOT:
 	case DHCP_STATE_REBOOTING:
@@ -1155,6 +1193,11 @@ LIB_EXPORT bool l_dhcp_client_stop(struct l_dhcp_client *client)
 
 	_dhcp_lease_free(client->lease);
 	client->lease = NULL;
+
+	if (client->acd) {
+		l_acd_destroy(client->acd);
+		client->acd = NULL;
+	}
 
 	return true;
 }
