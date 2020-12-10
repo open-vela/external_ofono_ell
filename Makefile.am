@@ -215,6 +215,7 @@ cert_files = unit/cert-chain.pem \
 			unit/cert-server.pem \
 			unit/cert-server-key-pkcs8.pem \
 			unit/cert-client.pem \
+			unit/cert-client.crt \
 			unit/cert-client-key-pkcs1.pem \
 			unit/cert-client-key-pkcs1-des.pem \
 			unit/cert-client-key-pkcs1-des3.pem \
@@ -228,6 +229,12 @@ cert_files = unit/cert-chain.pem \
 			unit/cert-client-key-pkcs8-v2-des-ede3.pem \
 			unit/cert-client-key-pkcs8-v2-aes128.pem \
 			unit/cert-client-key-pkcs8-v2-aes256.pem \
+			unit/cert-entity-pkcs12-nomac.p12 \
+			unit/cert-entity-pkcs12-rc2-sha1.p12 \
+			unit/cert-entity-pkcs12-des-sha256.p12 \
+			unit/cert-entity-pkcs12-rc4-sha384.p12 \
+			unit/cert-entity-pkcs12-pkcs5-sha512.p12 \
+			unit/cert-entity-combined.pem \
 			unit/cert-no-keyid.pem
 
 cert_checks = unit/cert-intca \
@@ -487,6 +494,9 @@ unit/cert-client.pem: unit/cert-client.csr unit/cert-ca.pem unit/gencerts.cnf
 unit/cert-client: unit/cert-client.pem unit/cert-ca.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca.pem $<
 
+unit/cert-client.crt: unit/cert-client.pem
+	$(AM_V_GEN)openssl x509 -in $< -out $@ -outform der
+
 unit/cert-intca-key.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
 
@@ -552,6 +562,24 @@ unit/cert-no-keyid.pem: unit/cert-no-keyid.csr unit/cert-ca2.pem unit/gencerts.c
 
 unit/cert-no-keyid: unit/cert-no-keyid.pem unit/cert-ca2.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca2.pem $<
+
+unit/cert-entity-pkcs12-nomac.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -out $@ -export -passout pass:abc -nomac # defaut ciphers
+
+unit/cert-entity-pkcs12-rc2-sha1.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC2-40 -keypbe PBE-SHA1-RC2-128 -macalg sha1
+
+unit/cert-entity-pkcs12-des-sha256.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-2DES -macalg sha256
+
+unit/cert-entity-pkcs12-rc4-sha384.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC4-128 -keypbe PBE-SHA1-RC2-40 -macalg sha384
+
+unit/cert-entity-pkcs12-pkcs5-sha512.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe des-cbc -keypbe des-cbc -macalg sha512
+
+unit/cert-entity-combined.pem: unit/cert-entity-pkcs12-rc2-sha1.p12
+	$(AM_V_GEN)openssl pkcs12 -in $< -out $@ -passin pass:abc -passout pass:abc
 
 unit/key-plaintext.h: unit/plaintext.txt
 	$(AM_V_GEN)xxd -i < $< > $@
