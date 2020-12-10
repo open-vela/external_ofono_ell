@@ -619,6 +619,8 @@ struct l_key *pem_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 	int i;
 	struct l_key *pkey;
 	bool r;
+	bool is_block;
+	size_t decrypted_len;
 
 	/* Technically this is BER, not limited to DER */
 	key_info = asn1_der_find_elem(der, der_len, 0, &tag, &key_info_len);
@@ -638,7 +640,8 @@ struct l_key *pem_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 	if (asn1_der_find_elem(der, der_len, 2, &tag, &tmp_len))
 		return NULL;
 
-	alg = pkcs5_cipher_from_alg_id(alg_id, alg_id_len, passphrase);
+	alg = pkcs5_cipher_from_alg_id(alg_id, alg_id_len, passphrase,
+					&is_block);
 	if (!alg)
 		return NULL;
 
@@ -652,21 +655,28 @@ struct l_key *pem_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 		return NULL;
 	}
 
-	/*
-	 * Strip padding as defined in RFC8018 (for PKCS#5 v1) or
-	 * RFC1423 / RFC5652 (for v2).
-	 */
-	pkey = NULL;
-	if (decrypted[data_len - 1] >= data_len ||
-			decrypted[data_len - 1] > 16)
-		goto cleanup;
+	decrypted_len = data_len;
 
-	for (i = 1; i < decrypted[data_len - 1]; i++)
-		if (decrypted[data_len - 1 - i] != decrypted[data_len - 1])
+	if (is_block) {
+		/*
+		 * For block ciphers strip padding as defined in RFC8018
+		 * (for PKCS#5 v1) or RFC1423 / RFC5652 (for v2).
+		 */
+		pkey = NULL;
+
+		if (decrypted[data_len - 1] >= data_len ||
+				decrypted[data_len - 1] > 16)
 			goto cleanup;
 
-	pkey = pem_key_from_pkcs8_private_key_info(decrypted,
-					data_len - decrypted[data_len - 1]);
+		for (i = 1; i < decrypted[data_len - 1]; i++)
+			if (decrypted[data_len - 1 - i] !=
+					decrypted[data_len - 1])
+				goto cleanup;
+
+		decrypted_len -= decrypted[data_len - 1];
+	}
+
+	pkey = pem_key_from_pkcs8_private_key_info(decrypted, decrypted_len);
 
 cleanup:
 	explicit_bzero(decrypted, data_len);

@@ -22,4 +22,5 @@
 
 struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 						size_t id_asn1_len,
-						const char *password);
+						const char *password,
+						bool *out_is_block);
