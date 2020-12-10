@@ -103,6 +103,60 @@ static void test_aes_ctr(const void *data)
 	l_cipher_free(cipher);
 }
 
+static void test_arc4(const void *data)
+{
+	struct l_cipher *cipher;
+	char buf[256];
+	int r;
+
+	static const unsigned char expect_plaintext[] = {
+		0xbb, 0xf3, 0x16, 0xe8, 0xd9, 0x40, 0xaf, 0x0a, 0xd3,
+	};
+	static const unsigned char expect_pedia[] = {
+		0x10, 0x21, 0xbf, 0x04, 0x20,
+	};
+	static const unsigned char expect_attack[] = {
+		0x45, 0xa0, 0x1f, 0x64, 0x5f, 0xc3, 0x5b, 0x38, 0x35, 0x52,
+		0x54, 0x4b, 0x9b, 0xf5,
+	};
+
+	assert(l_cipher_is_supported(L_CIPHER_ARC4));
+
+	cipher = l_cipher_new(L_CIPHER_ARC4, "Key", 3);
+	assert(cipher);
+	l_cipher_encrypt(cipher, "Plaintext", buf, 9);
+	assert(!memcmp(buf, expect_plaintext, 9));
+	l_cipher_free(cipher);
+
+	cipher = l_cipher_new(L_CIPHER_ARC4, "Wiki", 4);
+	assert(cipher);
+	l_cipher_encrypt(cipher, "pedia", buf, 5);
+	assert(!memcmp(buf, expect_pedia, 5));
+	l_cipher_free(cipher);
+
+	cipher = l_cipher_new(L_CIPHER_ARC4, "Secret", 6);
+	assert(cipher);
+	l_cipher_encrypt(cipher, "Attack at dawn", buf, 14);
+	assert(!memcmp(buf, expect_attack, 14));
+	l_cipher_free(cipher);
+
+	cipher = l_cipher_new(L_CIPHER_ARC4, KEY_STR, KEY_LEN);
+	assert(cipher);
+
+	memcpy(buf, FIXED_STR, FIXED_LEN);
+
+	l_cipher_encrypt(cipher, buf, buf, FIXED_LEN);
+
+	r = memcmp(buf, FIXED_STR, FIXED_LEN);
+	assert(r);
+
+	l_cipher_decrypt(cipher, buf, buf, FIXED_LEN);
+	l_cipher_free(cipher);
+
+	r = memcmp(buf, FIXED_STR, FIXED_LEN);
+	assert(!r);
+}
+
 struct aead_test_vector {
 	enum l_aead_cipher_type type;
 	char *aad;
@@ -391,6 +445,8 @@ int main(int argc, char *argv[])
 
 	if (l_cipher_is_supported(L_CIPHER_AES_CTR))
 		l_test_add("aes_ctr", test_aes_ctr, NULL);
+
+	l_test_add("arc4", test_arc4, NULL);
 
 	if (l_aead_cipher_is_supported(L_AEAD_CIPHER_AES_CCM)) {
 		l_test_add("aes_ccm long nonce", test_aead, &ccm_long_nonce);
