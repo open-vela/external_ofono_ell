@@ -325,6 +325,61 @@ static void test_aead(const void *data)
 	l_free(tag);
 }
 
+struct rc2_test_vector {
+	const char *key;
+	const char *plaintext;
+	const char *ciphertext;
+};
+
+/* RFC2268 Section 5 (where Effective key length == 8 * Key length) */
+static const struct rc2_test_vector rc2_test_1 = {
+	.key = "ffffffffffffffff",
+	.plaintext = "ffffffffffffffff",
+	.ciphertext = "278b27e42e2f0d49",
+};
+
+static const struct rc2_test_vector rc2_test_2 = {
+	.key = "3000000000000000",
+	.plaintext = "1000000000000001",
+	.ciphertext = "30649edf9be7d2c2",
+};
+
+static const struct rc2_test_vector rc2_test_3 = {
+	.key = "88bca90e90875a7f0f79c384627bafb2",
+	.plaintext = "0000000000000000",
+	.ciphertext = "2269552ab0f85ca6",
+};
+
+static void test_rc2(const void *data)
+{
+	const struct rc2_test_vector *v = data;
+	uint8_t *key;
+	size_t key_length;
+	struct l_cipher *cipher;
+	uint8_t *plaintext;
+	uint8_t *ciphertext;
+	uint8_t buf[8];
+
+	assert(l_cipher_is_supported(L_CIPHER_RC2_CBC));
+
+	key = l_util_from_hexstring(v->key, &key_length);
+	plaintext = l_util_from_hexstring(v->plaintext, NULL);
+	ciphertext = l_util_from_hexstring(v->ciphertext, NULL);
+
+	cipher = l_cipher_new(L_CIPHER_RC2_CBC, key, key_length);
+	assert(cipher);
+	l_cipher_encrypt(cipher, plaintext, buf, 8);
+	assert(!memcmp(buf, ciphertext, 8));
+
+	l_cipher_decrypt(cipher, buf, buf, 8);
+	l_cipher_free(cipher);
+	assert(!memcmp(buf, plaintext, 8));
+
+	l_free(plaintext);
+	l_free(ciphertext);
+	l_free(key);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -351,6 +406,10 @@ int main(int argc, char *argv[])
 		l_test_add("aes_gcm test 5", test_aead, &gcm_test5);
 		l_test_add("aes_gcm test 6", test_aead, &gcm_test6);
 	}
+
+	l_test_add("rc2/test 1", test_rc2, &rc2_test_1);
+	l_test_add("rc2/test 2", test_rc2, &rc2_test_2);
+	l_test_add("rc2/test 3", test_rc2, &rc2_test_3);
 
 	return l_test_run();
 }
