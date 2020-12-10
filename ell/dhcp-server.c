@@ -39,6 +39,7 @@
 #include "util.h"
 #include "strv.h"
 #include "timeout.h"
+#include "acd.h"
 
 /* 8 hours */
 #define DEFAULT_DHCP_LEASE_SEC (8*60*60)
@@ -80,6 +81,8 @@ struct l_dhcp_server {
 	l_dhcp_destroy_cb_t event_destroy;
 
 	struct dhcp_transport *transport;
+
+	struct l_acd *acd;
 };
 
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -807,6 +810,21 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 
 	server->started = true;
 
+	server->acd = l_acd_new(server->ifindex);
+	l_acd_set_skip_probes(server->acd, true);
+	l_acd_set_defend_policy(server->acd, L_ACD_DEFEND_POLICY_INFINITE);
+
+	ia.s_addr = server->address;
+
+	/* In case of unit testing we don't want this to be a fatal error */
+	if (!l_acd_start(server->acd, inet_ntoa(ia))) {
+		SERVER_DEBUG("Failed to start ACD on %s, continuing without",
+				IP_STR(server->address));
+
+		l_acd_destroy(server->acd);
+		server->acd = NULL;
+	}
+
 	return true;
 }
 
@@ -826,6 +844,11 @@ LIB_EXPORT bool l_dhcp_server_stop(struct l_dhcp_server *server)
 	if (server->next_expire) {
 		l_timeout_remove(server->next_expire);
 		server->next_expire = NULL;
+	}
+
+	if (server->acd) {
+		l_acd_destroy(server->acd);
+		server->acd = NULL;
 	}
 
 	/* TODO: Add ability to save leases */
