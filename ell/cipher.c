@@ -162,6 +162,8 @@ static const char *cipher_type_to_name(enum l_cipher_type type)
 		return "cbc(aes)";
 	case L_CIPHER_AES_CTR:
 		return "ctr(aes)";
+	case L_CIPHER_ARC4:
+		return NULL;
 	case L_CIPHER_DES:
 		return "ecb(des)";
 	case L_CIPHER_DES_CBC:
@@ -175,9 +177,11 @@ static const char *cipher_type_to_name(enum l_cipher_type type)
 	return NULL;
 }
 
+static const struct local_impl local_arc4;
 static const struct local_impl local_rc2_cbc;
 
 static const struct local_impl *local_impl_ciphers[] = {
+	[L_CIPHER_ARC4] = &local_arc4,
 	[L_CIPHER_RC2_CBC] = &local_rc2_cbc,
 };
 
@@ -728,6 +732,100 @@ LIB_EXPORT bool l_aead_cipher_is_supported(enum l_aead_cipher_type type)
 
 	return supported_aead_ciphers & (1 << type);
 }
+
+/* ARC4 implementation copyright (c) 2001 Niels Möller */
+
+#define SWAP(a, b) do { uint8_t _t = a; a = b; b = _t; } while (0)
+
+static void arc4_set_key(uint8_t *S, const uint8_t *key, size_t key_length)
+{
+	unsigned int i;
+	uint8_t j;
+
+	for (i = 0; i < 256; i++)
+		S[i] = i;
+
+	for (i = j = 0; i < 256; i++) {
+		j += S[i] + key[i % key_length];
+		SWAP(S[i], S[j]);
+	}
+}
+
+struct arc4_state {
+	struct arc4_state_ctx {
+		uint8_t S[256];
+		uint8_t i;
+		uint8_t j;
+	} ctx[2];
+};
+
+static void *local_arc4_new(enum l_cipher_type type,
+				const void *key, size_t key_length)
+{
+	struct arc4_state *s;
+
+	if (unlikely(key_length == 0 || key_length > 256))
+		return NULL;
+
+	s = l_new(struct arc4_state, 1);
+	arc4_set_key(s->ctx[0].S, key, key_length);
+	s->ctx[1] = s->ctx[0];
+	return s;
+}
+
+static void local_arc4_free(void *data)
+{
+	explicit_bzero(data, sizeof(struct arc4_state));
+	l_free(data);
+}
+
+static ssize_t local_arc4_operate(void *data, __u32 operation,
+					const struct iovec *in, size_t in_cnt,
+					const struct iovec *out, size_t out_cnt)
+{
+	struct arc4_state *s = data;
+	struct iovec cur_in;
+	struct iovec cur_out;
+	struct arc4_state_ctx *ctx =
+		&s->ctx[operation == ALG_OP_ENCRYPT ? 1 : 0];
+
+	if (!in_cnt || !out_cnt)
+		return 0;
+
+	cur_in = *in;
+	cur_out = *out;
+
+	while (1) {
+		while (!cur_in.iov_len) {
+			cur_in = *in++;
+
+			if (!--in_cnt)
+				return 0;
+		}
+
+		while (!cur_out.iov_len) {
+			cur_out = *out++;
+
+			if (!--out_cnt)
+				return 0;
+		}
+
+		ctx->j += ctx->S[++ctx->i];
+		SWAP(ctx->S[ctx->i], ctx->S[ctx->j]);
+		*(uint8_t *) cur_out.iov_base++ =
+			*(uint8_t *) cur_in.iov_base++ ^
+			ctx->S[(ctx->S[ctx->i] + ctx->S[ctx->j]) & 0xff];
+		cur_in.iov_len--;
+		cur_out.iov_len--;
+	}
+}
+
+static const struct local_impl local_arc4 = {
+	local_arc4_new,
+	local_arc4_free,
+	NULL,
+	local_arc4_operate,
+};
 
 struct rc2_state {
 	union {
