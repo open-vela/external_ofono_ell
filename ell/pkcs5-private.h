@@ -20,6 +20,18 @@
  *
  */
 
+struct pkcs12_hash {
+	enum l_checksum_type alg;
+	unsigned int len;
+	unsigned int u;
+	unsigned int v;
+	struct asn1_oid oid;
+};
+
+uint8_t *pkcs12_pbkdf(const char *password, const struct pkcs12_hash *hash,
+			const uint8_t *salt, size_t salt_len,
+			unsigned int iterations, uint8_t id, size_t key_len);
+
 struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 						size_t id_asn1_len,
 						const char *password,

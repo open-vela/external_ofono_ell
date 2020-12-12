@@ -33,6 +33,7 @@
 #include "checksum.h"
 #include "cipher.h"
 #include "util.h"
+#include "utf8.h"
 #include "asn1-private.h"
 #include "pkcs5.h"
 #include "pkcs5-private.h"
@@ -182,14 +183,134 @@ LIB_EXPORT bool l_pkcs5_pbkdf2(enum l_checksum_type type, const char *password,
 	return !dk_len;
 }
 
+/* RFC7292 Appendix B */
+uint8_t *pkcs12_pbkdf(const char *password, const struct pkcs12_hash *hash,
+			const uint8_t *salt, size_t salt_len,
+			unsigned int iterations, uint8_t id, size_t key_len)
+{
+	/* All lengths in bytes instead of bits */
+	size_t passwd_len = password ? 2 * strlen(password) + 2 : 0;
+	uint8_t *bmpstring;
+	/* Documented as v(ceiling(s/v)), usually will just equal v */
+	unsigned int s_len = (salt_len + hash->v - 1) & ~(hash->v - 1);
+	/* Documented as p(ceiling(s/p)), usually will just equal v */
+	unsigned int p_len = (passwd_len + hash->v - 1) & ~(hash->v - 1);
+	uint8_t di[hash->v + s_len + p_len];
+	uint8_t *ptr;
+	unsigned int j;
+	uint8_t *key;
+	unsigned int bytes;
+	struct l_checksum *h = l_checksum_new(hash->alg);
+
+	if (!h)
+		return NULL;
+
+	/*
+	 * The BMPString encoding, in practice same as UCS-2, can end up
+	 * at 2 * strlen(password) + 2 bytes or shorter depending on the
+	 * characters used.  Recalculate p_len after we know it.
+	 * Important: The password must be valid UTF-8 here.
+	 */
+	if (password) {
+		if (!(bmpstring = l_utf8_to_ucs2be(password, &passwd_len))) {
+			l_checksum_free(h);
+			return NULL;
+		}
+
+		p_len = (passwd_len + hash->v - 1) & ~(hash->v - 1);
+	}
+
+	memset(di, id, hash->v);
+	ptr = di + hash->v;
+
+	for (j = salt_len; j < s_len; j += salt_len, ptr += salt_len)
+		memcpy(ptr, salt, salt_len);
+
+	if (s_len) {
+		memcpy(ptr, salt, s_len + salt_len - j);
+		ptr += s_len + salt_len - j;
+	}
+
+	for (j = passwd_len; j < p_len; j += passwd_len, ptr += passwd_len)
+		memcpy(ptr, bmpstring, passwd_len);
+
+	if (p_len) {
+		memcpy(ptr, bmpstring, p_len + passwd_len - j);
+
+		explicit_bzero(bmpstring, passwd_len);
+		l_free(bmpstring);
+	}
+
+	key = l_malloc(key_len + hash->len);
+
+	for (bytes = 0; bytes < key_len; bytes += hash->u) {
+		uint8_t b[hash->v];
+		uint8_t *input = di;
+		unsigned int input_len = hash->v + s_len + p_len;
+
+		for (j = 0; j < iterations; j++) {
+			if (!l_checksum_update(h, input, input_len) ||
+					l_checksum_get_digest(h,
+							key + bytes,
+							hash->len) <= 0) {
+				l_checksum_free(h);
+				l_free(key);
+				return NULL;
+			}
+
+			input = key + bytes;
+			input_len = hash->u;
+			l_checksum_reset(h);
+		}
+
+		if (bytes + hash->u >= key_len)
+			break;
+
+		for (j = 0; j < hash->v - hash->u; j += hash->u)
+			memcpy(b + j, input, hash->u);
+
+		memcpy(b + j, input, hash->v - j);
+
+		ptr = di + hash->v;
+		for (j = 0; j < s_len + p_len; j += hash->v, ptr += hash->v) {
+			unsigned int k;
+			uint16_t carry = 1;
+
+			/*
+			 * Not specified in the RFC7292 but implementations
+			 * sum these octet strings as big-endian integers.
+			 * We could use 64-bit additions here but the benefit
+			 * may not compensate the cost of the byteswapping.
+			 */
+			for (k = hash->v - 1; k > 0; k--) {
+				carry = ptr[k] + b[k] + carry;
+				ptr[k] = carry;
+				carry >>= 8;
+			}
+
+			ptr[k] += b[k] + carry;
+			explicit_bzero(&carry, sizeof(carry));
+		}
+
+		explicit_bzero(b, sizeof(b));
+	}
+
+	explicit_bzero(di, sizeof(di));
+	l_checksum_free(h);
+	return key;
+}
+
+/* RFC8018 Section A.2 */
 static struct asn1_oid pkcs5_pbkdf2_oid = {
 	9, { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x05, 0x0c }
 };
 
+/* RFC8018 Section A.4 */
 static struct asn1_oid pkcs5_pbes2_oid = {
 	9, { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x05, 0x0d }
 };
 
+/* RFC8018 Section A.3 */
 static const struct pkcs5_pbes1_encryption_oid {
 	enum l_checksum_type checksum_type;
 	enum l_cipher_type cipher_type;
