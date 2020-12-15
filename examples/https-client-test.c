@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 
 	if (argc >= 3) {
 		ca_cert = l_pem_load_certificate_list(argv[2]);
-		if (!cert) {
+		if (!ca_cert) {
 			fprintf(stderr, "Couldn't load the CA certificates\n");
 			return -1;
 		}
