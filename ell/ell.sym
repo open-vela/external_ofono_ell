@@ -498,6 +498,7 @@ global:
 	l_tls_set_domain_mask;
 	l_tls_alert_to_str;
 	l_tls_set_debug;
+	l_tls_set_cert_dump_path;
 	/* uintset */
 	l_uintset_new_from_range;
 	l_uintset_new;
