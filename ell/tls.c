@@ -37,6 +37,7 @@
 #include "random.h"
 #include "queue.h"
 #include "pem.h"
+#include "pem-private.h"
 #include "cert.h"
 #include "cert-private.h"
 #include "tls-private.h"
@@ -1942,6 +1943,19 @@ static void tls_handle_certificate(struct l_tls *tls,
 		goto done;
 	}
 
+	if (tls->cert_dump_path) {
+		int r = pem_write_certificate_chain(certchain,
+							tls->cert_dump_path);
+
+		if (r < 0)
+			TLS_DEBUG("Error %i (%s) writing the peer certchain "
+					"to %s",
+					-r, strerror(-r), tls->cert_dump_path);
+		else
+			TLS_DEBUG("Peer certchain written to %s",
+					tls->cert_dump_path);
+	}
+
 	/*
 	 * Validate the certificate chain's consistency and validate it
 	 * against our CAs if we have any.
@@ -2614,6 +2628,7 @@ LIB_EXPORT void l_tls_free(struct l_tls *tls)
 	l_tls_set_cacert(tls, NULL);
 	l_tls_set_auth_data(tls, NULL, NULL);
 	l_tls_set_domain_mask(tls, NULL);
+	l_tls_set_cert_dump_path(tls, NULL);
 
 	tls_reset_handshake(tls);
 	tls_cleanup_handshake(tls);
@@ -3102,5 +3117,12 @@ LIB_EXPORT bool l_tls_set_debug(struct l_tls *tls, l_tls_debug_cb_t function,
 	tls->debug_destroy = destroy;
 	tls->debug_data = user_data;
 
+	return true;
+}
+
+LIB_EXPORT bool l_tls_set_cert_dump_path(struct l_tls *tls, const char *path)
+{
+	l_free(tls->cert_dump_path);
+	tls->cert_dump_path = path ? l_strdup(path) : NULL;
 	return true;
 }

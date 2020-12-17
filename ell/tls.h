@@ -133,6 +133,7 @@ bool l_tls_prf_get_bytes(struct l_tls *tls, bool use_master_secret,
 
 bool l_tls_set_debug(struct l_tls *tls, l_tls_debug_cb_t function,
 			void *user_data, l_tls_destroy_cb_t destroy);
+bool l_tls_set_cert_dump_path(struct l_tls *tls, const char *path);
 
 #ifdef __cplusplus
 }

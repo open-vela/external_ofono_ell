@@ -205,6 +205,7 @@ struct l_tls {
 	l_tls_debug_cb_t debug_handler;
 	l_tls_destroy_cb_t debug_destroy;
 	void *debug_data;
+	char *cert_dump_path;
 	enum l_tls_version min_version;
 	enum l_tls_version max_version;
 
