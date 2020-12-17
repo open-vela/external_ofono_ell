@@ -190,8 +190,15 @@ int main(int argc, char *argv[])
 	tls = l_tls_new(false, https_new_data, https_tls_write,
 			https_tls_ready, https_tls_disconnected, NULL);
 
-	if (getenv("TLS_DEBUG"))
+	if (getenv("TLS_DEBUG")) {
+		char *str;
+
 		l_tls_set_debug(tls, https_tls_debug_cb, NULL, NULL);
+
+		str = l_strdup_printf("/tmp/ell-certchain-%s.pem", hostname);
+		l_tls_set_cert_dump_path(tls, str);
+		l_free(str);
+	}
 
 	if (argc >= 3) {
 		ca_cert = l_pem_load_certificate_list(argv[2]);
