@@ -364,6 +364,51 @@ LIB_EXPORT struct l_certchain *l_pem_load_certificate_chain(
 	return pem_list_to_chain(list);
 }
 
+static bool pem_write_one_cert(struct l_cert *cert, void *user_data)
+{
+	int *fd = user_data;
+	const uint8_t *der;
+	size_t der_len;
+	struct iovec iov[3];
+	ssize_t r;
+
+	der = l_cert_get_der_data(cert, &der_len);
+
+	iov[0].iov_base = "-----BEGIN CERTIFICATE-----\n";
+	iov[0].iov_len = strlen(iov[0].iov_base);
+	iov[1].iov_base = l_base64_encode(der, der_len, 64, &iov[1].iov_len);
+	iov[2].iov_base = "\n-----END CERTIFICATE-----\n";
+	iov[2].iov_len = strlen(iov[2].iov_base);
+	r = L_TFR(writev(*fd, iov, 3));
+	l_free(iov[1].iov_base);
+
+	if (r == (ssize_t) (iov[0].iov_len + iov[1].iov_len + iov[2].iov_len))
+		return false;
+
+	if (r < 0)
+		*fd = -errno;
+	else
+		*fd = -EIO;
+
+	return true;
+}
+
+int pem_write_certificate_chain(const struct l_certchain *chain,
+				const char *filename)
+{
+	int fd = L_TFR(open(filename, O_CREAT | O_WRONLY | O_CLOEXEC, 0600));
+	int err = fd;
+
+	if (err < 0)
+		return -errno;
+
+	l_certchain_walk_from_leaf((struct l_certchain *) chain,
+					pem_write_one_cert, &err);
+	close(fd);
+
+	return err < 0 ? err : 0;
+}
+
 LIB_EXPORT struct l_queue *l_pem_load_certificate_list_from_data(
 						const void *buf, size_t len)
 {

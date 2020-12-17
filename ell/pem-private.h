@@ -27,6 +27,8 @@
 #define _GNU_SOURCE
 #include <sys/types.h>
 
+struct l_certchain;
+
 const char *pem_next(const void *buf, size_t buf_len, char **type_label,
 				size_t *base64_len,
 				const char **endp, bool strict);
@@ -37,3 +39,6 @@ struct l_key *pem_key_from_pkcs8_private_key_info(const uint8_t *der,
 struct l_key *pem_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 							size_t der_len,
 							const char *passphrase);
+
+int pem_write_certificate_chain(const struct l_certchain *cert,
+				const char *filename);
