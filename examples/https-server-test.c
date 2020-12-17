@@ -117,7 +117,9 @@ static void https_tls_debug_cb(const char *str, void *user_data)
 
 int main(int argc, char *argv[])
 {
-	struct sockaddr_in addr;
+	struct sockaddr_in addr = {};
+	struct sockaddr_in client_addr = {};
+	socklen_t client_addr_len = sizeof(client_addr);
 	int fd, listenfd;
 	bool auth_ok;
 	struct l_certchain *cert;
@@ -141,7 +143,6 @@ int main(int argc, char *argv[])
 	setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &(int) { 1 },
 			sizeof(int));
 
-	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	addr.sin_port = htons(1234);
@@ -157,7 +158,8 @@ int main(int argc, char *argv[])
 
 	printf("Try https://localhost:1234/ now\n");
 
-	fd = accept(listenfd, NULL, NULL);
+	fd = accept(listenfd, (struct sockaddr *) &client_addr,
+			&client_addr_len);
 	close(listenfd);
 	if (fd == -1) {
 		fprintf(stderr, "accept: %s\n", strerror(errno));
@@ -196,8 +198,16 @@ int main(int argc, char *argv[])
 	tls = l_tls_new(true, https_new_data, https_tls_write,
 			https_tls_ready, https_tls_disconnected, NULL);
 
-	if (getenv("TLS_DEBUG"))
+	if (getenv("TLS_DEBUG")) {
+		char *str;
+
 		l_tls_set_debug(tls, https_tls_debug_cb, NULL, NULL);
+
+		str = l_strdup_printf("/tmp/ell-certchain-%s.pem",
+					inet_ntoa(client_addr.sin_addr));
+		l_tls_set_cert_dump_path(tls, str);
+		l_free(str);
+	}
 
 	auth_ok = l_tls_set_auth_data(tls, cert, priv_key) &&
 		(argc <= 4 || l_tls_set_cacert(tls, ca_cert)) &&
