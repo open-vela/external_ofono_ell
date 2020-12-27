@@ -49,7 +49,7 @@ static bool start_dbus_daemon(void)
 	char *prg_envp[1];
 	pid_t pid;
 
-	prg_argv[0] = "/usr/bin/dbus-daemon";
+	prg_argv[0] = "dbus-daemon";
 	prg_argv[1] = "--nopidfile";
 	prg_argv[2] = "--nofork";
 	prg_argv[3] = "--config-file=" UNITDIR "dbus.conf";
@@ -66,7 +66,7 @@ static bool start_dbus_daemon(void)
 	}
 
 	if (pid == 0) {
-		execve(prg_argv[0], prg_argv, prg_envp);
+		execvpe(prg_argv[0], prg_argv, prg_envp);
 		exit(EXIT_SUCCESS);
 	}
 
