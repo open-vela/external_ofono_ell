@@ -51,9 +51,9 @@ static void pbkdf2_test(const void *data)
 
 	key_len = test->key_len ? : (strlen(test->key) / 2);
 
-	result = l_pkcs5_pbkdf2(L_CHECKSUM_SHA1, test->password,
-				(const uint8_t *) test->salt, salt_len,
-				test->count, output, key_len);
+	result = l_cert_pkcs5_pbkdf2(L_CHECKSUM_SHA1, test->password,
+					(const uint8_t *) test->salt, salt_len,
+					test->count, output, key_len);
 
 	assert(result == true);
 
