@@ -2,7 +2,7 @@
  *
  *  Embedded Linux library
  *
- *  Copyright (C) 2017  Intel Corporation. All rights reserved.
+ *  Copyright (C) 2020  Intel Corporation. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -35,16 +35,17 @@
 #include "util.h"
 #include "utf8.h"
 #include "asn1-private.h"
-#include "pkcs5.h"
-#include "pkcs5-private.h"
 #include "private.h"
 #include "missing.h"
+#include "cert.h"
+#include "cert-private.h"
 
 /* RFC8018 section 5.1 */
-LIB_EXPORT bool l_pkcs5_pbkdf1(enum l_checksum_type type, const char *password,
-				const uint8_t *salt, size_t salt_len,
-				unsigned int iter_count,
-				uint8_t *out_dk, size_t dk_len)
+LIB_EXPORT bool l_cert_pkcs5_pbkdf1(enum l_checksum_type type,
+					const char *password,
+					const uint8_t *salt, size_t salt_len,
+					unsigned int iter_count,
+					uint8_t *out_dk, size_t dk_len)
 {
 	size_t hash_len, t_len;
 	uint8_t t[20 + salt_len + strlen(password)];
@@ -103,10 +104,11 @@ LIB_EXPORT bool l_pkcs5_pbkdf1(enum l_checksum_type type, const char *password,
 }
 
 /* RFC8018 section 5.2 */
-LIB_EXPORT bool l_pkcs5_pbkdf2(enum l_checksum_type type, const char *password,
-				const uint8_t *salt, size_t salt_len,
-				unsigned int iter_count,
-				uint8_t *out_dk, size_t dk_len)
+LIB_EXPORT bool l_cert_pkcs5_pbkdf2(enum l_checksum_type type,
+					const char *password,
+					const uint8_t *salt, size_t salt_len,
+					unsigned int iter_count,
+					uint8_t *out_dk, size_t dk_len)
 {
 	size_t h_len;
 	struct l_checksum *checksum;
@@ -184,9 +186,11 @@ LIB_EXPORT bool l_pkcs5_pbkdf2(enum l_checksum_type type, const char *password,
 }
 
 /* RFC7292 Appendix B */
-uint8_t *pkcs12_pbkdf(const char *password, const struct pkcs12_hash *hash,
-			const uint8_t *salt, size_t salt_len,
-			unsigned int iterations, uint8_t id, size_t key_len)
+uint8_t *cert_pkcs12_pbkdf(const char *password,
+				const struct cert_pkcs12_hash *hash,
+				const uint8_t *salt, size_t salt_len,
+				unsigned int iterations, uint8_t id,
+				size_t key_len)
 {
 	/* All lengths in bytes instead of bits */
 	size_t passwd_len = password ? 2 * strlen(password) + 2 : 0;
@@ -301,7 +305,7 @@ uint8_t *pkcs12_pbkdf(const char *password, const struct pkcs12_hash *hash,
 }
 
 /* RFC7292 Appendix A */
-static const struct pkcs12_hash pkcs12_sha1_hash = {
+static const struct cert_pkcs12_hash pkcs12_sha1_hash = {
 	.alg = L_CHECKSUM_SHA1,
 	.len = 20,
 	.u   = 20,
@@ -459,7 +463,7 @@ static const struct pkcs5_enc_alg_oid {
 	},
 };
 
-static struct l_cipher *pkcs5_cipher_from_pbes2_params(
+static struct l_cipher *cipher_from_pkcs5_pbes2_params(
 						const uint8_t *pbes2_params,
 						size_t pbes2_params_len,
 						const char *password)
@@ -597,8 +601,8 @@ static struct l_cipher *pkcs5_cipher_from_pbes2_params(
 
 	/* RFC8018 section 6.2 */
 
-	if (!l_pkcs5_pbkdf2(prf_alg, password, salt, salt_len, iter_count,
-				derived_key, key_len))
+	if (!l_cert_pkcs5_pbkdf2(prf_alg, password, salt, salt_len, iter_count,
+					derived_key, key_len))
 		return NULL;
 
 	cipher = l_cipher_new(enc_scheme->cipher_type, derived_key, key_len);
@@ -611,7 +615,7 @@ static struct l_cipher *pkcs5_cipher_from_pbes2_params(
 	return cipher;
 }
 
-static struct l_cipher *pkcs12_cipher_from_alg_id(
+static struct l_cipher *cipher_from_pkcs12_alg_id(
 				const struct pkcs12_encryption_oid *scheme,
 				const uint8_t *params, size_t params_len,
 				const char *password, bool *out_is_block)
@@ -647,7 +651,7 @@ static struct l_cipher *pkcs12_cipher_from_alg_id(
 		return NULL;
 
 	key_len = scheme->key_length;
-	key = pkcs12_pbkdf(password, &pkcs12_sha1_hash, salt, salt_len,
+	key = cert_pkcs12_pbkdf(password, &pkcs12_sha1_hash, salt, salt_len,
 				iterations, 1, key_len);
 	if (!key)
 		return NULL;
@@ -678,7 +682,7 @@ static struct l_cipher *pkcs12_cipher_from_alg_id(
 		return NULL;
 
 	if (scheme->iv_length) {
-		uint8_t *iv = pkcs12_pbkdf(password, &pkcs12_sha1_hash,
+		uint8_t *iv = cert_pkcs12_pbkdf(password, &pkcs12_sha1_hash,
 						salt, salt_len, iterations, 2,
 						scheme->iv_length);
 
@@ -699,7 +703,7 @@ static struct l_cipher *pkcs12_cipher_from_alg_id(
 	return cipher;
 }
 
-struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
+struct l_cipher *cert_cipher_from_pkcs_alg_id(const uint8_t *id_asn1,
 						size_t id_asn1_len,
 						const char *password,
 						bool *out_is_block)
@@ -727,7 +731,7 @@ struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 		if (out_is_block)
 			*out_is_block = true;
 
-		return pkcs5_cipher_from_pbes2_params(params, params_len,
+		return cipher_from_pkcs5_pbes2_params(params, params_len,
 							password);
 	}
 
@@ -746,7 +750,7 @@ struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 		for (i = 0; i < L_ARRAY_SIZE(pkcs12_encryption_oids); i++)
 			if (asn1_oid_eq(&pkcs12_encryption_oids[i].oid,
 					oid_len, oid))
-				return pkcs12_cipher_from_alg_id(
+				return cipher_from_pkcs12_alg_id(
 						&pkcs12_encryption_oids[i],
 						params, params_len, password,
 						out_is_block);
@@ -774,8 +778,8 @@ struct l_cipher *pkcs5_cipher_from_alg_id(const uint8_t *id_asn1,
 
 	/* RFC8018 section 6.1 */
 
-	if (!l_pkcs5_pbkdf1(pbes1_scheme->checksum_type,
-				password, salt, 8, iter_count, derived_key, 16))
+	if (!l_cert_pkcs5_pbkdf1(pbes1_scheme->checksum_type, password,
+					salt, 8, iter_count, derived_key, 16))
 		return NULL;
 
 	cipher = l_cipher_new(pbes1_scheme->cipher_type, derived_key + 0, 8);
