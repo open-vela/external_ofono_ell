@@ -315,6 +315,26 @@ const char *l_util_get_debugfs_path(void);
        while (__result == -1L && errno == EINTR);  \
        __result; }))
 
+#define _L_IN_SET_CMP(val, type, cmp, ...) __extension__ ({		\
+		const type __v = (val);					\
+		const typeof(__v) __elems[] = {__VA_ARGS__};		\
+		unsigned int __i;					\
+		static const unsigned int __n = L_ARRAY_SIZE(__elems);	\
+		bool __r = false;					\
+		for (__i = 0; __i < __n && !__r; __i++)			\
+			__r = (cmp);					\
+		__r;							\
+	})
+
+/* Warning: evaluates all set elements even after @val has matched one */
+#define L_IN_SET(val, ...)	\
+	_L_IN_SET_CMP((val), __auto_type, __v == __elems[__i], ##__VA_ARGS__)
+
+#define L_IN_STRSET(val, ...)						\
+	_L_IN_SET_CMP((val), const char *, __v == __elems[__i] ||	\
+				(__v && __elems[__i] &&			\
+				 !strcmp(__v, __elems[__i])), ##__VA_ARGS__)
+
 /*
  * Taken from https://github.com/chmike/cst_time_memcmp, adding a volatile to
  * ensure the compiler does not try to optimize the constant time behavior.
