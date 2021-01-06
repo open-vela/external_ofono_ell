@@ -31,6 +31,7 @@
 #include <ell/ell.h>
 
 #include "ell/tls-private.h"
+#include "ell/asn1-private.h"
 #include "ell/cert-private.h"
 
 static void test_tls10_prf(const void *data)
