@@ -29,6 +29,9 @@
 #include "key.h"
 #include "queue.h"
 #include "asn1-private.h"
+#include "cipher.h"
+#include "pkcs5.h"
+#include "pkcs5-private.h"
 #include "cert.h"
 #include "cert-private.h"
 
@@ -575,4 +578,164 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 
 	l_key_free(prev_key);
 	return true;
+}
+
+struct l_key *cert_key_from_pkcs8_private_key_info(const uint8_t *der,
+							size_t der_len)
+{
+	return l_key_new(L_KEY_RSA, der, der_len);
+}
+
+struct l_key *cert_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
+							size_t der_len,
+							const char *passphrase)
+{
+	const uint8_t *key_info, *alg_id, *data;
+	uint8_t tag;
+	size_t key_info_len, alg_id_len, data_len, tmp_len;
+	struct l_cipher *alg;
+	uint8_t *decrypted;
+	int i;
+	struct l_key *pkey;
+	bool r;
+	bool is_block;
+	size_t decrypted_len;
+
+	/* Technically this is BER, not limited to DER */
+	key_info = asn1_der_find_elem(der, der_len, 0, &tag, &key_info_len);
+	if (!key_info || tag != ASN1_ID_SEQUENCE)
+		return NULL;
+
+	alg_id = asn1_der_find_elem(key_info, key_info_len, 0, &tag,
+					&alg_id_len);
+	if (!alg_id || tag != ASN1_ID_SEQUENCE)
+		return NULL;
+
+	data = asn1_der_find_elem(key_info, key_info_len, 1, &tag, &data_len);
+	if (!data || tag != ASN1_ID_OCTET_STRING || data_len < 8 ||
+			(data_len & 7) != 0)
+		return NULL;
+
+	if (asn1_der_find_elem(der, der_len, 2, &tag, &tmp_len))
+		return NULL;
+
+	alg = pkcs5_cipher_from_alg_id(alg_id, alg_id_len, passphrase,
+					&is_block);
+	if (!alg)
+		return NULL;
+
+	decrypted = l_malloc(data_len);
+
+	r = l_cipher_decrypt(alg, data, decrypted, data_len);
+	l_cipher_free(alg);
+
+	if (!r) {
+		l_free(decrypted);
+		return NULL;
+	}
+
+	decrypted_len = data_len;
+
+	if (is_block) {
+		/*
+		 * For block ciphers strip padding as defined in RFC8018
+		 * (for PKCS#5 v1) or RFC1423 / RFC5652 (for v2).
+		 */
+		pkey = NULL;
+
+		if (decrypted[data_len - 1] >= data_len ||
+				decrypted[data_len - 1] > 16)
+			goto cleanup;
+
+		for (i = 1; i < decrypted[data_len - 1]; i++)
+			if (decrypted[data_len - 1 - i] !=
+					decrypted[data_len - 1])
+				goto cleanup;
+
+		decrypted_len -= decrypted[data_len - 1];
+	}
+
+	pkey = cert_key_from_pkcs8_private_key_info(decrypted, decrypted_len);
+
+cleanup:
+	explicit_bzero(decrypted, data_len);
+	l_free(decrypted);
+	return pkey;
+}
+
+struct l_key *cert_key_from_pkcs1_rsa_private_key(const uint8_t *der,
+							size_t der_len)
+{
+	const uint8_t *data;
+	uint8_t tag;
+	size_t data_len;
+	const uint8_t *key_data;
+	size_t key_data_len;
+	int i;
+	uint8_t *private_key;
+	size_t private_key_len;
+	uint8_t *one_asymmetric_key;
+	uint8_t *ptr;
+	struct l_key *pkey;
+
+	static const uint8_t version0[] = {
+		ASN1_ID_INTEGER, 0x01, 0x00
+	};
+	static const uint8_t pkcs1_rsa_encryption[] = {
+		ASN1_ID_SEQUENCE, 0x0d,
+		ASN1_ID_OID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
+		0x01, 0x01, 0x01,
+		ASN1_ID_NULL, 0x00,
+	};
+
+	/*
+	 * Sanity check that it's a version 0 or 1 RSAPrivateKey structure
+	 * with the 8 integers.
+	 */
+	key_data = asn1_der_find_elem(der, der_len, 0, &tag, &key_data_len);
+	if (!key_data || tag != ASN1_ID_SEQUENCE)
+		return NULL;
+
+	data = asn1_der_find_elem(key_data, key_data_len, 0, &tag,
+					&data_len);
+	if (!data || tag != ASN1_ID_INTEGER || data_len != 1 ||
+			(data[0] != 0x00 && data[0] != 0x01))
+		return NULL;
+
+	for (i = 1; i < 9; i++) {
+		data = asn1_der_find_elem(key_data, key_data_len, i, &tag,
+						&data_len);
+		if (!data || tag != ASN1_ID_INTEGER || data_len < 1)
+			return NULL;
+	}
+
+	private_key = l_malloc(10 + der_len);
+	ptr = private_key;
+	*ptr++ = ASN1_ID_OCTET_STRING;
+	asn1_write_definite_length(&ptr, der_len);
+	memcpy(ptr, der, der_len);
+	ptr += der_len;
+	private_key_len = ptr - private_key;
+
+	one_asymmetric_key = l_malloc(32 + private_key_len);
+	ptr = one_asymmetric_key;
+	*ptr++ = ASN1_ID_SEQUENCE;
+	asn1_write_definite_length(&ptr, sizeof(version0) +
+					sizeof(pkcs1_rsa_encryption) +
+					private_key_len);
+	memcpy(ptr, version0, sizeof(version0));
+	ptr += sizeof(version0);
+	memcpy(ptr, pkcs1_rsa_encryption, sizeof(pkcs1_rsa_encryption));
+	ptr += sizeof(pkcs1_rsa_encryption);
+	memcpy(ptr, private_key, private_key_len);
+	ptr += private_key_len;
+	explicit_bzero(private_key, private_key_len);
+	l_free(private_key);
+
+	pkey = cert_key_from_pkcs8_private_key_info(one_asymmetric_key,
+						ptr - one_asymmetric_key);
+	explicit_bzero(one_asymmetric_key, ptr - one_asymmetric_key);
+	l_free(one_asymmetric_key);
+
+	return pkey;
 }
