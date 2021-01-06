@@ -36,3 +36,22 @@ struct l_key *cert_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 							const char *passphrase);
 struct l_key *cert_key_from_pkcs1_rsa_private_key(const uint8_t *der,
 							size_t der_len);
+
+struct cert_pkcs12_hash {
+	enum l_checksum_type alg;
+	unsigned int len;
+	unsigned int u;
+	unsigned int v;
+	struct asn1_oid oid;
+};
+
+uint8_t *cert_pkcs12_pbkdf(const char *password,
+				const struct cert_pkcs12_hash *hash,
+				const uint8_t *salt, size_t salt_len,
+				unsigned int iterations, uint8_t id,
+				size_t key_len);
+
+struct l_cipher *cert_cipher_from_pkcs_alg_id(const uint8_t *id_asn1,
+						size_t id_asn1_len,
+						const char *password,
+						bool *out_is_block);

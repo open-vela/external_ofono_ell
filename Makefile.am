@@ -46,7 +46,6 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/tls.h \
 			ell/uuid.h \
 			ell/key.h \
-			ell/pkcs5.h \
 			ell/file.h \
 			ell/dir.h \
 			ell/net.h \
@@ -114,8 +113,6 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/tls-suites.c \
 			ell/uuid.c \
 			ell/key.c \
-			ell/pkcs5-private.h \
-			ell/pkcs5.c \
 			ell/file.c \
 			ell/dir.c \
 			ell/net-private.h \
@@ -130,8 +127,9 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/dhcp6-lease.c \
 			ell/dhcp-util.c \
 			ell/dhcp-server.c \
-			ell/cert.c \
 			ell/cert-private.h \
+			ell/cert.c \
+			ell/cert-crypto.c \
 			ell/ecc-private.h \
 			ell/ecc.h \
 			ell/ecc-external.c \

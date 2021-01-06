@@ -30,8 +30,6 @@
 #include "queue.h"
 #include "asn1-private.h"
 #include "cipher.h"
-#include "pkcs5.h"
-#include "pkcs5-private.h"
 #include "cert.h"
 #include "cert-private.h"
 
@@ -619,8 +617,8 @@ struct l_key *cert_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 	if (asn1_der_find_elem(der, der_len, 2, &tag, &tmp_len))
 		return NULL;
 
-	alg = pkcs5_cipher_from_alg_id(alg_id, alg_id_len, passphrase,
-					&is_block);
+	alg = cert_cipher_from_pkcs_alg_id(alg_id, alg_id_len, passphrase,
+						&is_block);
 	if (!alg)
 		return NULL;
 

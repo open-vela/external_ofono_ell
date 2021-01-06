@@ -59,6 +59,15 @@ void l_certchain_walk_from_ca(struct l_certchain *chain,
 bool l_certchain_verify(struct l_certchain *chain, struct l_queue *ca_certs,
 			const char **error);
 
+bool l_cert_pkcs5_pbkdf1(enum l_checksum_type type, const char *password,
+				const uint8_t *salt, size_t salt_len,
+				unsigned int iter_count,
+				uint8_t *out_dk, size_t dk_len);
+bool l_cert_pkcs5_pbkdf2(enum l_checksum_type type, const char *password,
+				const uint8_t *salt, size_t salt_len,
+				unsigned int iter_count,
+				uint8_t *out_dk, size_t dk_len);
+
 #ifdef __cplusplus
 }
 #endif
