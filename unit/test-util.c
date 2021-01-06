@@ -124,6 +124,27 @@ static void test_strlcpy(const void *test_data)
 	do_strlcpy(10, 12);
 }
 
+static void test_in_set(const void *test_data)
+{
+	char *a1 = "a";
+	const char *a2 = a1;
+
+	assert(L_IN_SET(1, 1, 2, 3));
+	assert(L_IN_SET(2U, 1, 2, 3));
+	assert(L_IN_SET(3LL, 1, 2, 3));
+	assert(!L_IN_SET(4, 1, 2, 3));
+	assert(!L_IN_SET(4));
+
+	assert(L_IN_STRSET(a1, a2, "b"));
+	assert(L_IN_STRSET(a2, a1, "b"));
+	assert(L_IN_STRSET("b", "a", "b"));
+	assert(!L_IN_STRSET("c", "a", "b"));
+	assert(L_IN_STRSET(NULL, "a", NULL));
+	assert(!L_IN_STRSET(NULL, "a", "b"));
+	assert(!L_IN_STRSET("a", NULL, NULL));
+	assert(!L_IN_STRSET("a"));
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -135,6 +156,8 @@ int main(int argc, char *argv[])
 	l_test_add("l_util_has_suffix", test_has_suffix, NULL);
 
 	l_test_add("l_strlcpy", test_strlcpy, NULL);
+
+	l_test_add("L_IN_SET", test_in_set, NULL);
 
 	return l_test_run();
 }
