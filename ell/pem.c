@@ -25,8 +25,6 @@
 #endif
 
 #define _GNU_SOURCE
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -192,9 +190,9 @@ const char *pem_next(const void *buf, size_t buf_len, char **type_label,
 	return NULL;
 }
 
-static uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
+uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 				char **out_type_label, size_t *out_len,
-				char **out_headers)
+				char **out_headers, const char **out_endp)
 {
 	size_t base64_len;
 	const char *base64;
@@ -202,7 +200,7 @@ static uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 	uint8_t *ret;
 
 	base64 = pem_next(buf, buf_len, &label, &base64_len,
-				NULL, false);
+				out_endp, false);
 	if (!base64)
 		return NULL;
 
@@ -261,16 +259,10 @@ static uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 LIB_EXPORT uint8_t *l_pem_load_buffer(const void *buf, size_t buf_len,
 					char **type_label, size_t *out_len)
 {
-	return pem_load_buffer(buf, buf_len, type_label, out_len, NULL);
+	return pem_load_buffer(buf, buf_len, type_label, out_len, NULL, NULL);
 }
 
-struct pem_file_info {
-	int fd;
-	struct stat st;
-	uint8_t *data;
-};
-
-static int pem_file_open(struct pem_file_info *info, const char *filename)
+int pem_file_open(struct pem_file_info *info, const char *filename)
 {
 	info->fd = open(filename, O_RDONLY);
 	if (info->fd < 0)
@@ -295,7 +287,7 @@ static int pem_file_open(struct pem_file_info *info, const char *filename)
 	return 0;
 }
 
-static void pem_file_close(struct pem_file_info *info)
+void pem_file_close(struct pem_file_info *info)
 {
 	munmap(info->data, info->st.st_size);
 	close(info->fd);
@@ -314,7 +306,8 @@ static uint8_t *pem_load_file(const char *filename, char **out_type_label,
 		return NULL;
 
 	result = pem_load_buffer(file.data, file.st.st_size,
-					out_type_label, out_len, out_headers);
+					out_type_label, out_len, out_headers,
+					NULL);
 	pem_file_close(&file);
 	return result;
 }
@@ -645,12 +638,9 @@ cleanup:
 	return cipher;
 }
 
-static struct l_key *pem_load_private_key(uint8_t *content,
-						size_t len,
-						char *label,
-						const char *passphrase,
-						char *headers,
-						bool *encrypted)
+struct l_key *pem_load_private_key(uint8_t *content, size_t len, char *label,
+					const char *passphrase, char *headers,
+					bool *encrypted)
 {
 	struct l_key *pkey;
 
@@ -779,7 +769,7 @@ LIB_EXPORT struct l_key *l_pem_load_private_key_from_data(const void *buf,
 	if (encrypted)
 		*encrypted = false;
 
-	content = pem_load_buffer(buf, buf_len, &label, &len, &headers);
+	content = pem_load_buffer(buf, buf_len, &label, &len, &headers, NULL);
 
 	if (!content)
 		return NULL;

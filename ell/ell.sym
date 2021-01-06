@@ -533,6 +533,7 @@ global:
 	l_certchain_walk_from_leaf;
 	l_certchain_walk_from_ca;
 	l_certchain_verify;
+	l_cert_load_container_file;
 	l_cert_pkcs5_pbkdf1;
 	l_cert_pkcs5_pbkdf2;
 	/* ecc */
