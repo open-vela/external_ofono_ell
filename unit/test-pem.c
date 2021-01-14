@@ -337,6 +337,66 @@ static void test_encrypted_pkey(const void *data)
 	l_key_free(pkey2);
 }
 
+static bool test_cert_count(struct l_cert *cert, void *user_data)
+{
+	int *count = user_data;
+
+	(*count)++;
+	return false;
+}
+
+struct test_load_file_params {
+	const char *path;
+	bool expect_cert;
+	bool expect_certchain;
+	bool expect_privkey;
+	bool expect_encrypted;
+};
+
+#define TEST_LOAD_PARAMS(fn, cert, certchain, privkey, encrypted)	\
+	(&(struct test_load_file_params) {				\
+		CERTDIR fn, (cert), (certchain), (privkey), (encrypted) })
+
+static void test_load_file(const void *data)
+{
+	const struct test_load_file_params *params = data;
+	struct l_certchain *certchain;
+	struct l_key *privkey;
+	bool encrypted;
+
+	assert(l_cert_load_container_file(params->path, NULL, &certchain,
+						&privkey, &encrypted));
+	assert(encrypted == params->expect_encrypted);
+
+	if (encrypted) {
+		assert(!certchain && !privkey);
+
+		assert(l_cert_load_container_file(params->path, "abc",
+							&certchain, &privkey,
+							&encrypted));
+		assert(encrypted);
+	}
+
+	assert(!!certchain == params->expect_cert);
+	assert(!!privkey == params->expect_privkey);
+
+	if (certchain) {
+		int count = 0;
+
+		l_certchain_walk_from_leaf(certchain, test_cert_count, &count);
+		assert(count == (params->expect_certchain ? 3 : 1));
+
+		if (params->expect_certchain)
+			assert(l_certchain_verify(certchain, NULL, NULL));
+	}
+
+	if (certchain)
+		l_certchain_free(certchain);
+
+	if (privkey)
+		l_key_free(privkey);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -408,6 +468,56 @@ int main(int argc, char *argv[])
 				test_encrypted_pkey,
 				CERTDIR "cert-client-key-pkcs1-aes256.pem");
 	}
+
+	l_test_add("detect-format/PEM PKCS#1 unencrypted private key",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client-key-pkcs1.pem",
+						false, false, true, false));
+	l_test_add("detect-format/PEM PKCS#1 encrypted private key",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client-key-pkcs1-des.pem",
+						false, false, true, true));
+	l_test_add("detect-format/PEM PKCS#8 unencrypted private key",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client-key-pkcs8.pem",
+						false, false, true, false));
+	l_test_add("detect-format/PEM PKCS#8 encrypted private key",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client-key-pkcs8-sha1-des.pem",
+						false, false, true, true));
+	l_test_add("detect-format/PEM X.509 certificate",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client.pem",
+						true, false, false, false));
+	l_test_add("detect-format/DER X.509 certificate",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-client.crt",
+						true, false, false, false));
+	l_test_add("detect-format/PEM combined",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-combined.pem",
+						true, true, true, true));
+	l_test_add("detect-format/DER PKCS#12 combined",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-pkcs12-nomac.p12",
+						true, false, true, true));
+
+	l_test_add("pkcs#12/Combined RC2-based ciphers + SHA1",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-pkcs12-rc2-sha1.p12",
+						true, true, true, true));
+	l_test_add("pkcs#12/Combined DES-based ciphers + SHA256",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-pkcs12-des-sha256.p12",
+						true, true, true, true));
+	l_test_add("pkcs#12/Combined RC4-based ciphers + SHA384",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-pkcs12-rc4-sha384.p12",
+						true, true, true, true));
+	l_test_add("pkcs#12/Combined PKCS#5 ciphers + SHA512",
+			test_load_file,
+			TEST_LOAD_PARAMS("cert-entity-pkcs12-pkcs5-sha512.p12",
+						true, true, true, true));
 
 done:
 	return l_test_run();
