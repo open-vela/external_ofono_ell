@@ -791,6 +791,10 @@ LIB_EXPORT struct l_key *l_pem_load_private_key_from_data(const void *buf,
  * success case and on error when NULL is returned.  This can be used to
  * check if a passphrase is required without prior information.
  *
+ * The passphrase, if given, must have been validated as UTF-8 unless the
+ * caller knows that PKCS#12 encryption algorithms are not used.
+ * Use l_utf8_validate.
+ *
  * Returns: An l_key object to be freed with an l_key_free* function,
  * or NULL.
  **/

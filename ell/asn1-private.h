@@ -37,7 +37,7 @@
 
 struct asn1_oid {
 	uint8_t asn1_len;
-	uint8_t asn1[10];
+	uint8_t asn1[11];
 };
 
 #define asn1_oid_eq(oid1, oid2_len, oid2_string) \
