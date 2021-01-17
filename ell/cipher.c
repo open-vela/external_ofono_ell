@@ -34,6 +34,7 @@
 #include "cipher.h"
 #include "private.h"
 #include "random.h"
+#include "missing.h"
 
 #ifndef HAVE_LINUX_IF_ALG_H
 #ifndef HAVE_LINUX_TYPES_H
