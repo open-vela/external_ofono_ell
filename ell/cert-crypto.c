@@ -198,7 +198,8 @@ uint8_t *cert_pkcs12_pbkdf(const char *password,
 	/* Documented as v(ceiling(s/v)), usually will just equal v */
 	unsigned int s_len = (salt_len + hash->v - 1) & ~(hash->v - 1);
 	/* Documented as p(ceiling(s/p)), usually will just equal v */
-	unsigned int p_len = (passwd_len + hash->v - 1) & ~(hash->v - 1);
+	unsigned int p_len = password ?
+			(passwd_len + hash->v - 1) & ~(hash->v - 1) : 0;
 	uint8_t di[hash->v + s_len + p_len];
 	uint8_t *ptr;
 	unsigned int j;
@@ -235,10 +236,11 @@ uint8_t *cert_pkcs12_pbkdf(const char *password,
 		ptr += s_len + salt_len - j;
 	}
 
-	for (j = passwd_len; j < p_len; j += passwd_len, ptr += passwd_len)
-		memcpy(ptr, bmpstring, passwd_len);
-
 	if (p_len) {
+		for (j = passwd_len; j < p_len;
+					j += passwd_len, ptr += passwd_len)
+			memcpy(ptr, bmpstring, passwd_len);
+
 		memcpy(ptr, bmpstring, p_len + passwd_len - j);
 
 		explicit_bzero(bmpstring, passwd_len);
