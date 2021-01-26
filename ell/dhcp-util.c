@@ -62,7 +62,7 @@ bool _dhcp_message_builder_append(struct dhcp_message_builder *builder,
 	switch (code) {
 	case DHCP_OPTION_PAD:
 	case DHCP_OPTION_END:
-		LEN_CHECK(builder, 1);
+		LEN_CHECK(builder, 1U);
 
 		builder->pos[0] = code;
 		builder->pos += 1;
