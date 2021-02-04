@@ -1,3 +1,7 @@
+ver 0.37:
+	Fix issue with D-Bus filter messages with no interfaces set.
+	Add support for PKCS#12 certification loading.
+
 ver 0.36:
 	Fix issue with strict netlink attribute validation.
 	Fix issue with DUID generation for DHCPv6.
