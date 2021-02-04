@@ -33,6 +33,7 @@
 #include "pem-private.h"
 #include "cert.h"
 #include "cert-private.h"
+#include "missing.h"
 
 #define X509_CERTIFICATE_POS			0
 #define   X509_TBSCERTIFICATE_POS		  0
