@@ -619,14 +619,6 @@ static void sigterm_handler(void *user_data)
 		data->callback(SIGTERM, data->user_data);
 }
 
-static void sigsegv_handler(void *user_data)
-{
-	struct signal_data *data = user_data;
-
-	if (data->callback)
-		data->callback(SIGSEGV, data->user_data);
-}
-
 /**
  * l_main_run_with_signal:
  *
@@ -641,7 +633,6 @@ LIB_EXPORT int l_main_run_with_signal(l_main_signal_cb_t callback,
 	struct signal_data *data;
 	struct l_signal *sigint;
 	struct l_signal *sigterm;
-	struct l_signal *sigsegv;
 	int result;
 
 	data = l_new(struct signal_data, 1);
@@ -651,13 +642,11 @@ LIB_EXPORT int l_main_run_with_signal(l_main_signal_cb_t callback,
 
 	sigint = l_signal_create(SIGINT, sigint_handler, data, NULL);
 	sigterm = l_signal_create(SIGTERM, sigterm_handler, data, NULL);
-	sigsegv = l_signal_create(SIGSEGV, sigsegv_handler, data, NULL);
 
 	result = l_main_run();
 
 	l_signal_remove(sigint);
 	l_signal_remove(sigterm);
-	l_signal_remove(sigsegv);
 
 	l_free(data);
 
