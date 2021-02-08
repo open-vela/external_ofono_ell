@@ -1306,6 +1306,13 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 	if (!lease)
 		return -EBADMSG;
 
+	if (client->state == DHCP6_STATE_SOLICITING && !lease->rapid_commit) {
+		CLIENT_DEBUG("Requested Rapid Commit, but reply received"
+				" without it.  Ignoring");
+		_dhcp6_lease_free(lease);
+		return -EBADMSG;
+	}
+
 	if (client->request_na && !lease->have_na) {
 		CLIENT_DEBUG("Requested Non-Temporary address, but not present"
 				" in lease, FAIL.");
@@ -1316,13 +1323,6 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 		CLIENT_DEBUG("Requested Prefix Delegation but not present in"
 				" lease, FAIL");
 		goto bad_lease;
-	}
-
-	if (client->state == DHCP6_STATE_SOLICITING && !lease->rapid_commit) {
-		CLIENT_DEBUG("Did not request Rapid Commit, but received one"
-				" anyway.  Ignoring");
-		_dhcp6_lease_free(client->lease);
-		return -EBADMSG;
 	}
 
 	_dhcp6_lease_free(client->lease);
