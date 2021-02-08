@@ -970,7 +970,7 @@ static void test_expired_ip_reuse(const void *data)
 					_dhcp_server_get_transport(server);
 	struct l_dhcp_client *client_new;
 	const struct l_dhcp_lease *lease;
-	const char *cli_addr;
+	char *cli_addr;
 	int i;
 
 	l_dhcp_server_set_ip_range(server, "192.168.1.2", "192.168.1.11");
@@ -1001,6 +1001,7 @@ static void test_expired_ip_reuse(const void *data)
 	assert(lease);
 	cli_addr = l_dhcp_lease_get_address(lease);
 	assert(!strcmp(cli_addr, "192.168.1.2"));
+	l_free(cli_addr);
 }
 
 int main(int argc, char *argv[])
