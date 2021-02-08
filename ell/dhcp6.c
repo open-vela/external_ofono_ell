@@ -1002,8 +1002,10 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 						client, NULL);
 		if (client->rtnl_add_cmdid)
 			client->rtnl_configured_address = a;
-		else
+		else {
+			l_rtnl_address_free(a);
 			CLIENT_DEBUG("Configuring address via RTNL failed");
+		}
 	}
 }
 
