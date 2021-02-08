@@ -740,8 +740,10 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 						client, NULL);
 		if (client->rtnl_add_cmdid)
 			client->rtnl_configured_address = a;
-		else
+		else {
 			CLIENT_DEBUG("Configuring address via RTNL failed");
+			l_rtnl_address_free(a);
+		}
 	}
 
 	return r;
