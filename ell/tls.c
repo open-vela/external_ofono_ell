@@ -760,6 +760,7 @@ static bool tls_cert_domains_match_mask(struct l_cert *cert, char **mask,
 						dns_name_count - 20);
 
 		*error_msg = l_string_unwrap(dns_names);
+		return false;
 	}
 
 	dn = l_cert_get_dn(cert, &dn_len);
