@@ -197,6 +197,8 @@ uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 	size_t base64_len;
 	const char *base64;
 	char *label;
+	const char *headers = NULL;
+	size_t headers_len;
 	uint8_t *ret;
 
 	base64 = pem_next(buf, buf_len, &label, &base64_len,
@@ -237,17 +239,24 @@ uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 			start = lf + 1;
 		}
 
-		if (out_headers)
-			*out_headers = l_strndup(base64, end - base64);
+		headers = base64;
+		headers_len = end - base64;
 
-		base64_len -= end + 2 - base64;
+		base64_len -= headers_len + 2;
 		base64 = end + 2;
-	} else if (out_headers)
-		*out_headers = NULL;
+	}
 
 	ret = l_base64_decode(base64, base64_len, out_len);
 	if (ret) {
 		*out_type_label = label;
+
+		if (out_headers) {
+			if (headers)
+				*out_headers = l_strndup(headers, headers_len);
+			else
+				*out_headers = NULL;
+		}
+
 		return ret;
 	}
 
