@@ -427,6 +427,7 @@ LIB_EXPORT struct l_queue *l_pem_load_certificate_list_from_data(
 		struct l_cert *cert;
 		const char *base64;
 		size_t base64_len;
+		bool is_certificate;
 
 		base64 = pem_next(ptr, end - ptr, &label,
 					&base64_len, &ptr, false);
@@ -438,17 +439,16 @@ LIB_EXPORT struct l_queue *l_pem_load_certificate_list_from_data(
 			goto error;
 		}
 
-		der = l_base64_decode(base64, base64_len, &der_len);
-
-		if (!der || strcmp(label, "CERTIFICATE")) {
-			if (der)
-				l_free(label);
-			l_free(der);
-
-			goto error;
-		}
-
+		is_certificate = !strcmp(label, "CERTIFICATE");
 		l_free(label);
+
+		if (!is_certificate)
+			goto error;
+
+		der = l_base64_decode(base64, base64_len, &der_len);
+		if (!der)
+			goto error;
+
 		cert = l_cert_new_from_der(der, der_len);
 		l_free(der);
 
