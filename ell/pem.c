@@ -731,8 +731,10 @@ struct l_key *pem_load_private_key(uint8_t *content, size_t len, char *label,
 			if (!alg)
 				goto err;
 
-			if (len % block_len || !len)
+			if (len % block_len || !len) {
+				l_cipher_free(alg);
 				goto err;
+			}
 
 			r = l_cipher_decrypt(alg, content, content, len);
 			l_cipher_free(alg);
