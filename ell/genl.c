@@ -30,6 +30,7 @@
 #include <linux/genetlink.h>
 
 #include "util.h"
+#include "log.h"
 #include "queue.h"
 #include "io.h"
 #include "netlink-private.h"
@@ -2109,13 +2110,18 @@ LIB_EXPORT void l_genl_family_free(struct l_genl_family *family)
 	while ((notify = l_queue_remove_if(genl->notify_list,
 					mcast_notify_match_by_hid,
 					L_UINT_TO_PTR(family->handle_id)))) {
-		struct genl_mcast *mcast = l_queue_find(info->mcast_list,
-						match_mcast_id,
-						L_UINT_TO_PTR(notify->group));
 
+		struct genl_mcast *mcast;
+
+		if (unlikely(L_WARN_ON(!info)))
+			goto free_notify;
+
+		mcast = l_queue_find(info->mcast_list, match_mcast_id,
+						L_UINT_TO_PTR(notify->group));
 		if (mcast)
 			drop_membership(genl, mcast);
 
+free_notify:
 		mcast_notify_free(notify);
 	}
 
