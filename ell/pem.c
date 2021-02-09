@@ -219,7 +219,7 @@ uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 
 		if (!(end = memmem(start, base64_len, "\n\n", 2)) &&
 				!(end = memmem(start, base64_len, "\n\r\n", 3)))
-			return NULL;
+			goto err;
 
 		/* Check that each header line has a key and a colon */
 		while (start < end) {
@@ -227,14 +227,14 @@ uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 			const char *colon = memchr(start, ':', lf - start);
 
 			if (!colon)
-				return NULL;
+				goto err;
 
 			for (; start < colon; start++)
 				if (l_ascii_isalnum(*start))
 					break;
 
 			if (start == colon)
-				return NULL;
+				goto err;
 
 			start = lf + 1;
 		}
@@ -260,6 +260,7 @@ uint8_t *pem_load_buffer(const void *buf, size_t buf_len,
 		return ret;
 	}
 
+err:
 	l_free(label);
 
 	return NULL;
