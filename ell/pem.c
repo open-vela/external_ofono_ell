@@ -744,7 +744,7 @@ struct l_key *pem_load_private_key(uint8_t *content, size_t len, char *label,
 
 			/* Remove padding like in RFC1423 Section 1.1 */
 			pad = content[len - 1];
-			if (pad > block_len)
+			if (pad > block_len || pad == 0)
 				goto err;
 
 			if (!l_secure_memeq(content + len - pad, pad - 1U, pad))
