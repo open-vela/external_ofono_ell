@@ -717,8 +717,8 @@ struct l_key *pem_load_private_key(uint8_t *content, size_t len, char *label,
 		if (dekalgid) {
 			struct l_cipher *alg;
 			bool r;
-			int i;
 			size_t block_len;
+			uint8_t pad;
 
 			if (encrypted)
 				*encrypted = true;
@@ -743,14 +743,14 @@ struct l_key *pem_load_private_key(uint8_t *content, size_t len, char *label,
 				goto err;
 
 			/* Remove padding like in RFC1423 Section 1.1 */
-			if (content[len - 1] > block_len)
+			pad = content[len - 1];
+			if (pad > block_len)
 				goto err;
 
-			for (i = 1; i < content[len - 1]; i++)
-				if (content[len - 1 - i] != content[len - 1])
-					goto err;
+			if (!l_secure_memeq(content + len - pad, pad - 1U, pad))
+				goto err;
 
-			len -= content[len - 1];
+			len -= pad;
 		}
 
 		pkey = cert_key_from_pkcs1_rsa_private_key(content, len);

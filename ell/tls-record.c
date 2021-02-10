@@ -522,10 +522,9 @@ static bool tls_handle_ciphertext(struct l_tls *tls)
 			tls->mac_length[0];
 		l_put_be16(compressed_len, compressed + 11);
 
-		for (i = 0; i < padding_len; i++)
-			if (compressed[13 + cipher_output_len - 1 -
-					padding_len + i] != padding_len)
-				error = 1;
+		error |= !l_secure_memeq(compressed + 13 + cipher_output_len -
+						1 - padding_len, padding_len,
+						padding_len);
 
 		/* Calculate the MAC if needed */
 		tls_write_mac(tls, compressed + 8, 5 + compressed_len,
