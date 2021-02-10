@@ -600,7 +600,6 @@ struct l_key *cert_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 	size_t key_info_len, alg_id_len, data_len, tmp_len;
 	struct l_cipher *alg;
 	uint8_t *decrypted;
-	uint8_t pad;
 	struct l_key *pkey;
 	bool r;
 	bool is_block;
@@ -640,16 +639,17 @@ struct l_key *cert_key_from_pkcs8_encrypted_private_key_info(const uint8_t *der,
 	}
 
 	decrypted_len = data_len;
-	pad = decrypted[data_len - 1];
 
 	/*
 	 * For block ciphers strip padding as defined in RFC8018
 	 * (for PKCS#5 v1) or RFC1423 / RFC5652 (for v2).
 	 */
-	if (is_block && pad) {
+	if (is_block) {
+		uint8_t pad = decrypted[data_len - 1];
+
 		pkey = NULL;
 
-		if (pad > data_len || pad > 16)
+		if (pad > data_len || pad > 16 || pad == 0)
 			goto cleanup;
 
 		if (!l_secure_memeq(decrypted + data_len - pad, pad - 1U, pad))
