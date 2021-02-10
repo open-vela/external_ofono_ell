@@ -652,3 +652,15 @@ LIB_EXPORT bool l_memeq(const void *field, size_t size, uint8_t byte)
 
 	return true;
 }
+
+LIB_EXPORT bool l_secure_memeq(const void *field, size_t size, uint8_t byte)
+{
+	const volatile uint8_t *mem = field;
+	size_t i;
+	bool diff = false;
+
+	for (i = 0; i < size; i++)
+		diff |= mem[i] != byte;
+
+	return !diff;
+}
