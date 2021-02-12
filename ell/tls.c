@@ -1719,12 +1719,6 @@ static void tls_handle_client_hello(struct l_tls *tls,
 	/* Select a compression method */
 
 	/* CompressionMethod.null must be present in the vector */
-	if (!memchr(compression_methods, 0, compression_methods_size)) {
-		TLS_DISCONNECT(TLS_ALERT_HANDSHAKE_FAIL, 0,
-				"No common compression methods");
-		goto cleanup;
-	}
-
 	while (compression_methods_size) {
 		tls->pending.compression_method =
 			tls_find_compression_method(*compression_methods);
@@ -1734,6 +1728,12 @@ static void tls_handle_client_hello(struct l_tls *tls,
 
 		compression_methods++;
 		compression_methods_size--;
+	}
+
+	if (!compression_methods_size) {
+		TLS_DISCONNECT(TLS_ALERT_HANDSHAKE_FAIL, 0,
+				"No common compression methods");
+		goto cleanup;
 	}
 
 	TLS_DEBUG("Negotiated %s", tls->pending.compression_method->name);
