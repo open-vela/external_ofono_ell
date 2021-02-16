@@ -1,3 +1,7 @@
+ver 0.38:
+	Fix issue with DHCP v6 Rapid Commit option check.
+	Fix issue with handling RFC8018/RFC1423 padding.
+
 ver 0.37:
 	Fix issue with D-Bus filter messages with no interfaces set.
 	Add support for PKCS#12 certification loading.
