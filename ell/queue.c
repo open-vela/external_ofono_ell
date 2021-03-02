@@ -271,8 +271,9 @@ LIB_EXPORT void *l_queue_peek_tail(struct l_queue *queue)
  * @user_data: user data given to compare function
  *
  * Inserts @data pointer at a position in the queue determined by the
- * compare @function.  @function should return > 0 if the @data (first
- * parameter) should be inserted after the current entry (second parameter).
+ * compare @function.  @function should return >= 0 if the @data (first
+ * parameter) should be inserted after the current entry (second parameter)
+ * and should return < 0 if before it.
  *
  * Returns: #true when data has been added and #false in case of failure
  **/
