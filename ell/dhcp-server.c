@@ -890,7 +890,7 @@ LIB_EXPORT bool l_dhcp_server_set_ip_range(struct l_dhcp_server *server,
 	if (unlikely(!server || !start_ip || !end_ip))
 		return false;
 
-	if (inet_aton((const char *)start_ip, &_host_addr) == 0)
+	if (inet_aton(start_ip, &_host_addr) == 0)
 		return false;
 
 	start = ntohl(_host_addr.s_addr);
