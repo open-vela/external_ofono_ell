@@ -323,7 +323,10 @@ static bool check_requested_ip(struct l_dhcp_server *server,
 	if (ntohl(requested_nip) < server->start_ip)
 		return false;
 
-	if (htonl(requested_nip) > server->end_ip)
+	if (ntohl(requested_nip) > server->end_ip)
+		return false;
+
+	if (requested_nip == server->address)
 		return false;
 
 	lease = find_lease_by_ip(server->lease_list, requested_nip);
@@ -359,6 +362,9 @@ static uint32_t find_free_or_expired_ip(struct l_dhcp_server *server,
 
 		/* e.g. 192.168.55.255 */
 		if ((ip_addr & 0xff) == 0xff)
+			continue;
+
+		if (ip_nl == server->address)
 			continue;
 
 		/*
@@ -776,12 +782,32 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 
 	/*
 	 * Assign a default ip range if not already. This will default to
-	 * server->address + 1 ... 254
+	 * server->address + 1 ... subnet end address - 1
 	 */
 	if (!server->start_ip) {
-		server->start_ip = L_BE32_TO_CPU(server->address) + 1;
-		server->end_ip = (server->start_ip & 0xffffff00) | 0xfe;
+		server->start_ip = ntohl(server->address) + 1;
+		server->end_ip = ntohl(server->address) |
+			(~ntohl(server->netmask));
+	} else {
+		if ((server->start_ip ^ ntohl(server->address)) &
+				ntohl(server->netmask))
+			return false;
+
+		if ((server->end_ip ^ ntohl(server->address)) &
+				ntohl(server->netmask))
+			return false;
 	}
+
+	/*
+	 * We skip over IPs ending in 0 or 255 when selecting a free address
+	 * later on but make sure end_ip is not 0xffffffff so we can use
+	 * "<= server->end_ip" safely in the loop condition.
+	 */
+	if ((server->end_ip & 0xff) == 255)
+		server->end_ip--;
+
+	if (server->start_ip > server->end_ip)
+		return false;
 
 	if (!server->ifname) {
 		server->ifname = l_net_get_name(server->ifindex);
