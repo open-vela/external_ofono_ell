@@ -705,8 +705,6 @@ struct dhcp_transport *_dhcp_server_get_transport(struct l_dhcp_server *server)
 LIB_EXPORT struct l_dhcp_server *l_dhcp_server_new(int ifindex)
 {
 	struct l_dhcp_server *server = l_new(struct l_dhcp_server, 1);
-	if (!server)
-		return NULL;
 
 	server->lease_list = l_queue_new();
 	server->expired_list = l_queue_new();
