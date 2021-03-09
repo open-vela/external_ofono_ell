@@ -31,11 +31,6 @@
 
 #define LIB_EXPORT __attribute__ ((visibility("default")))
 
-struct l_debug_desc;
-
-void debug_enable(struct l_debug_desc *start, struct l_debug_desc *stop);
-void debug_disable(struct l_debug_desc *start, struct l_debug_desc *stop);
-
 typedef void (*watch_event_cb_t) (int fd, uint32_t events, void *user_data);
 typedef void (*watch_destroy_cb_t) (void *user_data);
 
