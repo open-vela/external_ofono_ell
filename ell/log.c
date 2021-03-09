@@ -326,7 +326,7 @@ LIB_EXPORT void l_log_with_location(int priority,
 
 static const char *debug_pattern;
 
-void debug_enable(struct l_debug_desc *start, struct l_debug_desc *stop)
+static void debug_enable(struct l_debug_desc *start, struct l_debug_desc *stop)
 {
 	struct l_debug_desc *desc;
 	char *pattern_copy;
@@ -350,7 +350,7 @@ void debug_enable(struct l_debug_desc *start, struct l_debug_desc *stop)
 	}
 }
 
-void debug_disable(struct l_debug_desc *start, struct l_debug_desc *stop)
+static void debug_disable(struct l_debug_desc *start, struct l_debug_desc *stop)
 {
 	struct l_debug_desc *desc;
 
