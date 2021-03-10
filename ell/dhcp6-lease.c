@@ -29,6 +29,7 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <errno.h>
 
 #include "strv.h"
 #include "private.h"

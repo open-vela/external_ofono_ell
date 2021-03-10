@@ -21,7 +21,6 @@
  */
 
 #include <stdint.h>
-#include <errno.h>
 
 #include <ell/util.h>
 

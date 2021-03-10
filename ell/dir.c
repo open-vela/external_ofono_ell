@@ -29,6 +29,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <sys/inotify.h>
+#include <errno.h>
 
 #include "private.h"
 #include "queue.h"
