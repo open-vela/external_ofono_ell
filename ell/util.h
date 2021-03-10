@@ -229,9 +229,6 @@ static inline void l_put_be64(uint64_t val, void *ptr)
 	L_PUT_UNALIGNED(L_CPU_TO_BE64(val), (uint64_t *) ptr);
 }
 
-#define L_AUTO_CLEANUP_VAR(vartype,varname,destroy) \
-	vartype varname __attribute__((cleanup(destroy)))
-
 #define L_AUTO_FREE_VAR(vartype,varname) \
 	vartype varname __attribute__((cleanup(auto_free)))
 
