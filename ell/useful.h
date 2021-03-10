@@ -2,7 +2,7 @@
  *
  *  Embedded Linux library
  *
- *  Copyright (C) 2011-2014  Intel Corporation. All rights reserved.
+ *  Copyright (C) 2021  Intel Corporation. All rights reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -20,6 +20,4 @@
  *
  */
 
-#include <ell/util.h>
-
-#define LIB_EXPORT __attribute__ ((visibility("default")))
+#define align_len(len, boundary) (((len)+(boundary)-1) & ~((boundary)-1))

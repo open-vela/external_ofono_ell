@@ -36,6 +36,7 @@
 #include "dbus-private.h"
 #include "gvariant-private.h"
 #include "private.h"
+#include "useful.h"
 
 #define NODE_TYPE_CALLBACK	L_DBUS_MATCH_NONE
 

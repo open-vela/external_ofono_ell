@@ -31,6 +31,7 @@
 
 #include "util.h"
 #include "private.h"
+#include "useful.h"
 #include "dbus.h"
 #include "dbus-private.h"
 #include "gvariant-private.h"

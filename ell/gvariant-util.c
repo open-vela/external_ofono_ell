@@ -32,6 +32,7 @@
 #include <limits.h>
 
 #include "private.h"
+#include "useful.h"
 #include "util.h"
 #include "queue.h"
 #include "string.h"
