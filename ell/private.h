@@ -25,8 +25,6 @@
 
 #include <ell/util.h>
 
-#define uninitialized_var(x) x = x
-
 #define align_len(len, boundary) (((len)+(boundary)-1) & ~((boundary)-1))
 
 #define LIB_EXPORT __attribute__ ((visibility("default")))
