@@ -27,6 +27,7 @@
 #include <errno.h>
 
 #include "private.h"
+#include "useful.h"
 #include "key.h"
 #include "queue.h"
 #include "asn1-private.h"
@@ -434,11 +435,6 @@ static struct l_key *cert_try_link(struct l_cert *cert, struct l_keyring *ring)
 	return NULL;
 }
 
-static void cert_keyring_cleanup(struct l_keyring **p)
-{
-	l_keyring_free(*p);
-}
-
 #define RETURN_ERROR(msg, args...)	\
 	do {	\
 		if (error) {	\
@@ -453,8 +449,7 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 					const char **error)
 {
 	struct l_keyring *ca_ring = NULL;
-	L_AUTO_CLEANUP_VAR(struct l_keyring *, verify_ring,
-				cert_keyring_cleanup) = NULL;
+	_auto_(l_keyring_free) struct l_keyring *verify_ring = NULL;
 	struct l_cert *cert;
 	struct l_key *prev_key = NULL;
 	int verified = 0;
