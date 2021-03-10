@@ -35,6 +35,7 @@
 
 #include "dbus.h"
 #include "private.h"
+#include "useful.h"
 #include "dbus-private.h"
 #include "string.h"
 #include "queue.h"

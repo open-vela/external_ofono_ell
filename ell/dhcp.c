@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 
 #include "private.h"
+#include "useful.h"
 #include "random.h"
 #include "time.h"
 #include "time-private.h"

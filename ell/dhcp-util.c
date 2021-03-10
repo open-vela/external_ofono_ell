@@ -29,6 +29,7 @@
 
 #include "dhcp-private.h"
 #include "private.h"
+#include "useful.h"
 
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)
 

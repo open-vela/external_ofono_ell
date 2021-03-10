@@ -28,8 +28,9 @@
 #include <alloca.h>
 #include <stdio.h>
 
-#include "ell/private.h"
 #include <ell/ell.h>
+
+#include "ell/useful.h"
 
 #define FIXED_STR  "The quick brown fox jumps over the lazy dog. " \
 		   "Jackdaws love my big sphinx of quartz. "       \
