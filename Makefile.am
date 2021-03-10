@@ -74,6 +74,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/hashmap.c \
 			ell/string.c \
 			ell/settings.c \
+			ell/main-private.h \
 			ell/main.c \
 			ell/idle.c \
 			ell/signal.c \

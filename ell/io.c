@@ -29,6 +29,7 @@
 #include <sys/epoll.h>
 
 #include "util.h"
+#include "main-private.h"
 #include "io.h"
 #include "private.h"
 

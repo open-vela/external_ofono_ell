@@ -40,6 +40,7 @@
 #include "log.h"
 #include "util.h"
 #include "main.h"
+#include "main-private.h"
 #include "private.h"
 #include "timeout.h"
 
