@@ -35,6 +35,7 @@
 
 #include "util.h"
 #include "timeout.h"
+#include "main-private.h"
 #include "private.h"
 
 /**

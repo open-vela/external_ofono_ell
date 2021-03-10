@@ -28,6 +28,7 @@
 
 #include "util.h"
 #include "idle.h"
+#include "main-private.h"
 #include "private.h"
 
 /**
