@@ -21,3 +21,14 @@
  */
 
 #define align_len(len, boundary) (((len)+(boundary)-1) & ~((boundary)-1))
+
+#define __AUTODESTRUCT(var, func)			\
+	void cleanup_ ## var(void *ptr)			\
+	{ func(*(void **) ptr); }			\
+	__attribute((cleanup(cleanup_ ## var)))
+
+#define _AUTODESTRUCT(var, func)			\
+	__AUTODESTRUCT(var, func)
+
+#define _auto_(func)					\
+	_AUTODESTRUCT(__COUNTER__, func)
