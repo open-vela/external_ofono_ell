@@ -1409,6 +1409,9 @@ static int cert_try_load_der_format(const uint8_t *content, size_t content_len,
 			if (out_privkey)
 				*out_privkey = NULL;
 
+			if (out_encrypted)
+				*out_encrypted = false;
+
 			return 0;
 		}
 
