@@ -39,6 +39,7 @@
 #include <linux/if_ether.h>
 #include <linux/filter.h>
 #include <net/if_arp.h>
+#include <errno.h>
 
 #include "io.h"
 #include "util.h"

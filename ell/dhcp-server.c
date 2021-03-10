@@ -29,6 +29,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <errno.h>
 
 #include "private.h"
 #include "time.h"
