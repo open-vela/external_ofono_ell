@@ -50,7 +50,7 @@ static bool find_line(const char *line_label, struct l_gpio_chip **chip,
 	char **chip_names = NULL;
 	uint32_t o;
 
-	if (!unlikely(line_label))
+	if (!line_label)
 		return false;
 
 	chip_names = l_gpio_chips_with_line_label(line_label);
