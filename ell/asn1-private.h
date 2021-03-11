@@ -137,7 +137,7 @@ static inline const uint8_t *asn1_der_find_elem(const uint8_t *buf,
 				if (!(*tag & 0x20))	/* Primitive */
 					return NULL;
 
-				if (unlikely(tlv_len < 2))
+				if (tlv_len < 2)
 					return NULL;
 
 				*tag = *buf++;
