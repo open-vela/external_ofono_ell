@@ -26,9 +26,10 @@
 
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <sys/epoll.h>
 
-#include "util.h"
+#include "useful.h"
 #include "main-private.h"
 #include "io.h"
 #include "private.h"

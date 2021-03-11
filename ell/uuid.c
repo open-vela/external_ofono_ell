@@ -30,6 +30,7 @@
 #include "checksum.h"
 #include "random.h"
 #include "private.h"
+#include "useful.h"
 #include "uuid.h"
 
 const uint8_t L_UUID_NAMESPACE_DNS[16] = {

@@ -39,6 +39,7 @@
 #include "timeout.h"
 #include "uintset.h"
 #include "private.h"
+#include "useful.h"
 #include "icmp6.h"
 #include "netlink.h"
 #include "rtnl.h"

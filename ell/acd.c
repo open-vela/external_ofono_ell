@@ -31,6 +31,7 @@
 #include <errno.h>
 
 #include "private.h"
+#include "useful.h"
 #include "acd.h"
 #include "util.h"
 #include "io.h"

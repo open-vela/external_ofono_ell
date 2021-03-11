@@ -32,6 +32,7 @@
 
 #include "time.h"
 #include "path.h"
+#include "useful.h"
 #include "private.h"
 
 static const char *next_in_path(const char *path, char **ret, size_t overhead)

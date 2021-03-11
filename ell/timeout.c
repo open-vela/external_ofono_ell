@@ -27,13 +27,14 @@
 #define _GNU_SOURCE
 #include <errno.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <limits.h>
 
-#include "util.h"
+#include "useful.h"
 #include "timeout.h"
 #include "main-private.h"
 #include "private.h"

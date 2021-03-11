@@ -38,6 +38,7 @@
 #include <errno.h>
 
 #include "private.h"
+#include "useful.h"
 #include "timeout.h"
 #include "time.h"
 #include "io.h"

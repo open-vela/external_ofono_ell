@@ -32,7 +32,7 @@
 
 #include "checksum.h"
 #include "cipher.h"
-#include "util.h"
+#include "useful.h"
 #include "utf8.h"
 #include "asn1-private.h"
 #include "private.h"

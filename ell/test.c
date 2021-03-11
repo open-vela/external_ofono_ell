@@ -31,6 +31,7 @@
 #include "log.h"
 #include "test.h"
 #include "private.h"
+#include "useful.h"
 
 /**
  * SECTION:test

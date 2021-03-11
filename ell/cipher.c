@@ -26,11 +26,13 @@
 
 #define _GNU_SOURCE
 #include <unistd.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <alloca.h>
 
-#include "util.h"
+#include "useful.h"
 #include "cipher.h"
 #include "private.h"
 #include "random.h"

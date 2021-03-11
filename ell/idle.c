@@ -25,8 +25,10 @@
 #endif
 
 #include <unistd.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "util.h"
+#include "useful.h"
 #include "idle.h"
 #include "main-private.h"
 #include "private.h"

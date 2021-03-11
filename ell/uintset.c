@@ -28,6 +28,7 @@
 #include <limits.h>
 
 #include "uintset.h"
+#include "useful.h"
 #include "private.h"
 
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)

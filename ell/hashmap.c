@@ -24,9 +24,9 @@
 #include <config.h>
 #endif
 
-#include "util.h"
 #include "hashmap.h"
 #include "private.h"
+#include "useful.h"
 
 /**
  * SECTION:hashmap

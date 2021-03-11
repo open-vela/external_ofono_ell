@@ -26,10 +26,10 @@
 
 #include <stdio.h>
 
-#include "util.h"
 #include "strv.h"
 #include "string.h"
 #include "private.h"
+#include "useful.h"
 
 /**
  * SECTION:string

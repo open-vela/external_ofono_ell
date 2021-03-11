@@ -22,6 +22,9 @@
 
 #define align_len(len, boundary) (((len)+(boundary)-1) & ~((boundary)-1))
 
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 #define __AUTODESTRUCT(var, func)			\
 	void cleanup_ ## var(void *ptr)			\
 	{ func(*(void **) ptr); }			\

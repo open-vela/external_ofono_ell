@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "util.h"
+#include "useful.h"
 #include "queue.h"
 #include "string.h"
 #include "hashmap.h"

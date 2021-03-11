@@ -31,7 +31,7 @@
 #include <sys/socket.h>
 #include <stdio.h>
 
-#include "util.h"
+#include "useful.h"
 #include "checksum.h"
 #include "private.h"
 

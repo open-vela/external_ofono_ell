@@ -29,7 +29,7 @@
 #include <sys/socket.h>
 #include <linux/genetlink.h>
 
-#include "util.h"
+#include "useful.h"
 #include "log.h"
 #include "queue.h"
 #include "io.h"
