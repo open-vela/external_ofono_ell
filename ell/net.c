@@ -37,6 +37,7 @@
 #include "net-private.h"
 #include "string.h"
 #include "utf8.h"
+#include "useful.h"
 #include "private.h"
 
 /**

@@ -37,7 +37,7 @@
 #include "dhcp.h"
 #include "dhcp-private.h"
 #include "queue.h"
-#include "util.h"
+#include "useful.h"
 #include "strv.h"
 #include "timeout.h"
 #include "acd.h"

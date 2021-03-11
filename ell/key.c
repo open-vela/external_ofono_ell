@@ -32,7 +32,7 @@
 #include <errno.h>
 
 #include "private.h"
-#include "util.h"
+#include "useful.h"
 #include "key.h"
 #include "string.h"
 #include "random.h"

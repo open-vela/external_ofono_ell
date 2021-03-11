@@ -27,10 +27,10 @@
 #include <stdio.h>
 #include <wchar.h>
 
-#include "util.h"
 #include "strv.h"
 #include "utf8.h"
 #include "private.h"
+#include "useful.h"
 
 /**
  * SECTION:utf8

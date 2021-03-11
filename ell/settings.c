@@ -36,11 +36,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include "util.h"
+#include "useful.h"
 #include "strv.h"
 #include "utf8.h"
 #include "string.h"

@@ -27,9 +27,9 @@
 #define _GNU_SOURCE
 #include <string.h>
 
-#include "util.h"
 #include "strv.h"
 #include "private.h"
+#include "useful.h"
 
 /**
  * SECTION:strv

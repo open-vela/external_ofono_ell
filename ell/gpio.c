@@ -35,7 +35,7 @@
 
 #include "private.h"
 #include "strv.h"
-#include "util.h"
+#include "useful.h"
 #include "gpio.h"
 
 struct l_gpio_chip {

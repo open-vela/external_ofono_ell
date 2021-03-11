@@ -31,6 +31,7 @@
 
 #include "utf8.h"
 #include "util.h"
+#include "useful.h"
 #include "private.h"
 
 /**

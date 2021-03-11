@@ -28,6 +28,7 @@
 #include "dbus.h"
 #include "dbus-client.h"
 #include "queue.h"
+#include "useful.h"
 #include "private.h"
 
 struct l_dbus_client {

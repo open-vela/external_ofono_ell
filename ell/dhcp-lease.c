@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 
 #include "private.h"
+#include "useful.h"
 #include "dhcp.h"
 #include "dhcp-private.h"
 #include "utf8.h"

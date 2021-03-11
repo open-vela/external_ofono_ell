@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <strings.h>
 
-#include "util.h"
+#include "useful.h"
 #include "private.h"
 #include "tls.h"
 #include "checksum.h"
