@@ -39,6 +39,13 @@ static inline void set_bit(void *addr, unsigned int bit)
 	field[bit / 8] |= 1U << (bit % 8);
 }
 
+static inline unsigned char bit_field(const unsigned char oct,
+					unsigned int start, unsigned int n_bits)
+{
+	unsigned char mask = (1U << n_bits) - 1U;
+	return (oct >> start) & mask;
+}
+
 #define __AUTODESTRUCT(var, func)			\
 	void cleanup_ ## var(void *ptr)			\
 	{ func(*(void **) ptr); }			\
