@@ -25,6 +25,14 @@
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
+static inline size_t minsize(size_t a, size_t b)
+{
+	if (a <= b)
+		return a;
+
+	return b;
+}
+
 #define __AUTODESTRUCT(var, func)			\
 	void cleanup_ ## var(void *ptr)			\
 	{ func(*(void **) ptr); }			\
