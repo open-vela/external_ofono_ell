@@ -33,6 +33,12 @@ static inline size_t minsize(size_t a, size_t b)
 	return b;
 }
 
+static inline void set_bit(void *addr, unsigned int bit)
+{
+	unsigned char *field = addr;
+	field[bit / 8] |= 1U << (bit % 8);
+}
+
 #define __AUTODESTRUCT(var, func)			\
 	void cleanup_ ## var(void *ptr)			\
 	{ func(*(void **) ptr); }			\
