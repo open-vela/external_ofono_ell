@@ -48,11 +48,11 @@ _Pragma("GCC diagnostic pop")						\
 
 #define L_WARN_ON(condition) __extension__ ({				\
 		bool r = !!(condition);					\
-		if (unlikely(r))					\
+		if (r)							\
 			l_warn("WARNING: %s:%s() condition %s failed",	\
 				__FILE__, __func__,			\
 				#condition);				\
-		unlikely(r);						\
+		r;							\
 	})
 
 #define L_PTR_TO_UINT(p) ((unsigned int) ((uintptr_t) (p)))
