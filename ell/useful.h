@@ -39,6 +39,12 @@ static inline void set_bit(void *addr, unsigned int bit)
 	field[bit / 8] |= 1U << (bit % 8);
 }
 
+static inline int test_bit(const void *addr, unsigned int bit)
+{
+	const unsigned char *field = addr;
+	return (field[bit / 8] & (1U << (bit % 8))) != 0;
+}
+
 static inline unsigned char bit_field(const unsigned char oct,
 					unsigned int start, unsigned int n_bits)
 {
