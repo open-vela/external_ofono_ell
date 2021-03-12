@@ -32,6 +32,7 @@
 #include <sys/param.h>
 
 #include "private.h"
+#include "useful.h"
 #include "ringbuf.h"
 
 /**

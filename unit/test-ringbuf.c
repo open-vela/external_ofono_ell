@@ -32,6 +32,8 @@
 
 #include <ell/ell.h>
 
+#include "ell/useful.h"
+
 static unsigned int nlpo2(unsigned int x)
 {
 	x--;
