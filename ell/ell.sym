@@ -665,6 +665,27 @@ global:
 	l_acd_set_debug;
 	l_acd_set_skip_probes;
 	l_acd_set_defend_policy;
+	/* tester */
+	l_tester_new;
+	l_tester_destroy;
+	l_tester_start;
+	l_tester_summarize;
+	l_tester_test_add;
+	l_tester_test_add_full;
+	l_tester_test_get_stage;
+	l_tester_get_data;
+	l_tester_pre_setup_complete;
+	l_tester_pre_setup_failed;
+	l_tester_setup_complete;
+	l_tester_setup_failed;
+	l_tester_test_passed;
+	l_tester_test_failed;
+	l_tester_test_abort;
+	l_tester_teardown_complete;
+	l_tester_teardown_failed;
+	l_tester_post_teardown_complete;
+	l_tester_post_teardown_failed;
+	l_tester_wait;
 local:
 	*;
 };
