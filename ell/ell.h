@@ -64,3 +64,4 @@
 #include <ell/gpio.h>
 #include <ell/path.h>
 #include <ell/acd.h>
+#include <ell/tester.h>
