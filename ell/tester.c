@@ -24,6 +24,7 @@
 #include <config.h>
 #endif
 
+#define _GNU_SOURCE
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,10 +32,12 @@
 
 #include <sys/time.h>
 
-#include <ell/ell.h>
-
+#include "idle.h"
 #include "log.h"
 #include "private.h"
+#include "queue.h"
+#include "time.h"
+#include "timeout.h"
 #include "useful.h"
 #include "tester.h"
 
