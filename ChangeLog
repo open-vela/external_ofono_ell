@@ -1,3 +1,6 @@
+ver 0.39:
+	Add support for serialized test execution framework.
+
 ver 0.38:
 	Fix issue with DHCP v6 Rapid Commit option check.
 	Fix issue with handling RFC8018/RFC1423 padding.
