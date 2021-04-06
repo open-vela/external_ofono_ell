@@ -670,9 +670,9 @@ global:
 	l_tester_destroy;
 	l_tester_start;
 	l_tester_summarize;
-	l_tester_test_add;
-	l_tester_test_add_full;
-	l_tester_test_get_stage;
+	l_tester_add;
+	l_tester_add_full;
+	l_tester_get_stage;
 	l_tester_get_data;
 	l_tester_pre_setup_complete;
 	l_tester_pre_setup_failed;
