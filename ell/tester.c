@@ -131,18 +131,11 @@ static void teardown_callback(void *user_data)
 	struct l_tester *tester = user_data;
 	struct test_case *test;
 
-	printf("teardown %p\n", tester->test_entry);
-
 	test = tester->test_entry->data;
-	printf("teardown data %p\n", tester->test_entry->data);
 	test->stage = L_TESTER_STAGE_TEARDOWN;
 	test->teardown = false;
 
-	printf("Test name %p\n", test->name);
-	printf("Test name %s\n", test->name);
 	print_progress(test->name, COLOR_MAGENTA, "teardown");
-	printf("teardown\n");
-
 
 	if (test->teardown_func)
 		test->teardown_func(test->test_data);
@@ -189,7 +182,7 @@ static void next_test_case(struct l_tester *tester)
 
 	if (test->timeout > 0)
 		test->run_timer = l_timeout_create(test->timeout, test_timeout,
-								test, NULL);
+								tester, NULL);
 
 	test->stage = L_TESTER_STAGE_PRE_SETUP;
 
