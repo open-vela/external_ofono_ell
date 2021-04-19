@@ -1709,16 +1709,29 @@ void _dbus_object_tree_introspect(struct _dbus_object_tree *tree,
 {
 	struct object_node *node;
 	struct child_node *child;
+	bool path_is_object = true;
 
 	node = l_hashmap_lookup(tree->objects, path);
-	if (!node)
+	if (!node) {
+		path_is_object = false;
 		node = _dbus_object_tree_lookup(tree, path);
+	}
 
 	l_string_append(buf, XML_HEAD);
 	l_string_append(buf, "<node>\n");
 
 	if (node) {
-		l_string_append(buf, static_introspectable);
+		/*
+		 * We emit org.freedesktop.DBus.Introspectable only in case the
+		 * object node corresponds to a registered object, i.e.
+		 * exposes anything other than:
+		 * - org.freedesktop.DBus.Introspectable
+		 * - org.freedesktop.DBus.Peer
+		 * - org.freedesktop.DBus.Properties
+		 */
+		if (path_is_object)
+			l_string_append(buf, static_introspectable);
+
 		l_queue_foreach(node->instances,
 					generate_interface_instance, buf);
 
