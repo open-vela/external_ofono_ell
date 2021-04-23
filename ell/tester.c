@@ -279,6 +279,9 @@ LIB_EXPORT void l_tester_pre_setup_failed(struct l_tester *tester)
 
 	print_progress(test->name, COLOR_RED, "pre setup failed");
 
+	l_timeout_remove(test->run_timer);
+	test->run_timer = NULL;
+
 	l_idle_oneshot(done_callback, tester, NULL);
 }
 
@@ -501,7 +504,7 @@ static void wait_callback(struct l_timeout *timer, void *user_data)
 
 	wait->func(wait->user_data);
 
-	free(wait);
+	l_free(wait);
 
 	l_timeout_remove(timer);
 }
