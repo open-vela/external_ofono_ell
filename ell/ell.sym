@@ -443,6 +443,7 @@ global:
 	l_settings_set_debug;
 	l_settings_get_groups;
 	l_settings_has_group;
+	l_settings_add_group;
 	l_settings_get_keys;
 	l_settings_has_key;
 	l_settings_get_value;
