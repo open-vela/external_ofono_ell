@@ -245,6 +245,9 @@ static inline void auto_free(void *a)
 	l_free(*p);
 }
 
+#define l_steal_ptr(ptr) \
+	(__extension__ ({ typeof(ptr) _tmp = (ptr); (ptr) = NULL; _tmp; }))
+
 /**
  * l_new:
  * @type: type of structure
