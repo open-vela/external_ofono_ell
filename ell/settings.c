@@ -866,6 +866,34 @@ static bool validate_group_name(const char *group_name)
 	return true;
 }
 
+LIB_EXPORT bool l_settings_add_group(struct l_settings *settings,
+					const char *group_name)
+{
+	struct group_data *group;
+
+	if (unlikely(!settings || !group_name))
+		return false;
+
+	if (!validate_group_name(group_name)) {
+		l_util_debug(settings->debug_handler, settings->debug_data,
+				"Invalid group name %s", group_name);
+		return false;
+	}
+
+	group = l_queue_find(settings->groups, group_match, group_name);
+	if (group) {
+		l_util_debug(settings->debug_handler, settings->debug_data,
+				"Group %s exists", group_name);
+		return true;
+	}
+
+	group = l_new(struct group_data, 1);
+	group->name = l_strdup(group_name);
+	group->settings = l_queue_new();
+	l_queue_push_tail(settings->groups, group);
+	return true;
+}
+
 static bool validate_key(const char *key)
 {
 	int i;

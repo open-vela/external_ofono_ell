@@ -54,6 +54,8 @@ char **l_settings_get_groups(const struct l_settings *settings);
 char **l_settings_get_keys(const struct l_settings *settings,
 							const char *group_name);
 
+bool l_settings_add_group(struct l_settings *settings, const char *group_name);
+
 bool l_settings_has_group(const struct l_settings *settings,
 							const char *group_name);
 bool l_settings_has_key(const struct l_settings *settings,
