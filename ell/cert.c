@@ -35,6 +35,8 @@
 #include "pem-private.h"
 #include "cert.h"
 #include "cert-private.h"
+#include "tls.h"
+#include "tls-private.h"
 #include "missing.h"
 
 #define X509_CERTIFICATE_POS			0
@@ -1635,14 +1637,34 @@ LIB_EXPORT bool l_cert_load_container_file(const char *filename,
 		if (err != -ENOMSG)
 			goto close;
 
-		/* Try PEM */
+		/* Try other formats */
+	}
+
+	/*
+	 * For backwards compatibility try the TLS internal struct Certificate
+	 * format as may be captured by PCAP (no future support guaranteed).
+	 */
+	if (out_certchain && !password && file.st.st_size &&
+			tls_parse_certificate_list(file.data, file.st.st_size,
+							out_certchain) == 0) {
+		error = false;
+
+		if (out_privkey)
+			*out_privkey = NULL;
+
+		if (out_encrypted)
+			*out_encrypted = false;
+
+		goto close;
 	}
 
 	/*
 	 * RFC 7486 allows whitespace and possibly other data before the
 	 * PEM "encapsulation boundary" so rather than check if the start
 	 * of the data looks like PEM, we fall back to this format if the
-	 * data didn't look like anything else we knew about.
+	 * data didn't look like anything else we knew about.  Note this
+	 * succeeds for empty files and files without any PEM markers,
+	 * returning NULL chain and privkey.
 	 */
 	if (cert_try_load_pem_format((const char *) file.data, file.st.st_size,
 					password, out_certchain, out_privkey,
