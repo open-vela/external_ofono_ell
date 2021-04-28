@@ -23,72 +23,16 @@
 #endif
 
 #include <stdio.h>
-#include <errno.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
 
 #include <ell/ell.h>
-#include "ell/tls-private.h"
-
-static int load_cert_chain(const char *file, struct l_certchain **certchain)
-{
-	int fd;
-	struct stat st;
-	char *data;
-	int err;
-
-	fd = open(file, O_RDONLY);
-	if (fd < 0) {
-		fprintf(stderr, "Could not open %s: %s\n",
-						file, strerror(errno));
-		return -errno;
-	}
-
-	if (fstat(fd, &st) < 0) {
-		err = -errno;
-		fprintf(stderr, "Could not stat %s: %s\n",
-						file, strerror(errno));
-		goto close_file;
-	}
-
-	if (st.st_size == 0) {
-		err = -EINVAL;
-		fprintf(stderr, "Certificate file %s is empty!\n", file);
-		goto close_file;
-	}
-
-	data = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-	if (data == MAP_FAILED) {
-		err = -errno;
-		fprintf(stderr, "Could not mmap %s: %s\n",
-						file, strerror(errno));
-		goto close_file;
-	}
-
-	err = tls_parse_certificate_list(data, st.st_size, certchain);
-	if (err < 0)
-		fprintf(stderr, "Could not parse certificate list: %s\n",
-						strerror(-err));
-
-	munmap(data, st.st_size);
-
-close_file:
-	close(fd);
-	return err;
-}
 
 static void usage(const char *bin)
 {
-	printf("%s - TLS certificate chain verification utility\n\n", bin);
+	printf("%s - Certificate chain verification utility\n\n", bin);
 
-	printf("Usage: %s [options] <ca_cert file> <raw certificates file>\n"
-		"  <ca_cert file> - local CA Certificate to validate against\n"
-		"  <raw certificates file> - Certificates obtained from PCAP\n"
+	printf("Usage: %s [options] <ca_cert file> <certchain container>\n"
+		"  <ca_cert file> - local CA Certificates to validate against\n"
+		"  <certchain container> - certificate chain to verify\n"
 		"  --help\n\n", bin);
 }
 
@@ -97,7 +41,6 @@ int main(int argc, char *argv[])
 	int status = EXIT_FAILURE;
 	struct l_certchain *certchain;
 	struct l_queue *ca_certs;
-	int err;
 	const char *error_str;
 
 	if (argc != 3) {
@@ -107,8 +50,7 @@ int main(int argc, char *argv[])
 
 	l_log_set_stderr();
 
-	err = load_cert_chain(argv[2], &certchain);
-	if (err < 0)
+	if (!l_cert_load_container_file(argv[2], NULL, &certchain, NULL, NULL))
 		goto done;
 
 	if (!certchain) {
