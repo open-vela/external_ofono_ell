@@ -1,3 +1,7 @@
+ver 0.40:
+	Fix issue with handling failure from missing CA certificates.
+	Fix issue with handling DBus.Introspectable queries.
+
 ver 0.39:
 	Add support for serialized test execution framework.
 
