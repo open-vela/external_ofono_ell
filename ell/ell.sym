@@ -641,6 +641,7 @@ global:
 	l_rtnl_route6_delete_gateway;
 	l_rtnl_route_add;
 	l_rtnl_route_delete;
+	l_rtnl_ifaddr_extract;
 	l_rtnl_ifaddr_add;
 	l_rtnl_ifaddr_delete;
 /* icmp6 */

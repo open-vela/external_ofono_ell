@@ -1126,6 +1126,59 @@ done:
 	return id;
 }
 
+LIB_EXPORT struct l_rtnl_address *l_rtnl_ifaddr_extract(
+						const struct ifaddrmsg *ifa,
+						int bytes)
+{
+	struct rtattr *attr;
+	struct ifa_cacheinfo *cinfo;
+	struct l_rtnl_address *addr;
+
+	if (unlikely(!ifa))
+		return NULL;
+
+	if (!L_IN_SET(ifa->ifa_family, AF_INET, AF_INET6))
+		return NULL;
+
+	addr = l_new(struct l_rtnl_address, 1);
+	addr->prefix_len = ifa->ifa_prefixlen;
+	addr->family = ifa->ifa_family;
+	addr->flags = ifa->ifa_flags;
+	addr->scope = ifa->ifa_scope;
+
+	for (attr = IFA_RTA(ifa); RTA_OK(attr, bytes);
+						attr = RTA_NEXT(attr, bytes)) {
+		switch (attr->rta_type) {
+		case IFA_LOCAL:
+			if (ifa->ifa_family == AF_INET)
+				addr->in_addr =
+					*((struct in_addr *) RTA_DATA(attr));
+
+			break;
+		case IFA_ADDRESS:
+			if (ifa->ifa_family == AF_INET6)
+				addr->in6_addr =
+					*((struct in6_addr *) RTA_DATA(attr));
+
+			break;
+		case IFA_BROADCAST:
+			addr->broadcast = *((struct in_addr *) RTA_DATA(attr));
+			break;
+		case IFA_LABEL:
+			l_strlcpy(addr->label, RTA_DATA(attr),
+					sizeof(addr->label));
+			break;
+		case IFA_CACHEINFO:
+			cinfo = RTA_DATA(attr);
+			addr->preferred_lifetime = cinfo->ifa_prefered;
+			addr->valid_lifetime = cinfo->ifa_valid;
+			break;
+		}
+	}
+
+	return addr;
+}
+
 LIB_EXPORT uint32_t l_rtnl_ifaddr_add(struct l_netlink *rtnl, int ifindex,
 					const struct l_rtnl_address *addr,
 					l_netlink_command_func_t cb,

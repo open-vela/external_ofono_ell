@@ -164,6 +164,9 @@ uint32_t l_rtnl_route6_delete_gateway(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
 
+struct l_rtnl_address *l_rtnl_ifaddr_extract(const struct ifaddrmsg *ifa,
+								int bytes);
+
 uint32_t l_rtnl_ifaddr_add(struct l_netlink *rtnl, int ifindex,
 					const struct l_rtnl_address *addr,
 					l_netlink_command_func_t cb,
