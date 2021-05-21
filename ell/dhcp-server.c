@@ -391,7 +391,9 @@ static uint32_t find_free_or_expired_ip(struct l_dhcp_server *server,
 	if (!lease)
 		return 0;
 
-	return lease->address;
+	ip_addr = lease->address;
+	_dhcp_lease_free(lease);
+	return ip_addr;
 }
 
 static void server_message_init(struct l_dhcp_server *server,
