@@ -988,20 +988,29 @@ static void test_expired_ip_reuse(const void *data)
 		addr[5] = i;
 		client = client_init(addr);
 		client_connect(client, server);
+		l_free(new_client);
+		new_client = NULL;
 
-		l_dhcp_client_stop(client);
+		l_dhcp_client_destroy(client);
 		srv_transport->rx_cb(client_packet, client_packet_len, server);
+		l_free(expired_client);
+		expired_client = NULL;
 	}
 
 	addr[5] = i + 1;
 	client_new = client_init(addr);
 	client_connect(client_new, server);
+	l_free(new_client);
+	new_client = NULL;
 
 	lease = l_dhcp_client_get_lease(client_new);
 	assert(lease);
 	cli_addr = l_dhcp_lease_get_address(lease);
 	assert(!strcmp(cli_addr, "192.168.1.2"));
 	l_free(cli_addr);
+
+	l_dhcp_client_destroy(client_new);
+	l_dhcp_server_destroy(server);
 }
 
 int main(int argc, char *argv[])
