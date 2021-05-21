@@ -696,14 +696,6 @@ static bool mcast_notify_match(const void *a, const void *b)
 	return notify->id == id;
 }
 
-static bool mcast_notify_match_by_hid(const void *a, const void *b)
-{
-	const struct mcast_notify *notify = a;
-	uint32_t id = L_PTR_TO_UINT(b);
-
-	return notify->handle_id == id;
-}
-
 static void mcast_notify_prune(struct l_genl *genl)
 {
 	struct mcast_notify *notify;
@@ -1020,6 +1012,10 @@ static void process_multicast(struct l_genl *genl, uint32_t group,
 	for (entry = l_queue_get_entries(genl->notify_list);
 						entry; entry = entry->next) {
 		struct mcast_notify *notify = entry->data;
+
+		/* Skip those that might have been removed due this mcast */
+		if (!notify->id)
+			continue;
 
 		if (notify->type != nlmsg->nlmsg_type)
 			continue;
@@ -2087,8 +2083,8 @@ LIB_EXPORT void l_genl_family_free(struct l_genl_family *family)
 {
 	struct l_genl *genl;
 	struct genl_request *req;
-	struct mcast_notify *notify;
 	struct l_genl_family_info *info;
+	const struct l_queue_entry *entry;
 
 	if (!family)
 		return;
@@ -2096,6 +2092,7 @@ LIB_EXPORT void l_genl_family_free(struct l_genl_family *family)
 	genl = family->genl;
 	info = l_queue_find(genl->family_infos, family_info_match,
 					L_UINT_TO_PTR(family->id));
+	L_WARN_ON(!info);
 
 	while ((req = l_queue_remove_if(genl->pending_list,
 					match_request_hid,
@@ -2107,23 +2104,27 @@ LIB_EXPORT void l_genl_family_free(struct l_genl_family *family)
 					L_UINT_TO_PTR(family->handle_id))))
 		destroy_request(req);
 
-	while ((notify = l_queue_remove_if(genl->notify_list,
-					mcast_notify_match_by_hid,
-					L_UINT_TO_PTR(family->handle_id)))) {
+	for (entry = l_queue_get_entries(genl->notify_list);
+						entry; entry = entry->next) {
+		struct mcast_notify *notify = entry->data;
 
-		struct genl_mcast *mcast;
+		if (notify->handle_id != family->handle_id)
+			continue;
 
-		if (unlikely(L_WARN_ON(!info)))
-			goto free_notify;
+		notify->id = 0;
 
-		mcast = l_queue_find(info->mcast_list, match_mcast_id,
+		if (info) {
+			struct genl_mcast *mcast =
+				l_queue_find(info->mcast_list, match_mcast_id,
 						L_UINT_TO_PTR(notify->group));
-		if (mcast)
-			drop_membership(genl, mcast);
 
-free_notify:
-		mcast_notify_free(notify);
+			if (mcast)
+				drop_membership(genl, mcast);
+		}
 	}
+
+	if (!genl->in_mcast_notify)
+		mcast_notify_prune(genl);
 
 	l_free(family);
 	l_genl_unref(genl);
