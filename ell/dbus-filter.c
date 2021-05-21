@@ -309,6 +309,8 @@ unsigned int _dbus_filter_add_rule(struct _dbus_filter *filter,
 
 		}
 
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
 		/*
 		 * Mark the condition used.  We do this by setting
 		 * condition->type to an invalid value unless it is the
@@ -330,6 +332,7 @@ unsigned int _dbus_filter_add_rule(struct _dbus_filter *filter,
 		 * have yet created an AddMatch rule on the server.
 		 */
 		remote_rule |= node->match.remote_rule;
+_Pragma("GCC diagnostic pop")
 	}
 
 	node = l_new(struct filter_node, 1);
@@ -346,8 +349,11 @@ unsigned int _dbus_filter_add_rule(struct _dbus_filter *filter,
 						rule, rule_len))
 			goto err;
 
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
 		parent->id = node->id;
 		parent->match.remote_rule = true;
+_Pragma("GCC diagnostic pop")
 	}
 
 	return node->id;
