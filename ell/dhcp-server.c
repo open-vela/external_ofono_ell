@@ -209,6 +209,7 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 
 	next = l_queue_peek_tail(server->lease_list);
 	if (!next || next->offering) {
+		l_timeout_remove(server->next_expire);
 		server->next_expire = NULL;
 		return;
 	}
