@@ -589,6 +589,7 @@ global:
 	l_gpio_reader_get;
 	/* rtnl */
 	l_rtnl_address_new;
+	l_rtnl_address_clone;
 	l_rtnl_address_free;
 	l_rtnl_address_get_address;
 	l_rtnl_address_get_family;
