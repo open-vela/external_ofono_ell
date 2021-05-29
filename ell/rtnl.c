@@ -146,6 +146,12 @@ LIB_EXPORT struct l_rtnl_address *l_rtnl_address_new(const char *ip,
 	return addr;
 }
 
+LIB_EXPORT struct l_rtnl_address *l_rtnl_address_clone(
+					const struct l_rtnl_address *orig)
+{
+	return l_memdup(orig, sizeof(struct l_rtnl_address));
+}
+
 LIB_EXPORT void l_rtnl_address_free(struct l_rtnl_address *addr)
 {
 	l_free(addr);
