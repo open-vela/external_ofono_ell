@@ -647,7 +647,8 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	case DHCP_MESSAGE_TYPE_DECLINE:
 		SERVER_DEBUG("Received DECLINE");
 
-		if (!server_id_opt || !requested_ip_opt || !lease)
+		if (!server_id_opt || !requested_ip_opt || !lease ||
+				!lease->offering)
 			break;
 
 		if (requested_ip_opt == lease->address)
@@ -657,7 +658,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	case DHCP_MESSAGE_TYPE_RELEASE:
 		SERVER_DEBUG("Received RELEASE");
 
-		if (!server_id_opt || !lease)
+		if (!server_id_opt || !lease || lease->offering)
 			break;
 
 		if (message->ciaddr == lease->address)
