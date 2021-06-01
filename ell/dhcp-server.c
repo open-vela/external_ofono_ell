@@ -228,7 +228,7 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
 {
 	struct l_dhcp_server *server = user_data;
-	struct l_dhcp_lease *lease = l_queue_peek_tail(server->expired_list);
+	struct l_dhcp_lease *lease = l_queue_peek_tail(server->lease_list);
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
