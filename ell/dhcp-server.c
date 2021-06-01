@@ -286,14 +286,6 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 static void lease_release(struct l_dhcp_server *server,
 			struct l_dhcp_lease *lease)
 {
-	/*
-	 * If the client released the lease after the server timeout expired
-	 * there is nothing to do. Otherwise the client is releasing the
-	 * lease early which may require re-setting the lease expire timer
-	 */
-	if (is_expired_lease(lease))
-		return;
-
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
 					server->user_data, lease);
