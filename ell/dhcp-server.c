@@ -771,7 +771,7 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 
 	/* Assign a default netmask if not already */
 	if (!server->netmask) {
-		if (inet_aton("255.255.255.0", &ia) < 0)
+		if (inet_pton(AF_INET,"255.255.255.0", &ia) != 1)
 			return false;
 
 		server->netmask = ia.s_addr;
@@ -887,12 +887,12 @@ LIB_EXPORT bool l_dhcp_server_set_ip_range(struct l_dhcp_server *server,
 	if (unlikely(!server || !start_ip || !end_ip))
 		return false;
 
-	if (inet_aton(start_ip, &_host_addr) == 0)
+	if (inet_pton(AF_INET, start_ip, &_host_addr) != 1)
 		return false;
 
 	start = ntohl(_host_addr.s_addr);
 
-	if (inet_aton((const char *) end_ip, &_host_addr) == 0)
+	if (inet_pton(AF_INET, (const char *) end_ip, &_host_addr) != 1)
 		return false;
 
 	server->start_ip = start;
@@ -949,7 +949,7 @@ LIB_EXPORT bool l_dhcp_server_set_ip_address(struct l_dhcp_server *server,
 	if (unlikely(!server))
 		return false;
 
-	if (inet_aton(ip, &ia) < 0)
+	if (inet_pton(AF_INET, ip, &ia) != 1)
 		return false;
 
 	server->address = ia.s_addr;
@@ -977,7 +977,7 @@ LIB_EXPORT bool l_dhcp_server_set_netmask(struct l_dhcp_server *server,
 	if (unlikely(!server || !mask))
 		return false;
 
-	if (inet_aton(mask, &ia) < 0)
+	if (inet_pton(AF_INET, mask, &ia) != 1)
 		return false;
 
 	server->netmask = ia.s_addr;
@@ -993,7 +993,7 @@ LIB_EXPORT bool l_dhcp_server_set_gateway(struct l_dhcp_server *server,
 	if (unlikely(!server || !ip))
 		return false;
 
-	if (inet_aton(ip, &ia) < 0)
+	if (inet_pton(AF_INET, ip, &ia) != 1)
 		return false;
 
 	server->gateway = ia.s_addr;
@@ -1014,7 +1014,7 @@ LIB_EXPORT bool l_dhcp_server_set_dns(struct l_dhcp_server *server, char **dns)
 	for (i = 0; dns[i]; i++) {
 		struct in_addr ia;
 
-		if (inet_aton(dns[i], &ia) < 0)
+		if (inet_pton(AF_INET, dns[i], &ia) != 1)
 			goto failed;
 
 		dns_list[i] = ia.s_addr;
