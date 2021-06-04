@@ -52,6 +52,13 @@ static inline unsigned char bit_field(const unsigned char oct,
 	return (oct >> start) & mask;
 }
 
+#define DIV_ROUND_CLOSEST(x, divisor)			\
+({							\
+	typeof(divisor) _d = (divisor);			\
+	typeof(x) _x = (x) + _d / 2;			\
+	_x / _d;					\
+})
+
 #define __AUTODESTRUCT(var, func)			\
 	void cleanup_ ## var(void *ptr)			\
 	{ func(*(void **) ptr); }			\
