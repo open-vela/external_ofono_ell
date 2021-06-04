@@ -169,8 +169,8 @@ static void dhcp_set_ip_udp_headers(struct iphdr *ip, struct udphdr *udp,
 	ip->tot_len = L_CPU_TO_BE16(len + sizeof(*ip) + sizeof(*udp));
 
 	ip->protocol = IPPROTO_UDP;
-	ip->saddr = L_CPU_TO_BE32(saddr);
-	ip->daddr = L_CPU_TO_BE32(daddr);
+	ip->saddr = saddr;
+	ip->daddr = daddr;
 
 	udp->source = L_CPU_TO_BE16(sport);
 	udp->dest = L_CPU_TO_BE16(dport);
