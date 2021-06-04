@@ -158,6 +158,7 @@ struct l_dhcp_lease {
 	uint32_t lifetime;
 	uint32_t t1;
 	uint32_t t2;
+	uint64_t bound_time;
 	uint32_t router;
 	uint32_t *dns;
 	char *domain_name;
