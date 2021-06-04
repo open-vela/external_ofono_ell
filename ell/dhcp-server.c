@@ -30,6 +30,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "private.h"
 #include "time.h"
@@ -102,12 +103,14 @@ struct l_dhcp_server {
 	l_util_debug(server->debug_handler, server->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
 
-static bool is_expired_lease(struct l_dhcp_lease *lease)
+static uint64_t get_lease_expiry_time(const struct l_dhcp_lease *lease)
 {
-	if (lease->lifetime < l_time_to_secs(l_time_now()))
-		return true;
+	return lease->bound_time + lease->lifetime * L_USEC_PER_SEC;
+}
 
-	return false;
+static bool is_expired_lease(const struct l_dhcp_lease *lease)
+{
+	return !l_time_after(get_lease_expiry_time(lease), l_time_now());
 }
 
 static bool match_lease_mac(const void *data, const void *user_data)
@@ -169,11 +172,12 @@ static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
 	return 0;
 }
 
-static int compare_lifetime_or_offering(const void *a, const void *b,
+static int compare_expiry_or_offering(const void *a, const void *b,
 					void *user_data)
 {
 	const struct l_dhcp_lease *lease1 = a;
 	const struct l_dhcp_lease *lease2 = b;
+	int64_t diff;
 
 	/*
 	 * Ensures offered but not active leases stay at the head of the queue.
@@ -182,7 +186,9 @@ static int compare_lifetime_or_offering(const void *a, const void *b,
 	if (lease1->offering)
 		return 1;
 
-	return lease2->lifetime - lease1->lifetime;
+	diff = (int64_t) lease2->bound_time - lease1->bound_time +
+		((int64_t) lease2->lifetime - lease1->lifetime) * L_USEC_PER_SEC;
+	return diff >= 0 ? diff > 0 ? 1 : 0 : -1;
 }
 
 static void lease_expired_cb(struct l_timeout *timeout, void *user_data);
@@ -214,14 +220,16 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 	}
 
 	if (server->next_expire) {
-		uint32_t now = l_time_to_secs(l_time_now());
+		uint64_t expiry = get_lease_expiry_time(next);
+		uint64_t now = l_time_now();
+		uint64_t next_timeout = l_time_after(expiry, now) ?
+			expiry - now : 0;
+		uint64_t next_timeout_ms = l_time_to_msecs(next_timeout) ?: 1;
 
-		if (l_time_after(next->lifetime, now)) {
-			unsigned int next_timeout = next->lifetime - now;
+		if (next_timeout_ms > ULONG_MAX)
+			next_timeout_ms = ULONG_MAX;
 
-			l_timeout_modify(server->next_expire, next_timeout);
-		} else
-			l_timeout_modify_ms(server->next_expire, 1);
+		l_timeout_modify_ms(server->next_expire, next_timeout_ms);
 	} else
 		server->next_expire = l_timeout_create(
 						server->lease_seconds,
@@ -233,6 +241,11 @@ static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
 {
 	struct l_dhcp_server *server = user_data;
 	struct l_dhcp_lease *lease = l_queue_peek_tail(server->lease_list);
+
+	if (!is_expired_lease(lease)) {
+		set_next_expire_timer(server, NULL);
+		return;
+	}
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
@@ -258,24 +271,24 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 	lease->address = yiaddr;
 
 	lease->offering = offering;
-	lease->lifetime = l_time_to_secs(l_time_now());
+	lease->bound_time = l_time_now();
 
 	if (!offering) {
-		lease->lifetime += server->lease_seconds;
+		lease->lifetime = server->lease_seconds;
 
 		/*
 		 * Insert into queue by lifetime (skipping any offered leases
 		 * at the head)
 		 */
 		l_queue_insert(server->lease_list, lease,
-					compare_lifetime_or_offering, NULL);
+					compare_expiry_or_offering, NULL);
 		/*
 		 * This is a new (or renewed lease) so pass NULL for expired so
 		 * the queue's are not modified, only the next_expired timer
 		 */
 		set_next_expire_timer(server, NULL);
 	} else {
-		lease->lifetime += OFFER_TIME;
+		lease->lifetime = OFFER_TIME;
 		/* Push offered leases to head, active leases after those */
 		l_queue_push_head(server->lease_list, lease);
 	}

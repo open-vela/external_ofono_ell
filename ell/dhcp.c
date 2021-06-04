@@ -860,6 +860,8 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 
 		dhcp_client_event_notify(client, r);
 
+		client->lease->bound_time = l_time_now();
+
 		/*
 		 * Start T1, once it expires we will start the T2 timer.  If
 		 * we renew the lease, we will end up back here.
