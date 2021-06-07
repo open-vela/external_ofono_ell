@@ -581,7 +581,7 @@ LIB_EXPORT bool l_queue_isempty(struct l_queue *queue)
  * Returns: A pointer to the head of the queue.
  **/
 LIB_EXPORT const struct l_queue_entry *l_queue_get_entries(
-							struct l_queue *queue)
+						const struct l_queue *queue)
 {
 	if (unlikely(!queue))
 		return NULL;
