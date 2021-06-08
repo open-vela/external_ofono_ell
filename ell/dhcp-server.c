@@ -42,6 +42,8 @@
 #include "strv.h"
 #include "timeout.h"
 #include "acd.h"
+#include "log.h"
+#include "util.h"
 
 /* 8 hours */
 #define DEFAULT_DHCP_LEASE_SEC (8*60*60)
@@ -226,8 +228,9 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 			expiry - now : 0;
 		uint64_t next_timeout_ms = l_time_to_msecs(next_timeout) ?: 1;
 
-		if (next_timeout_ms > ULONG_MAX)
-			next_timeout_ms = ULONG_MAX;
+		if (L_WARN_ON(next_timeout_ms >
+					server->lease_seconds * L_MSEC_PER_SEC))			next_timeout_ms =
+				server->lease_seconds * L_MSEC_PER_SEC;
 
 		l_timeout_modify_ms(server->next_expire, next_timeout_ms);
 	} else
