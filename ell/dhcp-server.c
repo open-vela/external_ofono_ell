@@ -229,7 +229,8 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 		uint64_t next_timeout_ms = l_time_to_msecs(next_timeout) ?: 1;
 
 		if (L_WARN_ON(next_timeout_ms >
-					server->lease_seconds * L_MSEC_PER_SEC))			next_timeout_ms =
+					server->lease_seconds * L_MSEC_PER_SEC))
+			next_timeout_ms =
 				server->lease_seconds * L_MSEC_PER_SEC;
 
 		l_timeout_modify_ms(server->next_expire, next_timeout_ms);
