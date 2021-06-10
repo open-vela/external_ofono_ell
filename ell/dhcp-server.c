@@ -225,15 +225,9 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 		uint64_t expiry = get_lease_expiry_time(next);
 		uint64_t now = l_time_now();
 		uint64_t next_timeout = l_time_after(expiry, now) ?
-			expiry - now : 0;
-		uint64_t next_timeout_ms = l_time_to_msecs(next_timeout) ?: 1;
+			l_time_to_msecs(expiry - now) : 0;
 
-		if (L_WARN_ON(next_timeout_ms >
-					server->lease_seconds * L_MSEC_PER_SEC))
-			next_timeout_ms =
-				server->lease_seconds * L_MSEC_PER_SEC;
-
-		l_timeout_modify_ms(server->next_expire, next_timeout_ms);
+		l_timeout_modify_ms(server->next_expire, next_timeout ?: 1);
 	} else
 		server->next_expire = l_timeout_create(
 						server->lease_seconds,
@@ -245,11 +239,6 @@ static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
 {
 	struct l_dhcp_server *server = user_data;
 	struct l_dhcp_lease *lease = l_queue_peek_tail(server->lease_list);
-
-	if (!is_expired_lease(lease)) {
-		set_next_expire_timer(server, NULL);
-		return;
-	}
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
