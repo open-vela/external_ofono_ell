@@ -778,6 +778,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 	struct l_dhcp_client *client = userdata;
 	const struct dhcp_message *message = data;
 	struct dhcp_message_iter iter;
+	char buf[INET_ADDRSTRLEN];
 	uint8_t msg_type = 0;
 	uint8_t t, l;
 	const void *v;
@@ -911,11 +912,12 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 		l_acd_set_skip_probes(client->acd, true);
 
 		ia.s_addr = client->lease->address;
+		inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 
 		/* For unit testing we don't want this to be a fatal error */
-		if (!l_acd_start(client->acd, inet_ntoa(ia))) {
+		if (!l_acd_start(client->acd, buf)) {
 			CLIENT_DEBUG("Failed to start ACD on %s, continuing",
-						inet_ntoa(ia));
+						buf);
 			l_acd_destroy(client->acd);
 			client->acd = NULL;
 		}
