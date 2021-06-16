@@ -752,6 +752,7 @@ LIB_EXPORT uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex,
 LIB_EXPORT void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				char **label, char **ip, char **broadcast)
 {
+	char buf[INET_ADDRSTRLEN];
 	struct in_addr in_addr;
 	struct rtattr *attr;
 
@@ -763,7 +764,8 @@ LIB_EXPORT void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				break;
 
 			in_addr = *((struct in_addr *) RTA_DATA(attr));
-			*ip = l_strdup(inet_ntoa(in_addr));
+			*ip = l_strdup(inet_ntop(AF_INET, &in_addr, buf,
+							INET_ADDRSTRLEN));
 
 			break;
 		case IFA_BROADCAST:
@@ -771,7 +773,8 @@ LIB_EXPORT void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				break;
 
 			in_addr = *((struct in_addr *) RTA_DATA(attr));
-			*broadcast = l_strdup(inet_ntoa(in_addr));
+			*broadcast = l_strdup(inet_ntop(AF_INET, &in_addr, buf,
+							INET_ADDRSTRLEN));
 
 			break;
 		case IFA_LABEL:

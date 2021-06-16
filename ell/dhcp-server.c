@@ -92,14 +92,11 @@ struct l_dhcp_server {
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_STR(a) a[0], a[1], a[2], a[3], a[4], a[5]
 
-#define IP_STR(uint_ip) \
-({ \
-	struct in_addr _in; \
-	char *_out; \
-	_in.s_addr = uint_ip; \
-	_out = inet_ntoa(_in); \
-	_out; \
-})
+#define NIPQUAD_FMT "%u.%u.%u.%u"
+#define NIPQUAD(u32_ip)	((unsigned char *) &u32_ip)[0], \
+			((unsigned char *) &u32_ip)[1], \
+			((unsigned char *) &u32_ip)[2], \
+			((unsigned char *) &u32_ip)[3]
 
 #define SERVER_DEBUG(fmt, args...)					\
 	l_util_debug(server->debug_handler, server->debug_data,		\
@@ -286,8 +283,8 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 		l_queue_push_head(server->lease_list, lease);
 	}
 
-	SERVER_DEBUG("added lease IP %s for "MAC " lifetime=%u",
-			IP_STR(yiaddr), MAC_STR(chaddr),
+	SERVER_DEBUG("added lease IP "NIPQUAD_FMT " for "MAC " lifetime=%u",
+			NIPQUAD(yiaddr), MAC_STR(chaddr),
 			server->lease_seconds);
 
 	return lease;
@@ -477,8 +474,8 @@ static void send_offer(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
-	SERVER_DEBUG("Sending OFFER of %s to "MAC, IP_STR(reply->yiaddr),
-			MAC_STR(reply->chaddr));
+	SERVER_DEBUG("Sending OFFER of "NIPQUAD_FMT " to "MAC,
+			NIPQUAD(reply->yiaddr),	MAC_STR(reply->chaddr));
 
 	if (server->transport->l2_send(server->transport, server->address,
 					DHCP_PORT_SERVER,
@@ -561,7 +558,7 @@ static void send_ack(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
-	SERVER_DEBUG("Sending ACK to %s", IP_STR(reply->yiaddr));
+	SERVER_DEBUG("Sending ACK to "NIPQUAD_FMT, NIPQUAD(reply->yiaddr));
 
 	if (server->transport->l2_send(server->transport, server->address,
 					DHCP_PORT_SERVER, reply->ciaddr,
@@ -628,15 +625,15 @@ static void listener_event(const void *data, size_t len, void *user_data)
 
 	switch (type) {
 	case DHCP_MESSAGE_TYPE_DISCOVER:
-		SERVER_DEBUG("Received DISCOVER, requested IP %s",
-					IP_STR(requested_ip_opt));
+		SERVER_DEBUG("Received DISCOVER, requested IP "NIPQUAD_FMT,
+					NIPQUAD(requested_ip_opt));
 
 		send_offer(server, message, lease, requested_ip_opt);
 
 		break;
 	case DHCP_MESSAGE_TYPE_REQUEST:
-		SERVER_DEBUG("Received REQUEST, requested IP %s",
-				IP_STR(requested_ip_opt));
+		SERVER_DEBUG("Received REQUEST, requested IP "NIPQUAD_FMT,
+				NIPQUAD(requested_ip_opt));
 
 		if (requested_ip_opt == 0) {
 			requested_ip_opt = message->ciaddr;
@@ -760,6 +757,7 @@ LIB_EXPORT void l_dhcp_server_destroy(struct l_dhcp_server *server)
 
 LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 {
+	char buf[INET_ADDRSTRLEN];
 	struct in_addr ia;
 
 	if (unlikely(!server))
@@ -846,11 +844,12 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 	l_acd_set_defend_policy(server->acd, L_ACD_DEFEND_POLICY_INFINITE);
 
 	ia.s_addr = server->address;
+	inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 
 	/* In case of unit testing we don't want this to be a fatal error */
-	if (!l_acd_start(server->acd, inet_ntoa(ia))) {
+	if (!l_acd_start(server->acd, buf)) {
 		SERVER_DEBUG("Failed to start ACD on %s, continuing without",
-				IP_STR(server->address));
+				buf);
 
 		l_acd_destroy(server->acd);
 		server->acd = NULL;

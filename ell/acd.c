@@ -55,14 +55,11 @@
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_STR(a) a[0], a[1], a[2], a[3], a[4], a[5]
 
-#define IP_STR(uint_ip) \
-({ \
-	struct in_addr _in; \
-	char *_out; \
-	_in.s_addr = uint_ip; \
-	_out = inet_ntoa(_in); \
-	_out; \
-})
+#define NIPQUAD_FMT "%u.%u.%u.%u"
+#define NIPQUAD(u32_ip)	((unsigned char *) &u32_ip)[0], \
+			((unsigned char *) &u32_ip)[1], \
+			((unsigned char *) &u32_ip)[2], \
+			((unsigned char *) &u32_ip)[3]
 
 #define ACD_DEBUG(fmt, args...)					\
 	l_util_debug(acd->debug_handler, acd->debug_data,		\
@@ -146,7 +143,8 @@ static int acd_send_packet(struct l_acd *acd, uint32_t source_ip)
 	p.arp_pln = 4;
 	p.arp_op = htons(ARPOP_REQUEST);
 
-	ACD_DEBUG("sending packet with target IP %s", IP_STR(acd->ip));
+	ACD_DEBUG("sending packet with target IP "NIPQUAD_FMT,
+			NIPQUAD(acd->ip));
 
 	memcpy(&p.arp_sha, acd->mac, ETH_ALEN);
 	memcpy(&p.arp_spa, &source_ip, sizeof(p.arp_spa));
@@ -165,8 +163,8 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 	struct l_acd *acd = user_data;
 
 	if (acd->state == ACD_STATE_PROBE) {
-		ACD_DEBUG("No conflicts found for %s, announcing address",
-				IP_STR(acd->ip));
+		ACD_DEBUG("No conflicts found for "NIPQUAD_FMT ", announcing address",
+				NIPQUAD(acd->ip));
 
 		acd->state = ACD_STATE_ANNOUNCED;
 
@@ -284,17 +282,17 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		!memcmp(arp.arp_tpa, &acd->ip, sizeof(uint32_t));
 
 	if (!source_conflict && !target_conflict) {
-		ACD_DEBUG("No target or source conflict detected for %s",
-				IP_STR(acd->ip));
+		ACD_DEBUG("No target or source conflict detected for "NIPQUAD_FMT,
+				NIPQUAD(acd->ip));
 		return true;
 	}
 
 	switch (acd->state) {
 	case ACD_STATE_PROBE:
 		/* No reason to continue probing */
-		ACD_DEBUG("%s conflict detected for %s",
+		ACD_DEBUG("%s conflict detected for "NIPQUAD_FMT,
 				target_conflict ? "Target" : "Source",
-				IP_STR(acd->ip));
+				NIPQUAD(acd->ip));
 
 		if (acd->event_func)
 			acd->event_func(L_ACD_EVENT_CONFLICT, acd->user_data);

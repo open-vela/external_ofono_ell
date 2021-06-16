@@ -178,12 +178,13 @@ error:
 static inline char *get_ip(uint32_t ip)
 {
 	struct in_addr addr;
+	char buf[INET_ADDRSTRLEN];
 
 	if (ip == 0)
 		return NULL;
 
 	addr.s_addr = ip;
-	return l_strdup(inet_ntoa(addr));
+	return l_strdup(inet_ntop(AF_INET, &addr, buf, INET_ADDRSTRLEN));
 }
 
 LIB_EXPORT char *l_dhcp_lease_get_address(const struct l_dhcp_lease *lease)
