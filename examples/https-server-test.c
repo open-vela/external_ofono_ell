@@ -199,12 +199,13 @@ int main(int argc, char *argv[])
 			https_tls_ready, https_tls_disconnected, NULL);
 
 	if (getenv("TLS_DEBUG")) {
+		char buf[INET_ADDRSTRLEN];
 		char *str;
 
 		l_tls_set_debug(tls, https_tls_debug_cb, NULL, NULL);
 
-		str = l_strdup_printf("/tmp/ell-certchain-%s.pem",
-					inet_ntoa(client_addr.sin_addr));
+		inet_ntop(AF_INET,&client_addr.sin_addr, buf, INET_ADDRSTRLEN);
+		str = l_strdup_printf("/tmp/ell-certchain-%s.pem", buf);
 		l_tls_set_cert_dump_path(tls, str);
 		l_free(str);
 	}
