@@ -236,7 +236,7 @@ void _ecc_be2native(uint64_t *dest, const uint64_t *bytes,
 							unsigned int ndigits)
 {
 	unsigned int i;
-	uint64_t tmp[L_ECC_MAX_DIGITS];
+	uint64_t tmp[2 * L_ECC_MAX_DIGITS];
 
 	for (i = 0; i < ndigits; i++)
 		tmp[ndigits - 1 - i] = l_get_be64(&bytes[i]);
@@ -603,6 +603,46 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new(
 		return c;
 
 	_ecc_be2native(c->c, buf, curve->ndigits);
+
+	if (!vli_is_zero_or_one(c->c, curve->ndigits) &&
+			secure_memcmp_64(curve->n, c->c, curve->ndigits) > 0)
+		return c;
+
+	l_ecc_scalar_free(c);
+
+	return NULL;
+}
+
+/*
+ * Build a scalar = value modulo p where p is the prime number for a given
+ * curve.  bytes can contain a numer with up to 2x number of digits as the
+ * curve.  This is used in Hash to Curve calculations.
+ */
+LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_modp(
+					const struct l_ecc_curve *curve,
+					const void *bytes, size_t len)
+{
+	struct l_ecc_scalar *c;
+	uint64_t tmp[2 * L_ECC_MAX_DIGITS];
+	unsigned int ndigits = len / 8;
+
+	if (!bytes)
+		return NULL;
+
+	if (len % 8)
+		return NULL;
+
+	if (ndigits > curve->ndigits * 2)
+		return NULL;
+
+	c = _ecc_constant_new(curve, NULL, 0);
+	if (!c)
+		return NULL;
+
+	memset(tmp, 0, sizeof(tmp));
+	_ecc_be2native(tmp, bytes, ndigits);
+
+	_vli_mmod_fast(c->c, tmp, curve->p, curve->ndigits);
 
 	if (!vli_is_zero_or_one(c->c, curve->ndigits) &&
 			secure_memcmp_64(curve->n, c->c, curve->ndigits) > 0)

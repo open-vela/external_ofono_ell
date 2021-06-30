@@ -100,6 +100,9 @@ void _vli_mod_add(uint64_t *result, const uint64_t *left, const uint64_t *right,
 
 void _vli_rshift1(uint64_t *vli, unsigned int ndigits);
 
+bool _vli_mmod_fast(uint64_t *result, uint64_t *product,
+			const uint64_t *curve_prime, unsigned int ndigits);
+
 void _vli_mod_mult_fast(uint64_t *result, const uint64_t *left,
 		const uint64_t *right, const uint64_t *curve_prime,
 		unsigned int ndigits);
