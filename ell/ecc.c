@@ -275,7 +275,8 @@ static void ecc_compute_y_sqr(const struct l_ecc_curve *curve,
 	memcpy(y_sqr, sum, curve->ndigits * 8);
 }
 
-bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y, uint64_t *x)
+bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y,
+							const uint64_t *x)
 {
 	/*
 	 * y = sqrt(x^3 + ax + b) (mod p)
