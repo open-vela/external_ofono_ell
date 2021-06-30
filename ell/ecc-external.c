@@ -552,9 +552,8 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 /* Computes result = product % curve_prime
  *  from http://www.nsa.gov/ia/_files/nist-routines.pdf
 */
-static bool vli_mmod_fast(uint64_t *result, uint64_t *product,
-				const uint64_t *curve_prime,
-				unsigned int ndigits)
+bool _vli_mmod_fast(uint64_t *result, uint64_t *product,
+			const uint64_t *curve_prime, unsigned int ndigits)
 {
 	uint64_t tmp[2 * L_ECC_MAX_DIGITS];
 
@@ -583,7 +582,7 @@ void _vli_mod_mult_fast(uint64_t *result, const uint64_t *left,
 	uint64_t product[2 * L_ECC_MAX_DIGITS];
 
 	vli_mult(product, left, right, ndigits);
-	vli_mmod_fast(result, product, curve_prime, ndigits);
+	_vli_mmod_fast(result, product, curve_prime, ndigits);
 }
 
 /* Computes result = left^2 % curve_p. */
@@ -594,7 +593,7 @@ void _vli_mod_square_fast(uint64_t *result, const uint64_t *left,
 	uint64_t product[2 * L_ECC_MAX_DIGITS];
 
 	vli_square(product, left, ndigits);
-	vli_mmod_fast(result, product, curve_prime, ndigits);
+	_vli_mmod_fast(result, product, curve_prime, ndigits);
 }
 
 #define EVEN(vli) (!(vli[0] & 1))
