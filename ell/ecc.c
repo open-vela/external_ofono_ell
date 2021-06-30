@@ -402,7 +402,7 @@ void _ecc_point_add(struct l_ecc_point *ret, const struct l_ecc_point *p,
 }
 
 /* result = (base ^ exp) % p */
-void _vli_mod_exp(uint64_t *result, uint64_t *base, uint64_t *exp,
+void _vli_mod_exp(uint64_t *result, const uint64_t *base, const uint64_t *exp,
 			const uint64_t *mod, unsigned int ndigits)
 {
 	unsigned int i;

@@ -109,7 +109,7 @@ void _vli_mod_mult_fast(uint64_t *result, const uint64_t *left,
 void _vli_mod_square_fast(uint64_t *result, const uint64_t *left,
 					const uint64_t *curve_prime,
 					unsigned int ndigits);
-void _vli_mod_exp(uint64_t *result, uint64_t *base, uint64_t *exp,
+void _vli_mod_exp(uint64_t *result, const uint64_t *base, const uint64_t *exp,
 		const uint64_t *mod, unsigned int ndigits);
 
 int _vli_cmp(const uint64_t *left, const uint64_t *right, unsigned int ndigits);
