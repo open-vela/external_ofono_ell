@@ -124,7 +124,8 @@ bool _ecc_point_is_zero(const struct l_ecc_point *point);
 
 void _ecc_calculate_p2(const struct l_ecc_curve *curve, uint64_t *p2);
 
-bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y, uint64_t *x);
+bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y,
+							const uint64_t *x);
 
 void _ecc_point_mult(struct l_ecc_point *result,
 			const struct l_ecc_point *point, const uint64_t *scalar,
