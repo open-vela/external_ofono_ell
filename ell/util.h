@@ -276,6 +276,7 @@ size_t l_strlcpy(char* dst, const char *src, size_t len);
 
 bool l_str_has_prefix(const char *str, const char *prefix);
 bool l_str_has_suffix(const char *str, const char *suffix);
+bool l_streq0(const char *a, const char *b);
 
 char *l_util_hexstring(const void *buf, size_t len);
 char *l_util_hexstring_upper(const void *buf, size_t len);
