@@ -728,10 +728,23 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 		}
 
 		opts += l;
-		opts_len -= l ;
+		opts_len -= l;
 	}
 
 	return r;
+}
+
+LIB_EXPORT char *l_icmp6_router_get_address(const struct l_icmp6_router *r)
+{
+	char buf[INET6_ADDRSTRLEN];
+
+	if (unlikely(!r))
+		return NULL;
+
+	if (!inet_ntop(AF_INET6, r->address, buf, sizeof(buf)))
+		return NULL;
+
+	return l_strdup(buf);
 }
 
 LIB_EXPORT bool l_icmp6_router_get_managed(const struct l_icmp6_router *r)
