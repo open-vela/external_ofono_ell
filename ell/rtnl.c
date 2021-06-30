@@ -389,6 +389,16 @@ LIB_EXPORT uint8_t l_rtnl_route_get_family(const struct l_rtnl_route *rt)
 	return rt->family;
 }
 
+LIB_EXPORT bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt,
+						char *out_buf)
+{
+	if (unlikely(!rt))
+		return false;
+
+	return !address_to_string(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr,
+					out_buf);
+}
+
 LIB_EXPORT uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt)
 {
 	if (unlikely(!rt))

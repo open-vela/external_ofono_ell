@@ -61,6 +61,7 @@ struct l_rtnl_route *l_rtnl_route_new_prefix(const char *ip,
 							uint8_t prefix_len);
 void l_rtnl_route_free(struct l_rtnl_route *rt);
 uint8_t l_rtnl_route_get_family(const struct l_rtnl_route *rt);
+bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt, char *out_buf);
 uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt);
 bool l_rtnl_route_set_lifetime(struct l_rtnl_route *rt, uint32_t lt);
 uint32_t l_rtnl_route_get_mtu(const struct l_rtnl_route *rt);
