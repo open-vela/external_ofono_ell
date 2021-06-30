@@ -12,6 +12,7 @@ global:
 	l_strlcpy;
 	l_str_has_prefix;
 	l_str_has_suffix;
+	l_streq0;
 	l_util_hexstring;
 	l_util_hexstring_upper;
 	l_util_from_hexstring;

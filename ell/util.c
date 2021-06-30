@@ -342,6 +342,19 @@ LIB_EXPORT bool l_str_has_suffix(const char *str, const char *suffix)
 	return !strcmp(&str[len_diff], suffix);
 }
 
+/**
+ * l_streq0:
+ * @a: First operand
+ * @b: Second operand
+ *
+ * Returns: True if @a and @b are both NULL or both non-NULL and identical
+ * according to strcmp.  False otherwise.
+ */
+LIB_EXPORT bool l_streq0(const char *a, const char *b)
+{
+	return a == b || (a && b && !strcmp(a, b));
+}
+
 static char *hexstring_common(const unsigned char *buf, size_t len,
 				const char hexdigits[static 16])
 {
