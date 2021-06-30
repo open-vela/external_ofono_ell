@@ -275,35 +275,39 @@ static void ecc_compute_y_sqr(const struct l_ecc_curve *curve,
 	memcpy(y_sqr, sum, curve->ndigits * 8);
 }
 
-bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y,
-							const uint64_t *x)
+/*
+ * Compute sqrt(y^2)
+ * Since our prime p satisfies p = 3 (mod 4), we can say:
+ *
+ * y = (y^2)^((p + 1) / 4)
+ *
+ * This avoids the need for a square root function.
+ */
+static void ecc_compute_sqrt(const struct l_ecc_curve *curve,
+					uint64_t *y, const uint64_t *y_sqr)
 {
-	/*
-	 * y = sqrt(x^3 + ax + b) (mod p)
-	 *
-	 * Since our prime p satisfies p = 3 (mod 4), we can say:
-	 *
-	 * y = (x^3 - 3x + b)^((p + 1) / 4)
-	 *
-	 * This avoids the need for a square root function.
-	 */
-
-	uint64_t sum[L_ECC_MAX_DIGITS] = { 0 };
-	uint64_t expo[L_ECC_MAX_DIGITS] = { 0 };
+	uint64_t expo[L_ECC_MAX_DIGITS];
 	uint64_t one[L_ECC_MAX_DIGITS] = { 1ull };
-	uint64_t check[L_ECC_MAX_DIGITS] = { 0 };
 
 	memcpy(expo, curve->p, curve->ndigits * 8);
-
-	/* x^3 - 3x + b */
-	ecc_compute_y_sqr(curve, sum, x);
 
 	/* (p + 1) / 4  == (p >> 2) + 1 */
 	_vli_rshift1(expo, curve->ndigits);
 	_vli_rshift1(expo, curve->ndigits);
 	_vli_mod_add(expo, expo, one, curve->p, curve->ndigits);
 	/* sum ^ ((p + 1) / 4) */
-	_vli_mod_exp(y, sum, expo, curve->p, curve->ndigits);
+	_vli_mod_exp(y, y_sqr, expo, curve->p, curve->ndigits);
+}
+
+bool _ecc_compute_y(const struct l_ecc_curve *curve, uint64_t *y,
+							const uint64_t *x)
+{
+	uint64_t sum[L_ECC_MAX_DIGITS] = { 0 };
+	uint64_t check[L_ECC_MAX_DIGITS] = { 0 };
+
+	/* y = sqrt(x^3 + ax + b) (mod p) */
+	ecc_compute_y_sqr(curve, sum, x);
+	ecc_compute_sqrt(curve, y, sum);
 
 	/* square y to ensure we have a correct value */
 	_vli_mod_mult_fast(check, y, y, curve->p, curve->ndigits);
