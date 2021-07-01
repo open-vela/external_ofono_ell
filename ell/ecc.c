@@ -550,6 +550,17 @@ LIB_EXPORT ssize_t l_ecc_point_get_x(const struct l_ecc_point *p, void *x,
 	return p->curve->ndigits * 8;
 }
 
+LIB_EXPORT ssize_t l_ecc_point_get_y(const struct l_ecc_point *p, void *y,
+					size_t ylen)
+{
+	if (ylen < p->curve->ndigits * 8)
+		return -EMSGSIZE;
+
+	_ecc_native2be(y, p->y, p->curve->ndigits);
+
+	return p->curve->ndigits * 8;
+}
+
 LIB_EXPORT ssize_t l_ecc_point_get_data(const struct l_ecc_point *p, void *buf,
 					size_t len)
 {
