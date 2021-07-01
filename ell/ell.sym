@@ -553,6 +553,7 @@ global:
 	l_ecc_point_free;
 	l_ecc_point_from_data;
 	l_ecc_point_get_x;
+	l_ecc_point_get_y;
 	l_ecc_point_get_data;
 	l_ecc_point_inverse;
 	l_ecc_point_multiply;
