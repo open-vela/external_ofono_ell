@@ -372,7 +372,7 @@ static char *hexstring_common(const unsigned char *buf, size_t len,
  * lower case hex digits a-f.  If you require upper case hex digits, use
  * @l_util_hexstring_upper
  **/
-LIB_EXPORT char *l_util_hexstring(const unsigned char *buf, size_t len)
+LIB_EXPORT char *l_util_hexstring(const void *buf, size_t len)
 {
 	static const char hexdigits[] = "0123456789abcdef";
 	return hexstring_common(buf, len, hexdigits);
@@ -387,7 +387,7 @@ LIB_EXPORT char *l_util_hexstring(const unsigned char *buf, size_t len)
  * upper case hex digits a-f.  If you require lower case hex digits, use
  * @l_util_hexstring
  **/
-LIB_EXPORT char *l_util_hexstring_upper(const unsigned char *buf, size_t len)
+LIB_EXPORT char *l_util_hexstring_upper(const void *buf, size_t len)
 {
 	static const char hexdigits[] = "0123456789ABCDEF";
 	return hexstring_common(buf, len, hexdigits);
