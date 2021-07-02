@@ -567,6 +567,7 @@ global:
 	l_ecc_scalar_new;
 	l_ecc_scalar_new_random;
 	l_ecc_scalar_new_modp;
+	l_ecc_scalar_new_reduced_1_to_n;
 	l_ecc_scalar_sum_x;
 	l_ecc_scalars_are_equal;
 	/* ecdh */

@@ -669,6 +669,40 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_modp(
 	return NULL;
 }
 
+/*
+ * Takes a buffer of the same size as the curve and scales it to a range
+ * 1..n using value = (value mod (n - 1)) + 1.  For the curves we support
+ * this can be done using a subtraction operation due to the size of n
+ */
+LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_reduced_1_to_n(
+					const struct l_ecc_curve *curve,
+					const void *buf, size_t len)
+{
+	uint64_t _1[L_ECC_MAX_DIGITS] = { 1ull };
+	uint64_t tmp[L_ECC_MAX_DIGITS];
+	struct l_ecc_scalar *c;
+
+	if (!buf)
+		return NULL;
+
+	if (len != curve->ndigits * 8)
+		return NULL;
+
+	c = _ecc_constant_new(curve, NULL, 0);
+	if (!c)
+		return NULL;
+
+	_vli_sub(tmp, curve->n, _1, curve->ndigits);
+	_ecc_be2native(c->c, buf, curve->ndigits);
+
+	if (_vli_cmp(c->c, tmp, curve->ndigits) >= 0)
+                _vli_sub(c->c, c->c, tmp, curve->ndigits);
+
+	_vli_add(c->c, c->c, _1, curve->ndigits);
+
+	return c;
+}
+
 LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_random(
 					const struct l_ecc_curve *curve)
 {
