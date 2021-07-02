@@ -317,6 +317,44 @@ static void run_test_p256(const void *arg)
 	}
 }
 
+static void run_test_reduce(const void *arg)
+{
+	static const uint8_t p_reduced[] = {
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x43, 0x19, 0x05, 0x53, 0x58, 0xe8, 0x61, 0x7b,
+		0x0c, 0x46, 0x35, 0x3d, 0x03, 0x9c, 0xda, 0xb0,
+	};
+
+	const struct l_ecc_curve *p256 = l_ecc_curve_get_ike_group(19);
+	struct l_ecc_scalar *tmp;
+	struct l_ecc_scalar *reduced;
+	char buf[32];
+
+	tmp = l_ecc_curve_get_prime(p256);
+	assert(tmp);
+	assert(l_ecc_scalar_get_data(tmp, buf, sizeof(buf)) > 0);
+	l_ecc_scalar_free(tmp);
+
+	reduced = l_ecc_scalar_new_reduced_1_to_n(p256, buf, sizeof(buf));
+	assert(reduced);
+	assert(l_ecc_scalar_get_data(reduced, buf, sizeof(buf)) > 0);
+	assert(!memcmp(buf, p_reduced, sizeof(p_reduced)));
+	l_ecc_scalar_free(reduced);
+
+	tmp = l_ecc_curve_get_order(p256);
+	assert(tmp);
+	assert(l_ecc_scalar_get_data(tmp, buf, sizeof(buf)) > 0);
+	l_ecc_scalar_free(tmp);
+
+	reduced = l_ecc_scalar_new_reduced_1_to_n(p256, buf, sizeof(buf));
+	assert(reduced);
+	assert(l_ecc_scalar_get_data(reduced, buf, sizeof(buf)) > 0);
+	assert(l_memeqzero(buf, 31));
+	assert(buf[31] == 0x02);
+	l_ecc_scalar_free(reduced);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -335,6 +373,8 @@ int main(int argc, char *argv[])
 	l_test_add("ECC legendre", run_test_p256, &legendre_test4);
 	l_test_add("ECC legendre", run_test_p256, &legendre_test5);
 	l_test_add("ECC legendre", run_test_p256, &legendre_test6);
+
+	l_test_add("ECC reduce test", run_test_reduce, NULL);
 
 	return l_test_run();
 }
