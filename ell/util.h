@@ -409,6 +409,20 @@ static inline bool l_memeqzero(const void *field, size_t size)
 	return l_memeq(field, size, 0);
 }
 
+static inline void l_secure_select(bool select_left,
+				const void *left, const void *right,
+				void *out, size_t len)
+{
+	const uint8_t *l = left;
+	const uint8_t *r = right;
+	uint8_t *o = out;
+	uint8_t mask = -(!!select_left);
+	size_t i;
+
+	for (i = 0; i < len; i++)
+		o[i] = r[i] ^ ((l[i] ^ r[i]) & mask);
+}
+
 #ifdef __cplusplus
 }
 #endif
