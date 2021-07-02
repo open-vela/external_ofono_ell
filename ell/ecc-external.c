@@ -128,9 +128,8 @@ void _vli_rshift1(uint64_t *vli, unsigned int ndigits)
 }
 
 /* Computes result = left + right, returning carry. Can modify in place. */
-static uint64_t vli_add(uint64_t *result, const uint64_t *left,
-							const uint64_t *right,
-							unsigned int ndigits)
+uint64_t _vli_add(uint64_t *result, const uint64_t *left,
+				const uint64_t *right, unsigned int ndigits)
 {
 	uint64_t carry = 0;
 	unsigned int i;
@@ -289,7 +288,7 @@ void _vli_mod_add(uint64_t *result, const uint64_t *left,
 {
 	uint64_t carry;
 
-	carry = vli_add(result, left, right, ndigits);
+	carry = _vli_add(result, left, right, ndigits);
 
 	/* result > mod (result = mod + remainder), so subtract mod to
 	 * get remainder.
@@ -312,7 +311,7 @@ void _vli_mod_sub(uint64_t *result, const uint64_t *left,
 	 * result + mod (with overflow).
 	 */
 	if (borrow)
-		vli_add(result, result, mod, ndigits);
+		_vli_add(result, result, mod, ndigits);
 }
 
 /* Computes p_result = p_product % curve_p.
@@ -328,16 +327,16 @@ static void vli_mmod_fast_192(uint64_t *result, const uint64_t *product,
 	vli_set(result, product, ndigits);
 
 	vli_set(tmp, &product[3], ndigits);
-	carry = vli_add(result, result, tmp, ndigits);
+	carry = _vli_add(result, result, tmp, ndigits);
 
 	tmp[0] = 0;
 	tmp[1] = product[3];
 	tmp[2] = product[4];
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	tmp[0] = tmp[1] = product[5];
 	tmp[2] = 0;
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	while (carry || _vli_cmp(curve_prime, result, ndigits) != 1)
 		carry -= _vli_sub(result, result, curve_prime, ndigits);
@@ -361,28 +360,28 @@ static void vli_mmod_fast_256(uint64_t *result, const uint64_t *product,
 	tmp[2] = product[6];
 	tmp[3] = product[7];
 	carry = vli_lshift(tmp, tmp, 1, ndigits);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s2 */
 	tmp[1] = product[6] << 32;
 	tmp[2] = (product[6] >> 32) | (product[7] << 32);
 	tmp[3] = product[7] >> 32;
 	carry += vli_lshift(tmp, tmp, 1, ndigits);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s3 */
 	tmp[0] = product[4];
 	tmp[1] = product[5] & 0xffffffff;
 	tmp[2] = 0;
 	tmp[3] = product[7];
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s4 */
 	tmp[0] = (product[4] >> 32) | (product[5] << 32);
 	tmp[1] = (product[5] >> 32) | (product[6] & 0xffffffff00000000ull);
 	tmp[2] = product[7];
 	tmp[3] = (product[6] >> 32) | (product[4] << 32);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* d1 */
 	tmp[0] = (product[5] >> 32) | (product[6] << 32);
@@ -414,7 +413,7 @@ static void vli_mmod_fast_256(uint64_t *result, const uint64_t *product,
 
 	if (carry < 0) {
 		do {
-			carry += vli_add(result, result, curve_prime, ndigits);
+			carry += _vli_add(result, result, curve_prime, ndigits);
 		} while (carry < 0);
 	} else {
 		while (carry || _vli_cmp(curve_prime, result, ndigits) != 1)
@@ -464,7 +463,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[4] = 0;
 	tmp[5] = 0;
 	carry = vli_lshift(tmp, tmp, 1, ndigits);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s2 */
 	tmp[0] = product[6];
@@ -473,7 +472,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[3] = product[9];
 	tmp[4] = product[10];
 	tmp[5] = product[11];
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s3 */
 	tmp[0] = ECC_SET_S(product, 22, 21);
@@ -482,7 +481,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[3] = ECC_SET_S(product, 16, 15);
 	tmp[4] = ECC_SET_S(product, 18, 17);
 	tmp[5] = ECC_SET_S(product, 20, 19);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s4 */
 	tmp[0] = ECC_SET_S(product, 23, -1);
@@ -491,7 +490,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[3] = ECC_SET_S(product, 15, 14);
 	tmp[4] = ECC_SET_S(product, 17, 16);
 	tmp[5] = ECC_SET_S(product, 19, 18);
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s5 */
 	tmp[0] = 0;
@@ -500,7 +499,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[3] = ECC_SET_S(product, 23, 22);
 	tmp[4] = 0;
 	tmp[5] = 0;
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s6 */
 	tmp[0] = ECC_SET_S(product, -1, 20);
@@ -509,7 +508,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 	tmp[3] = 0;
 	tmp[4] = 0;
 	tmp[5] = 0;
-	carry += vli_add(result, result, tmp, ndigits);
+	carry += _vli_add(result, result, tmp, ndigits);
 
 	/* s7 */
 	tmp[0] = ECC_SET_S(product, 12, 23);
@@ -540,7 +539,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 
 	if (carry < 0) {
 		do {
-			carry += vli_add(result, result, curve_prime, ndigits);
+			carry += _vli_add(result, result, curve_prime, ndigits);
 		} while (carry < 0);
 	} else {
 		while (carry || _vli_cmp(curve_prime, result, ndigits) != 1)
@@ -627,7 +626,7 @@ void _vli_mod_inv(uint64_t *result, const uint64_t *input,
 			_vli_rshift1(a, ndigits);
 
 			if (!EVEN(u))
-				carry = vli_add(u, u, mod, ndigits);
+				carry = _vli_add(u, u, mod, ndigits);
 
 			_vli_rshift1(u, ndigits);
 			if (carry)
@@ -636,7 +635,7 @@ void _vli_mod_inv(uint64_t *result, const uint64_t *input,
 			_vli_rshift1(b, ndigits);
 
 			if (!EVEN(v))
-				carry = vli_add(v, v, mod, ndigits);
+				carry = _vli_add(v, v, mod, ndigits);
 
 			_vli_rshift1(v, ndigits);
 			if (carry)
@@ -646,11 +645,11 @@ void _vli_mod_inv(uint64_t *result, const uint64_t *input,
 			_vli_rshift1(a, ndigits);
 
 			if (_vli_cmp(u, v, ndigits) < 0)
-				vli_add(u, u, mod, ndigits);
+				_vli_add(u, u, mod, ndigits);
 
 			_vli_sub(u, u, v, ndigits);
 			if (!EVEN(u))
-				carry = vli_add(u, u, mod, ndigits);
+				carry = _vli_add(u, u, mod, ndigits);
 
 			_vli_rshift1(u, ndigits);
 			if (carry)
@@ -660,11 +659,11 @@ void _vli_mod_inv(uint64_t *result, const uint64_t *input,
 			_vli_rshift1(b, ndigits);
 
 			if (_vli_cmp(v, u, ndigits) < 0)
-				vli_add(v, v, mod, ndigits);
+				_vli_add(v, v, mod, ndigits);
 
 			_vli_sub(v, v, u, ndigits);
 			if (!EVEN(v))
-				carry = vli_add(v, v, mod, ndigits);
+				carry = _vli_add(v, v, mod, ndigits);
 
 			_vli_rshift1(v, ndigits);
 			if (carry)
@@ -718,7 +717,7 @@ static void ecc_point_double_jacobian(uint64_t *x1, uint64_t *y1, uint64_t *z1,
 	/* t1 = 3*(x1^2 - z1^4) */
 	_vli_mod_add(x1, x1, z1, curve_prime, ndigits);
 	if (vli_test_bit(x1, 0)) {
-		uint64_t carry = vli_add(x1, x1, curve_prime, ndigits);
+		uint64_t carry = _vli_add(x1, x1, curve_prime, ndigits);
 		_vli_rshift1(x1, ndigits);
 		x1[ndigits - 1] |= carry << 63;
 	} else {
@@ -893,8 +892,8 @@ void _ecc_point_mult(struct l_ecc_point *result,
 	int num_bits;
 	int carry;
 
-	carry = vli_add(sk[0], scalar, curve->n, ndigits);
-	vli_add(sk[1], sk[0], curve->n, ndigits);
+	carry = _vli_add(sk[0], scalar, curve->n, ndigits);
+	_vli_add(sk[1], sk[0], curve->n, ndigits);
 	scalar = sk[!carry];
 	num_bits = sizeof(uint64_t) * ndigits * 8 + 1;
 
