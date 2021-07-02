@@ -667,14 +667,21 @@ LIB_EXPORT bool l_memeq(const void *field, size_t size, uint8_t byte)
 	return true;
 }
 
+__attribute__((noinline)) static int __secure_memeq(const void *field,
+						size_t size, uint8_t byte)
+{
+	unsigned int diff = 0;
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		diff |= ((uint8_t *) field)[i] ^ byte;
+		DO_NOT_OPTIMIZE(diff);
+	}
+
+	return diff;
+}
+
 LIB_EXPORT bool l_secure_memeq(const void *field, size_t size, uint8_t byte)
 {
-	const volatile uint8_t *mem = field;
-	size_t i;
-	bool diff = false;
-
-	for (i = 0; i < size; i++)
-		diff |= mem[i] != byte;
-
-	return !diff;
+	return __secure_memeq(field, size, byte) == 0 ? true : false;
 }
