@@ -150,8 +150,7 @@ static uint64_t vli_add(uint64_t *result, const uint64_t *left,
 
 /* Computes result = left - right, returning borrow. Can modify in place. */
 uint64_t _vli_sub(uint64_t *result, const uint64_t *left,
-							const uint64_t *right,
-							unsigned int ndigits)
+				const uint64_t *right, unsigned int ndigits)
 {
 	uint64_t borrow = 0;
 	unsigned int i;
@@ -903,19 +902,19 @@ void _ecc_point_mult(struct l_ecc_point *result,
 	vli_set(ry[1], point->y, ndigits);
 
 	xycz_initial_double(rx[1], ry[1], rx[0], ry[0], initial_z, curve_prime,
-			    ndigits);
+				ndigits);
 
 	for (i = num_bits - 2; i > 0; i--) {
 		nb = !vli_test_bit(scalar, i);
 		xycz_add_c(rx[1 - nb], ry[1 - nb], rx[nb], ry[nb], curve_prime,
-			   ndigits);
+				ndigits);
 		xycz_add(rx[nb], ry[nb], rx[1 - nb], ry[1 - nb], curve_prime,
-			 ndigits);
+				ndigits);
 	}
 
 	nb = !vli_test_bit(scalar, 0);
 	xycz_add_c(rx[1 - nb], ry[1 - nb], rx[nb], ry[nb], curve_prime,
-		   ndigits);
+			ndigits);
 
 	/* Find final 1/Z value. */
 	/* X1 - X0 */
