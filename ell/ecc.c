@@ -434,6 +434,21 @@ void _vli_mod_exp(uint64_t *result, const uint64_t *base, const uint64_t *exp,
 	memcpy(result, r, ndigits * 8);
 }
 
+__attribute__((noinline)) static int vli_equal(const uint64_t *a,
+							const uint64_t *b,
+							unsigned int ndigits)
+{
+	uint64_t diff = 0;
+	unsigned int i;
+
+	for (i = 0; i < ndigits; i++) {
+		diff |= a[i] ^ b[i];
+		__asm__ ("" : "=r" (diff) : "0" (diff));
+	}
+
+	return (~diff & (diff - 1)) >> 63;
+}
+
 int _vli_legendre(uint64_t *val, const uint64_t *p, unsigned int ndigits)
 {
 	uint64_t tmp[L_ECC_MAX_DIGITS];
@@ -454,19 +469,15 @@ int _vli_legendre(uint64_t *val, const uint64_t *p, unsigned int ndigits)
 	return -1;
 }
 
-static bool vli_is_zero_or_one(const uint64_t *vli, unsigned int ndigits)
+bool _vli_is_zero_or_one(const uint64_t *vli, unsigned int ndigits)
 {
-	unsigned int i;
+	uint64_t _1[L_ECC_MAX_DIGITS] = { 1ull };
+	int ret;
 
-	if (ndigits == 0 || vli[0] > 1)
-		return false;
+	ret = secure_select(vli_equal(vli, _1, ndigits), true, false);
+	ret = secure_select(l_secure_memeq(vli, ndigits * 8, 0), true, ret);
 
-	for (i = 1; i < ndigits; i++) {
-		if (vli[i])
-			return false;
-	}
-
-	return true;
+	return ret;
 }
 
 LIB_EXPORT struct l_ecc_point *l_ecc_point_new(const struct l_ecc_curve *curve)
@@ -620,7 +631,7 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new(
 
 	_ecc_be2native(c->c, buf, curve->ndigits);
 
-	if (!vli_is_zero_or_one(c->c, curve->ndigits) &&
+	if (!_vli_is_zero_or_one(c->c, curve->ndigits) &&
 			secure_memcmp_64(curve->n, c->c, curve->ndigits) > 0)
 		return c;
 
@@ -660,7 +671,7 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_modp(
 
 	_vli_mmod_fast(c->c, tmp, curve->p, curve->ndigits);
 
-	if (!vli_is_zero_or_one(c->c, curve->ndigits) &&
+	if (!_vli_is_zero_or_one(c->c, curve->ndigits) &&
 			secure_memcmp_64(curve->n, c->c, curve->ndigits) > 0)
 		return c;
 
@@ -712,7 +723,7 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_random(
 
 	while (_vli_cmp(r, curve->p, curve->ndigits) > 0 ||
 			_vli_cmp(r, curve->n, curve->ndigits) > 0 ||
-			vli_is_zero_or_one(r, curve->ndigits))
+			_vli_is_zero_or_one(r, curve->ndigits))
 		l_getrandom(r, curve->ndigits * 8);
 
 	return _ecc_constant_new(curve, r, curve->ndigits * 8);

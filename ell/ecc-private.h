@@ -113,6 +113,7 @@ void _vli_mod_exp(uint64_t *result, const uint64_t *base, const uint64_t *exp,
 		const uint64_t *mod, unsigned int ndigits);
 
 int _vli_cmp(const uint64_t *left, const uint64_t *right, unsigned int ndigits);
+bool _vli_is_zero_or_one(const uint64_t *vli, unsigned int ndigits);
 
 uint64_t _vli_add(uint64_t *result, const uint64_t *left,
 				const uint64_t *right, unsigned int ndigits);
