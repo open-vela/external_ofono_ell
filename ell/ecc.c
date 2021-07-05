@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include "ecc.h"
@@ -65,6 +66,7 @@ static const struct l_ecc_curve p256 = {
 	.p = P256_CURVE_P,
 	.n = P256_CURVE_N,
 	.b = P256_CURVE_B,
+	.z = -10,
 };
 
 /*
@@ -98,7 +100,8 @@ static const struct l_ecc_curve p384 = {
 	},
 	.p = P384_CURVE_P,
 	.n = P384_CURVE_N,
-	.b = P384_CURVE_B
+	.b = P384_CURVE_B,
+	.z = -12,
 };
 
 static const struct l_ecc_curve *curves[] = {
@@ -548,6 +551,113 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 failed:
 	l_free(p);
 	return NULL;
+}
+
+LIB_EXPORT struct l_ecc_point *l_ecc_point_from_sswu(
+						const struct l_ecc_scalar *u)
+{
+	const struct l_ecc_curve *curve = u->curve;
+	unsigned int ndigits = curve->ndigits;
+	uint64_t z[L_ECC_MAX_DIGITS] = { abs(curve->z) };
+	uint64_t _3[L_ECC_MAX_DIGITS] = { 3ull }; /* -a = 3 */
+	uint64_t u2z[L_ECC_MAX_DIGITS];
+	uint64_t t1[L_ECC_MAX_DIGITS];
+	uint64_t t2[L_ECC_MAX_DIGITS];
+	uint64_t m[L_ECC_MAX_DIGITS];
+	uint64_t t[L_ECC_MAX_DIGITS];
+	uint64_t x1l[L_ECC_MAX_DIGITS];
+	uint64_t x1r[L_ECC_MAX_DIGITS];
+	uint64_t x1[L_ECC_MAX_DIGITS];
+	uint64_t gx1[L_ECC_MAX_DIGITS];
+	uint64_t x2[L_ECC_MAX_DIGITS];
+	uint64_t gx2[L_ECC_MAX_DIGITS];
+	/* reuse m/t/x1l,x1r, they are unused by the time x/v/y/p-y is needed */
+	uint64_t *x = m;
+	uint64_t *v = t;
+	uint64_t *yl = x1l;
+	uint64_t *yr = x1r;
+	bool l;
+	struct l_ecc_point *P;
+
+	/*
+	 * m = (z^2 * u^4 + z * u^2) modulo p
+	 * u2z = u^2 * z
+	 * t2 = u2z^2
+	 * m = t2 - u2z since for all our curves z is negative
+	 */
+	_vli_mod_square_fast(u2z, u->c, curve->p, ndigits);
+	_vli_mod_mult_fast(u2z, u2z, z, curve->p, ndigits);
+	_vli_mod_square_fast(t2, u2z, curve->p, ndigits);
+	_vli_mod_sub(m, t2, u2z, curve->p, ndigits);
+
+	/*
+	 * l = CEQ(m, 0)
+	 * t = inv0(m) where inv0(x) is calculated as x^(p-2) modulo p
+	 */
+	l = l_secure_memeq(m, sizeof(m), 0);
+
+	memset(t2, 0, sizeof(t2));
+	t2[0] = 2ull;
+	_vli_mod_sub(t1, curve->p, t2, curve->p, ndigits);
+	_vli_mod_exp(t, m, t1, curve->p, ndigits);
+
+	/* Calculate: b / z*a, both z and a are negative */
+	_vli_mod_mult_fast(t1, z, _3, curve->p, ndigits);
+	_vli_mod_inv(t1, t1, curve->p, ndigits);
+	_vli_mod_mult_fast(x1l, curve->b, t1, curve->p, ndigits);
+
+	/* t = 1 + t */
+	memset(t2, 0, sizeof(t2));
+	t2[0] = 1ull;
+	_vli_mod_add(t, t, t2, curve->p, ndigits);
+
+	/* t1 = 1 / a */
+	_vli_mod_inv(t1, _3, curve->p, ndigits);
+
+	/* x1r = b * t1 * t */
+	_vli_mod_mult_fast(x1r, curve->b, t1, curve->p, ndigits);
+	_vli_mod_mult_fast(x1r, x1r, t, curve->p, ndigits);
+
+	/* x1 = CSEL(l, (b / (z*a) modulo p), ((-b/a) * (1 + t)) modulo p) */
+	l_secure_select(l, x1l, x1r, x1, ndigits * 8);
+
+	/* gx1 = (x1^3 + a*x1 + b) modulo p */
+	ecc_compute_y_sqr(curve, gx1, x1);
+
+	/* x2 = (z*u^2*x1) modulo p, z is negative, hence the second op */
+	_vli_mod_mult_fast(x2, u2z, x1, curve->p, ndigits);
+	_vli_mod_sub(x2, curve->p, x2, curve->p, ndigits);
+
+	/* gx2 = (x2^3 + a*x2 + b) modulo p */
+	ecc_compute_y_sqr(curve, gx2, x2);
+
+	/*
+	 * l = gx1 is a quadratic residue modulo p
+	 * x is a quadratic residue if x^((p-1)/2) modulo p is zero or one
+	 */
+	_vli_mod_sub(t1, curve->p, t2, curve->p, ndigits);
+	_vli_rshift1(t1, ndigits);
+	_vli_mod_exp(t2, gx1, t1, curve->p, ndigits);
+	l = _vli_is_zero_or_one(t2, ndigits);
+
+	/* v = CSEL(l, gx1, gx2) */
+	l_secure_select(l, gx1, gx2, v, ndigits * 8);
+	/* x = CSEL(l, x1, x2) */
+	l_secure_select(l, x1, x2, x, ndigits * 8);
+	/* y = sqrt(v) */
+	ecc_compute_sqrt(curve, yl, v);
+	/* l = CEQ(LSB(u), LSB(y)) */
+	l = !((u->c[0] & 1ull) ^ (yl[0] & 1ull));
+
+	/* p - y */
+	_vli_mod_sub(yr, curve->p, yl, curve->p, ndigits);
+
+	/* P = CSEL(l, (x,y), (x, p-y)) */
+	P = l_ecc_point_new(curve);
+	memcpy(P->x, x, ndigits * 8);
+	l_secure_select(l, yl, yr, P->y, ndigits * 8);
+
+	return P;
 }
 
 LIB_EXPORT ssize_t l_ecc_point_get_x(const struct l_ecc_point *p, void *x,

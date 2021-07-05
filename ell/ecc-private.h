@@ -43,6 +43,7 @@ struct l_ecc_curve {
 	uint64_t p[L_ECC_MAX_DIGITS];
 	uint64_t n[L_ECC_MAX_DIGITS];
 	uint64_t b[L_ECC_MAX_DIGITS];
+	int z;
 };
 
 struct l_ecc_scalar {
