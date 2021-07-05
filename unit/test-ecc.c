@@ -355,6 +355,17 @@ static void run_test_reduce(const void *arg)
 	l_ecc_scalar_free(reduced);
 }
 
+static void run_test_zero_or_one(const void *arg)
+{
+	uint64_t zero[L_ECC_MAX_DIGITS] = { };
+	uint64_t _1[L_ECC_MAX_DIGITS] = { 1ull };
+	uint64_t _2[L_ECC_MAX_DIGITS] = { 2ull };
+
+	assert(_vli_is_zero_or_one(zero, L_ECC_MAX_DIGITS));
+	assert(_vli_is_zero_or_one(_1, L_ECC_MAX_DIGITS));
+	assert(!_vli_is_zero_or_one(_2, L_ECC_MAX_DIGITS));
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -375,6 +386,7 @@ int main(int argc, char *argv[])
 	l_test_add("ECC legendre", run_test_p256, &legendre_test6);
 
 	l_test_add("ECC reduce test", run_test_reduce, NULL);
+	l_test_add("ECC zero or one test", run_test_zero_or_one, NULL);
 
 	return l_test_run();
 }
