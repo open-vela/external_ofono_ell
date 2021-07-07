@@ -57,6 +57,7 @@ struct l_ecc_point *l_ecc_point_from_data(const struct l_ecc_curve *curve,
 					enum l_ecc_point_type type,
 					const void *data, size_t len);
 struct l_ecc_point *l_ecc_point_from_sswu(const struct l_ecc_scalar *u);
+struct l_ecc_point *l_ecc_point_clone(const struct l_ecc_point *p);
 
 ssize_t l_ecc_point_get_x(const struct l_ecc_point *p, void *x, size_t xlen);
 ssize_t l_ecc_point_get_y(const struct l_ecc_point *p, void *y, size_t ylen);
