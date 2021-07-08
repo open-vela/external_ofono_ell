@@ -109,64 +109,7 @@ static const struct l_ecc_curve *curves[] = {
 	&p384,
 };
 
-LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_get(const char *name)
-{
-	int i;
-
-	if (unlikely(!name))
-		return NULL;
-
-	for (i = 0; curves[i]; i++) {
-		if (!strcmp(curves[i]->name, name))
-			return curves[i];
-	}
-
-	return NULL;
-}
-
-LIB_EXPORT const char *l_ecc_curve_get_name(const struct l_ecc_curve *curve)
-{
-	if (unlikely(!curve))
-		return NULL;
-
-	return curve->name;
-}
-
-LIB_EXPORT size_t l_ecc_curve_get_scalar_bytes(const struct l_ecc_curve *curve)
-{
-	if (unlikely(!curve))
-		return 0;
-
-	return curve->ndigits * 8;
-}
-
-LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_get_ike_group(
-							unsigned int group)
-{
-	unsigned int i;
-
-	for (i = 0; i < L_ARRAY_SIZE(curves); i++) {
-		if (curves[i]->ike_group == group)
-			return curves[i];
-	}
-
-	return NULL;
-}
-
-LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_get_tls_group(
-							unsigned int group)
-{
-	unsigned int i;
-
-	for (i = 0; i < L_ARRAY_SIZE(curves); i++) {
-		if (curves[i]->tls_group == group)
-			return curves[i];
-	}
-
-	return NULL;
-}
-
-LIB_EXPORT const unsigned int *l_ecc_curve_get_supported_ike_groups(void)
+LIB_EXPORT const unsigned int *l_ecc_supported_ike_groups(void)
 {
 	static unsigned int supported_ike_groups[L_ARRAY_SIZE(curves) + 1];
 	static bool ike_first = true;
@@ -184,7 +127,7 @@ LIB_EXPORT const unsigned int *l_ecc_curve_get_supported_ike_groups(void)
 	return supported_ike_groups;
 }
 
-LIB_EXPORT const unsigned int *l_ecc_curve_get_supported_tls_groups(void)
+LIB_EXPORT const unsigned int *l_ecc_supported_tls_groups(void)
 {
 	static unsigned int supported_tls_groups[L_ARRAY_SIZE(curves) + 1];
 	static bool tls_first = true;
@@ -200,6 +143,78 @@ LIB_EXPORT const unsigned int *l_ecc_curve_get_supported_tls_groups(void)
 	}
 
 	return supported_tls_groups;
+}
+
+LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_from_name(const char *name)
+{
+	int i;
+
+	if (unlikely(!name))
+		return NULL;
+
+	for (i = 0; curves[i]; i++) {
+		if (!strcmp(curves[i]->name, name))
+			return curves[i];
+	}
+
+	return NULL;
+}
+
+LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_from_ike_group(
+							unsigned int group)
+{
+	unsigned int i;
+
+	for (i = 0; i < L_ARRAY_SIZE(curves); i++) {
+		if (curves[i]->ike_group == group)
+			return curves[i];
+	}
+
+	return NULL;
+}
+
+LIB_EXPORT const struct l_ecc_curve *l_ecc_curve_from_tls_group(
+							unsigned int group)
+{
+	unsigned int i;
+
+	for (i = 0; i < L_ARRAY_SIZE(curves); i++) {
+		if (curves[i]->tls_group == group)
+			return curves[i];
+	}
+
+	return NULL;
+}
+
+LIB_EXPORT const char *l_ecc_curve_get_name(const struct l_ecc_curve *curve)
+{
+	if (unlikely(!curve))
+		return NULL;
+
+	return curve->name;
+}
+
+LIB_EXPORT struct l_ecc_scalar *l_ecc_curve_get_order(
+						const struct l_ecc_curve *curve)
+{
+	return _ecc_constant_new(curve, curve->n, curve->ndigits * 8);
+}
+
+LIB_EXPORT struct l_ecc_scalar *l_ecc_curve_get_prime(
+						const struct l_ecc_curve *curve)
+{
+	if (unlikely(!curve))
+		return NULL;
+
+	return _ecc_constant_new(curve, curve->p, curve->ndigits * 8);
+}
+
+LIB_EXPORT size_t l_ecc_curve_get_scalar_bytes(const struct l_ecc_curve *curve)
+{
+	if (unlikely(!curve))
+		return 0;
+
+	return curve->ndigits * 8;
 }
 
 static bool ecc_valid_point(struct l_ecc_point *point)
@@ -867,12 +882,6 @@ LIB_EXPORT void l_ecc_scalar_free(struct l_ecc_scalar *c)
 	l_free(c);
 }
 
-LIB_EXPORT struct l_ecc_scalar *l_ecc_curve_get_order(
-						const struct l_ecc_curve *curve)
-{
-	return _ecc_constant_new(curve, curve->n, curve->ndigits * 8);
-}
-
 LIB_EXPORT bool l_ecc_scalar_add(struct l_ecc_scalar *ret,
 					const struct l_ecc_scalar *a,
 					const struct l_ecc_scalar *b,
@@ -949,15 +958,6 @@ LIB_EXPORT bool l_ecc_scalar_sum_x(struct l_ecc_scalar *ret,
 	ecc_compute_y_sqr(x->curve, ret->c, x->c);
 
 	return true;
-}
-
-LIB_EXPORT struct l_ecc_scalar *l_ecc_curve_get_prime(
-						const struct l_ecc_curve *curve)
-{
-	if (unlikely(!curve))
-		return NULL;
-
-	return _ecc_constant_new(curve, curve->p, curve->ndigits * 8);
 }
 
 LIB_EXPORT bool l_ecc_scalars_are_equal(const struct l_ecc_scalar *a,
