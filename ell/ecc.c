@@ -194,6 +194,15 @@ LIB_EXPORT const char *l_ecc_curve_get_name(const struct l_ecc_curve *curve)
 	return curve->name;
 }
 
+LIB_EXPORT unsigned int l_ecc_curve_get_ike_group(
+					const struct l_ecc_curve *curve)
+{
+	if (unlikely(!curve))
+		return 0;
+
+	return curve->ike_group;
+}
+
 LIB_EXPORT struct l_ecc_scalar *l_ecc_curve_get_order(
 						const struct l_ecc_curve *curve)
 {
