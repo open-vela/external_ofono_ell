@@ -218,7 +218,7 @@ static void run_test_p256(const void *arg)
 			scalar[L_ECC_MAX_DIGITS], result[L_ECC_MAX_DIGITS],
 			check[L_ECC_MAX_DIGITS];
 	struct l_ecc_point point1, point2, point_ret;
-	const struct l_ecc_curve *curve = l_ecc_curve_get_ike_group(19);
+	const struct l_ecc_curve *curve = l_ecc_curve_from_ike_group(19);
 
 	point_ret.curve = curve;
 
@@ -326,7 +326,7 @@ static void run_test_reduce(const void *arg)
 		0x0c, 0x46, 0x35, 0x3d, 0x03, 0x9c, 0xda, 0xb0,
 	};
 
-	const struct l_ecc_curve *p256 = l_ecc_curve_get_ike_group(19);
+	const struct l_ecc_curve *p256 = l_ecc_curve_from_ike_group(19);
 	struct l_ecc_scalar *tmp;
 	struct l_ecc_scalar *reduced;
 	char buf[32];
