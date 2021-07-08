@@ -547,6 +547,7 @@ global:
 	l_ecc_curve_from_tls_group;
 	l_ecc_curve_get_name;
 	l_ecc_curve_get_ike_group;
+	l_ecc_curve_get_tls_group;
 	l_ecc_curve_get_scalar_bytes;
 	l_ecc_curve_get_order;
 	l_ecc_curve_get_prime;

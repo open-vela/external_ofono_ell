@@ -53,6 +53,7 @@ const struct l_ecc_curve *l_ecc_curve_from_tls_group(unsigned int group);
 
 const char *l_ecc_curve_get_name(const struct l_ecc_curve *curve);
 unsigned int l_ecc_curve_get_ike_group(const struct l_ecc_curve *curve);
+unsigned int l_ecc_curve_get_tls_group(const struct l_ecc_curve *curve);
 struct l_ecc_scalar *l_ecc_curve_get_order(const struct l_ecc_curve *curve);
 struct l_ecc_scalar *l_ecc_curve_get_prime(const struct l_ecc_curve *curve);
 size_t l_ecc_curve_get_scalar_bytes(const struct l_ecc_curve *curve);
