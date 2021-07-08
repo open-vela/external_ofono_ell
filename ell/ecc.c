@@ -701,6 +701,15 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_clone(const struct l_ecc_point *p)
 	return l_memdup(p, sizeof(*p));
 }
 
+LIB_EXPORT const struct l_ecc_curve *l_ecc_point_get_curve(
+						const struct l_ecc_point *p)
+{
+	if (!p)
+		return NULL;
+
+	return p->curve;
+}
+
 LIB_EXPORT ssize_t l_ecc_point_get_x(const struct l_ecc_point *p, void *x,
 					size_t xlen)
 {
