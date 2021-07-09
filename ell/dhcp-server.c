@@ -259,6 +259,8 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 
 	memcpy(lease->mac, chaddr, ETH_ALEN);
 	lease->address = yiaddr;
+	lease->subnet_mask = server->netmask;
+	lease->router = server->gateway;
 
 	lease->offering = offering;
 	lease->bound_time = l_time_now();
