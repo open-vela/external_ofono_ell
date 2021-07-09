@@ -448,13 +448,13 @@ static void send_offer(struct l_dhcp_server *server,
 							client_msg->chaddr);
 
 	if (!reply->yiaddr) {
-		SERVER_DEBUG("Could not find lease or send offer");
+		SERVER_DEBUG("No free IP addresses, OFFER abandoned");
 		return;
 	}
 
 	lease = add_lease(server, true, client_msg->chaddr, reply->yiaddr);
 	if (!lease) {
-		SERVER_DEBUG("No free IP addresses, OFFER abandoned");
+		SERVER_DEBUG("add_lease() failed");
 		return;
 	}
 
