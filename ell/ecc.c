@@ -105,10 +105,11 @@ static const struct l_ecc_curve p384 = {
 };
 
 static const struct l_ecc_curve *curves[] = {
-	&p256,
 	&p384,
+	&p256,
 };
 
+/* Returns supported IKE groups, sorted by the highest effective key size */
 LIB_EXPORT const unsigned int *l_ecc_supported_ike_groups(void)
 {
 	static unsigned int supported_ike_groups[L_ARRAY_SIZE(curves) + 1];
@@ -127,6 +128,7 @@ LIB_EXPORT const unsigned int *l_ecc_supported_ike_groups(void)
 	return supported_ike_groups;
 }
 
+/* Returns supported TLS groups, sorted by the highest effective key size */
 LIB_EXPORT const unsigned int *l_ecc_supported_tls_groups(void)
 {
 	static unsigned int supported_tls_groups[L_ARRAY_SIZE(curves) + 1];
