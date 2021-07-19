@@ -126,16 +126,6 @@ static struct l_dhcp_lease *find_lease_by_mac(struct l_dhcp_server *server,
 	return l_queue_find(server->lease_list, match_lease_mac, mac);
 }
 
-static bool remove_lease(struct l_dhcp_server *server,
-				struct l_dhcp_lease *lease)
-{
-	if (!l_queue_remove(server->lease_list, lease))
-		return false;
-
-	_dhcp_lease_free(lease);
-	return true;
-}
-
 /* Clear the old lease and create the new one */
 static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
 				const uint8_t *mac,
@@ -198,6 +188,9 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 					struct l_dhcp_lease *expired)
 {
 	struct l_dhcp_lease *next;
+	uint64_t expiry;
+	uint64_t now;
+	uint64_t next_timeout;
 
 	/*
 	 * If this is an expiring lease put it into the expired queue, removing
@@ -206,32 +199,35 @@ static void set_next_expire_timer(struct l_dhcp_server *server,
 	if (expired) {
 		l_queue_remove(server->lease_list, expired);
 
-		if (l_queue_length(server->expired_list) > server->max_expired)
-			_dhcp_lease_free(l_queue_pop_head(
+		if (!expired->offering) {
+			if (l_queue_length(server->expired_list) >
+					server->max_expired)
+				_dhcp_lease_free(l_queue_pop_head(
 							server->expired_list));
 
-		l_queue_push_tail(server->expired_list, expired);
+			l_queue_push_tail(server->expired_list, expired);
+		} else
+			_dhcp_lease_free(expired);
 	}
 
 	next = l_queue_peek_tail(server->lease_list);
-	if (!next || next->offering) {
+	if (!next) {
 		l_timeout_remove(server->next_expire);
 		server->next_expire = NULL;
 		return;
 	}
 
-	if (server->next_expire) {
-		uint64_t expiry = get_lease_expiry_time(next);
-		uint64_t now = l_time_now();
-		uint64_t next_timeout = l_time_after(expiry, now) ?
-			l_time_to_msecs(expiry - now) : 0;
+	expiry = get_lease_expiry_time(next);
+	now = l_time_now();
+	next_timeout = l_time_after(expiry, now) ?
+		l_time_to_msecs(expiry - now) : 0;
 
+	if (server->next_expire)
 		l_timeout_modify_ms(server->next_expire, next_timeout ?: 1);
-	} else
-		server->next_expire = l_timeout_create(
-						server->lease_seconds,
-						lease_expired_cb,
-						server, NULL);
+	else
+		server->next_expire = l_timeout_create(next_timeout ?: 1,
+							lease_expired_cb,
+							server, NULL);
 }
 
 static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
@@ -239,7 +235,7 @@ static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
 	struct l_dhcp_server *server = user_data;
 	struct l_dhcp_lease *lease = l_queue_peek_tail(server->lease_list);
 
-	if (server->event_handler)
+	if (!lease->offering && server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_LEASE_EXPIRED,
 					server->user_data, lease);
 
@@ -276,22 +272,34 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 		 */
 		l_queue_insert(server->lease_list, lease,
 					compare_expiry_or_offering, NULL);
-		/*
-		 * This is a new (or renewed lease) so pass NULL for expired so
-		 * the queue's are not modified, only the next_expired timer
-		 */
-		set_next_expire_timer(server, NULL);
 	} else {
 		lease->lifetime = OFFER_TIME;
 		/* Push offered leases to head, active leases after those */
 		l_queue_push_head(server->lease_list, lease);
 	}
 
+	/*
+	 * This is a new (or renewed) lease so pass NULL for expired so the
+	 * queues are not modified, only the next_expire timer.
+	 */
+	set_next_expire_timer(server, NULL);
+
 	SERVER_DEBUG("added lease IP "NIPQUAD_FMT " for "MAC " lifetime=%u",
 			NIPQUAD(yiaddr), MAC_STR(chaddr),
 			server->lease_seconds);
 
 	return lease;
+}
+
+static bool remove_lease(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease)
+{
+	if (!l_queue_remove(server->lease_list, lease))
+		return false;
+
+	_dhcp_lease_free(lease);
+	set_next_expire_timer(server, NULL);
+	return true;
 }
 
 static void lease_release(struct l_dhcp_server *server,
