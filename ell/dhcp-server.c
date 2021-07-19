@@ -126,12 +126,14 @@ static struct l_dhcp_lease *find_lease_by_mac(struct l_dhcp_server *server,
 	return l_queue_find(server->lease_list, match_lease_mac, mac);
 }
 
-static void remove_lease(struct l_dhcp_server *server,
+static bool remove_lease(struct l_dhcp_server *server,
 				struct l_dhcp_lease *lease)
 {
-	l_queue_remove(server->lease_list, lease);
+	if (!l_queue_remove(server->lease_list, lease))
+		return false;
 
 	_dhcp_lease_free(lease);
+	return true;
 }
 
 /* Clear the old lease and create the new one */
@@ -1041,4 +1043,104 @@ LIB_EXPORT bool l_dhcp_server_set_dns(struct l_dhcp_server *server, char **dns)
 failed:
 	l_free(dns_list);
 	return false;
+}
+
+LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
+						struct l_dhcp_server *server,
+						uint32_t requested_ip_opt,
+						const uint8_t *mac)
+{
+	struct l_dhcp_lease *lease;
+
+	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
+			NIPQUAD(requested_ip_opt), MAC_STR(mac));
+
+	if ((lease = find_lease_by_mac(server, mac)))
+		requested_ip_opt = lease->address;
+	else if (!check_requested_ip(server, requested_ip_opt)) {
+		requested_ip_opt = find_free_or_expired_ip(server, mac);
+
+		if (unlikely(!requested_ip_opt)) {
+			SERVER_DEBUG("Could not find any free addresses");
+			return NULL;
+		}
+	}
+
+	lease = add_lease(server, true, mac, requested_ip_opt);
+	if (unlikely(!lease)) {
+		SERVER_DEBUG("add_lease() failed");
+		return NULL;
+	}
+
+	SERVER_DEBUG("Offering " NIPQUAD_FMT " to " MAC,
+			NIPQUAD(requested_ip_opt), MAC_STR(mac));
+	return lease;
+}
+
+LIB_EXPORT bool l_dhcp_server_request(struct l_dhcp_server *server,
+					struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return false;
+
+	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
+			NIPQUAD(lease->address), MAC_STR(lease->mac));
+
+	lease = add_lease(server, false, lease->mac, lease->address);
+
+	if (server->event_handler)
+		server->event_handler(server, L_DHCP_SERVER_EVENT_NEW_LEASE,
+					server->user_data, lease);
+
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp_server_decline(struct l_dhcp_server *server,
+					struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease || !lease->offering))
+		return false;
+
+	SERVER_DEBUG("Declined IP " NIPQUAD_FMT " for " MAC,
+			NIPQUAD(lease->address), MAC_STR(lease->mac));
+
+	return remove_lease(server, lease);
+}
+
+LIB_EXPORT bool l_dhcp_server_release(struct l_dhcp_server *server,
+					struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease || lease->offering))
+		return false;
+
+	SERVER_DEBUG("Released IP " NIPQUAD_FMT " for " MAC,
+			NIPQUAD(lease->address), MAC_STR(lease->mac));
+
+	lease_release(server, lease);
+	return true;
+}
+
+/* Drop an offered, active or expired lease without moving it to expired_list */
+LIB_EXPORT bool l_dhcp_server_lease_remove(struct l_dhcp_server *server,
+						struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return false;
+
+	if (unlikely(!l_queue_remove(server->lease_list, lease) &&
+			!l_queue_remove(server->expired_list, lease)))
+		return false;
+
+	_dhcp_lease_free(lease);
+	set_next_expire_timer(server, NULL);
+	return true;
+}
+
+LIB_EXPORT void l_dhcp_server_expire_by_mac(struct l_dhcp_server *server,
+						const uint8_t *mac)
+{
+	struct l_dhcp_lease *lease = find_lease_by_mac(server, mac);
+
+	if (likely(lease))
+		lease_release(server, lease);
 }
