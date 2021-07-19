@@ -259,6 +259,12 @@ global:
 	l_dhcp_server_set_netmask;
 	l_dhcp_server_set_gateway;
 	l_dhcp_server_set_dns;
+	l_dhcp_server_discover;
+	l_dhcp_server_request;
+	l_dhcp_server_decline;
+	l_dhcp_server_release;
+	l_dhcp_server_lease_remove;
+	l_dhcp_server_lease_expire_by_mac;
 	/* dhcp6 */
 	l_dhcp6_client_new;
 	l_dhcp6_client_destroy;

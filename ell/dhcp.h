@@ -141,6 +141,21 @@ bool l_dhcp_server_set_ip_address(struct l_dhcp_server *server,
 bool l_dhcp_server_set_netmask(struct l_dhcp_server *server, const char *mask);
 bool l_dhcp_server_set_gateway(struct l_dhcp_server *server, const char *ip);
 bool l_dhcp_server_set_dns(struct l_dhcp_server *server, char **dns);
+
+struct l_dhcp_lease *l_dhcp_server_discover(struct l_dhcp_server *server,
+						uint32_t requested_ip_opt,
+						const uint8_t *mac);
+bool l_dhcp_server_request(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease);
+bool l_dhcp_server_decline(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease);
+bool l_dhcp_server_release(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease);
+
+bool l_dhcp_server_lease_remove(struct l_dhcp_server *server,
+				struct l_dhcp_lease *lease);
+void l_dhcp_server_expire_by_mac(struct l_dhcp_server *server,
+					const uint8_t *mac);
 #ifdef __cplusplus
 }
 #endif
