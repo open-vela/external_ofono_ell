@@ -90,6 +90,9 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 				lease->broadcast = l_get_u32(v);
 			break;
 		case L_DHCP_OPTION_DOMAIN_NAME_SERVER:
+			if (lease->dns)
+				goto error;
+
 			if (l >= 4 && !(l % 4)) {
 				unsigned i = 0;
 
@@ -105,7 +108,7 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 			}
 			break;
 		case L_DHCP_OPTION_DOMAIN_NAME:
-			if (l < 1 || l > 253)
+			if (l < 1 || l > 253 || lease->domain_name)
 				goto error;
 
 			/* Disallow embedded NUL bytes. */
