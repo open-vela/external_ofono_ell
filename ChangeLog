@@ -1,3 +1,7 @@
+ver 0.42:
+	Add support for constant time security functions.
+	Add support for manipulating DHCP leases.
+
 ver 0.41:
 	Fix issue with endianness of DHCP packets.
 	Fix issue with lease handling of the DHCP server.
