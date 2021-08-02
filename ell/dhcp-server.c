@@ -798,6 +798,17 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		}
 
 		/*
+		 * As an extension, check if we have an expired lease matching
+		 * the requested IP and the client ID/mac and if so, allow the
+		 * lease to be re-activated.
+		 */
+		if (!lease && requested_ip_opt)
+			lease = find_lease_by_id_and_ip(server->expired_list,
+							client_id_opt,
+							message->chaddr,
+							requested_ip_opt);
+
+		/*
 		 * RFC2131 Section 3.5: "If the selected server is unable to
 		 * satisfy the DHCPREQUEST message (...), the server SHOULD
 		 * respond with a DHCPNAK message."
