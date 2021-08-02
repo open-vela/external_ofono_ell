@@ -658,7 +658,8 @@ static void send_nak(struct l_dhcp_server *server,
 
 static void send_ack(struct l_dhcp_server *server,
 			const struct dhcp_message *client_msg,
-			struct l_dhcp_lease *lease)
+			struct l_dhcp_lease *lease,
+			bool rapid_commit)
 {
 	struct dhcp_message_builder builder;
 	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
@@ -683,6 +684,10 @@ static void send_ack(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_append(&builder, L_DHCP_OPTION_SERVER_IDENTIFIER,
 					4, &server->address);
+
+	if (rapid_commit)
+		_dhcp_message_builder_append(&builder, DHCP_OPTION_RAPID_COMMIT,
+						0, "");
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
@@ -712,6 +717,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	bool server_id_match = true;
 	uint32_t requested_ip_opt = 0;
 	L_AUTO_FREE_VAR(uint8_t *, client_id_opt) = NULL;
+	bool rapid_commit_opt = false;
 
 	SERVER_DEBUG("");
 
@@ -745,6 +751,9 @@ static void listener_event(const void *data, size_t len, void *user_data)
 			client_id_opt[0] = l;
 			memcpy(client_id_opt + 1, v, l);
 			break;
+		case DHCP_OPTION_RAPID_COMMIT:
+			rapid_commit_opt = true;
+			break;
 		}
 	}
 
@@ -771,6 +780,19 @@ static void listener_event(const void *data, size_t len, void *user_data)
 
 		if (!server_id_match)
 			break;
+
+		if (rapid_commit_opt) {
+			lease = l_dhcp_server_discover(server, requested_ip_opt,
+							client_id_opt,
+							message->chaddr);
+			if (!lease) {
+				send_nak(server, message, client_id_opt);
+				break;
+			}
+
+			send_ack(server, message, lease, rapid_commit_opt);
+			break;
+		}
 
 		send_offer(server, message, lease, requested_ip_opt,
 				client_id_opt);
@@ -868,7 +890,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 			}
 		}
 
-		send_ack(server, message, lease);
+		send_ack(server, message, lease, false);
 		break;
 	case DHCP_MESSAGE_TYPE_DECLINE:
 		SERVER_DEBUG("Received DECLINE");
