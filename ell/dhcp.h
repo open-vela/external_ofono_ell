@@ -143,6 +143,8 @@ bool l_dhcp_server_set_gateway(struct l_dhcp_server *server, const char *ip);
 bool l_dhcp_server_set_dns(struct l_dhcp_server *server, char **dns);
 void l_dhcp_server_set_authoritative(struct l_dhcp_server *server,
 					bool authoritative);
+void l_dhcp_server_set_enable_rapid_commit(struct l_dhcp_server *server,
+						bool enable);
 
 struct l_dhcp_lease *l_dhcp_server_discover(struct l_dhcp_server *server,
 						uint32_t requested_ip_opt,

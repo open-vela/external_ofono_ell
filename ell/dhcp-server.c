@@ -89,6 +89,7 @@ struct l_dhcp_server {
 	struct l_acd *acd;
 
 	bool authoritative : 1;
+	bool rapid_commit : 1;
 };
 
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -781,7 +782,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		if (!server_id_match)
 			break;
 
-		if (rapid_commit_opt) {
+		if (rapid_commit_opt && server->rapid_commit) {
 			lease = l_dhcp_server_discover(server, requested_ip_opt,
 							client_id_opt,
 							message->chaddr);
@@ -966,6 +967,7 @@ LIB_EXPORT struct l_dhcp_server *l_dhcp_server_new(int ifindex)
 
 	server->started = false;
 	server->authoritative = true;
+	server->rapid_commit = true;
 
 	server->lease_seconds = DEFAULT_DHCP_LEASE_SEC;
 	server->max_expired = MAX_EXPIRED_LEASES;
@@ -1306,6 +1308,16 @@ LIB_EXPORT void l_dhcp_server_set_authoritative(struct l_dhcp_server *server,
 		return;
 
 	server->authoritative = authoritative;
+}
+
+LIB_EXPORT void l_dhcp_server_set_enable_rapid_commit(
+						struct l_dhcp_server *server,
+						bool enable)
+{
+	if (unlikely(!server))
+		return;
+
+	server->rapid_commit = enable;
 }
 
 LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
