@@ -1266,13 +1266,16 @@ LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
 LIB_EXPORT bool l_dhcp_server_request(struct l_dhcp_server *server,
 					struct l_dhcp_lease *lease)
 {
+	uint8_t mac[ETH_ALEN];
+
 	if (unlikely(!lease))
 		return false;
 
 	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
 			NIPQUAD(lease->address), MAC_STR(lease->mac));
 
-	lease = add_lease(server, false, NULL, lease->mac, lease->address);
+	memcpy(mac, lease->mac, ETH_ALEN);
+	lease = add_lease(server, false, NULL, mac, lease->address);
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_NEW_LEASE,
