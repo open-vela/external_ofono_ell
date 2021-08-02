@@ -736,7 +736,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		SERVER_DEBUG("Received DECLINE");
 
 		if (!server_id_opt || !server_id_match || !requested_ip_opt ||
-				!lease || !lease->offering)
+				!lease)
 			break;
 
 		if (requested_ip_opt == lease->address)
