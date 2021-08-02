@@ -420,6 +420,71 @@ static void server_message_init(struct l_dhcp_server *server,
 	reply->ciaddr = client_msg->ciaddr;
 }
 
+static bool server_message_send(struct l_dhcp_server *server,
+				struct dhcp_message *reply, size_t len,
+				uint8_t type)
+{
+	uint32_t daddr;
+	uint16_t dport;
+	const uint8_t *dest_mac;
+
+	/*
+	 * RFC2131 Section 4.1: "If the 'giaddr' field in a DHCP message from
+	 * a client is non-zero, the server sends any return messages to the
+	 * 'DHCP server' port on the BOOTP relay agent whose address appears
+	 * in 'giaddr'. If the 'giaddr' field is zero and the 'ciaddr' field
+	 * is nonzero, then the server unicasts DHCPOFFER and DHCPACK messages
+	 * to the address in 'ciaddr'.  If 'giaddr' is zero and 'ciaddr' is
+	 * zero, and the broadcast bit is set, then the server broadcasts
+	 * DHCPOFFER and DHCPACK messages to 0xffffffff. If the broadcast bit
+	 * is not set and 'giaddr' is zero and 'ciaddr' is zero, then the
+	 * server unicasts DHCPOFFER and DHCPACK messages to the client's
+	 * hardware address and 'yiaddr' address.  In all cases, when 'giaddr'
+	 * is zero, the server broadcasts any DHCPNAK messages to 0xffffffff."
+	 *
+	 * 4.3.2: "If 'giaddr' is set in the DHCPREQUEST message, the client
+	 * is on a different subnet.  The server MUST set the broadcast bit in
+	 * the DHCPNAK, so that the relay agent will broadcast the DHCPNAK to
+	 * the client, because the client may not have a correct network
+	 * address or subnet mask, and the client may not be answering ARP
+	 * requests."
+	 */
+	if (reply->giaddr) {
+		dport = DHCP_PORT_SERVER;
+		daddr = reply->giaddr;
+		dest_mac = reply->chaddr;
+
+		if (type == DHCP_MESSAGE_TYPE_NAK)
+			reply->flags |= L_CPU_TO_BE16(DHCP_FLAG_BROADCAST);
+	} else {
+		dport = DHCP_PORT_CLIENT;
+
+		if (type == DHCP_MESSAGE_TYPE_NAK) {
+			daddr = 0xffffffff;
+			dest_mac = MAC_BCAST_ADDR;
+		} else if (reply->ciaddr) {
+			daddr = reply->ciaddr;
+			dest_mac = reply->chaddr;
+		} else if (L_BE16_TO_CPU(reply->flags) & DHCP_FLAG_BROADCAST) {
+			daddr = 0xffffffff;
+			dest_mac = MAC_BCAST_ADDR;
+		} else {
+			daddr = reply->yiaddr;
+			dest_mac = reply->chaddr;
+		}
+	}
+
+	if (server->transport->l2_send(server->transport, server->address,
+					DHCP_PORT_SERVER, daddr, dport,
+					dest_mac, reply, len) < 0) {
+		SERVER_DEBUG("Failed to send %s",
+				_dhcp_message_type_to_string(type));
+		return false;
+	}
+
+	return true;
+}
+
 static void add_server_options(struct l_dhcp_server *server,
 				struct dhcp_message_builder *builder)
 {
@@ -491,11 +556,7 @@ static void send_offer(struct l_dhcp_server *server,
 	SERVER_DEBUG("Sending OFFER of "NIPQUAD_FMT " to "MAC,
 			NIPQUAD(reply->yiaddr),	MAC_STR(reply->chaddr));
 
-	if (server->transport->l2_send(server->transport, server->address,
-					DHCP_PORT_SERVER,
-					reply->ciaddr, DHCP_PORT_CLIENT,
-					reply->chaddr, reply, len) < 0)
-		SERVER_DEBUG("Failed to send OFFER");
+	server_message_send(server, reply, len, DHCP_MESSAGE_TYPE_OFFER);
 }
 
 static void send_inform(struct l_dhcp_server *server,
@@ -515,11 +576,7 @@ static void send_inform(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
-	if (server->transport->l2_send(server->transport, server->address,
-					DHCP_PORT_SERVER, reply->ciaddr,
-					DHCP_PORT_CLIENT, reply->chaddr,
-					reply, len) < 0)
-		SERVER_DEBUG("Failed to send INFORM");
+	server_message_send(server, reply, len, DHCP_MESSAGE_TYPE_INFORM);
 }
 
 static void send_nak(struct l_dhcp_server *server,
@@ -537,11 +594,7 @@ static void send_nak(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_finalize(&builder, &len);
 
-	if (server->transport->l2_send(server->transport, server->address,
-					DHCP_PORT_SERVER, reply->ciaddr,
-					DHCP_PORT_CLIENT, MAC_BCAST_ADDR,
-					reply, len) < 0)
-		SERVER_DEBUG("Failed to send NACK");
+	server_message_send(server, reply, len, DHCP_MESSAGE_TYPE_NAK);
 }
 
 static void send_ack(struct l_dhcp_server *server,
@@ -574,13 +627,8 @@ static void send_ack(struct l_dhcp_server *server,
 
 	SERVER_DEBUG("Sending ACK to "NIPQUAD_FMT, NIPQUAD(reply->yiaddr));
 
-	if (server->transport->l2_send(server->transport, server->address,
-					DHCP_PORT_SERVER, reply->ciaddr,
-					DHCP_PORT_CLIENT,
-					reply->chaddr, reply, len) < 0) {
-		SERVER_DEBUG("Failed to send ACK");
+	if (!server_message_send(server, reply, len, DHCP_MESSAGE_TYPE_ACK))
 		return;
-	}
 
 	lease = add_lease(server, false, reply->chaddr, reply->yiaddr);
 
