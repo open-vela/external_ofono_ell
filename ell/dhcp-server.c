@@ -411,7 +411,7 @@ static uint32_t find_free_or_expired_ip(struct l_dhcp_server *server,
 			continue;
 
 		lease = find_lease_by_ip(server->expired_list, ip_nl);
-		if (lease)
+		if (lease && memcmp(lease->mac, safe_mac, ETH_ALEN))
 			continue;
 
 		if (arp_check(ip_nl, safe_mac))
