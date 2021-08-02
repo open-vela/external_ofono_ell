@@ -73,7 +73,9 @@ bool _dhcp_message_builder_append(struct dhcp_message_builder *builder,
 
 		builder->pos[0] = code;
 		builder->pos[1] = optlen;
-		memcpy(builder->pos + 2, optval, optlen);
+
+		if (optlen)
+			memcpy(builder->pos + 2, optval, optlen);
 
 		builder->pos += optlen + 2;
 		break;
