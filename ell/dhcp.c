@@ -361,6 +361,8 @@ static int dhcp_client_send_discover(struct l_dhcp_client *client)
 						client->hostname))
 			return -EINVAL;
 
+	_dhcp_message_builder_append(&builder, DHCP_OPTION_RAPID_COMMIT,
+					0, "");
 	_dhcp_message_builder_finalize(&builder, &len);
 
 	return client->transport->l2_send(client->transport,
@@ -815,6 +817,17 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 	case DHCP_STATE_INIT:
 		return;
 	case DHCP_STATE_SELECTING:
+		if (msg_type == DHCP_MESSAGE_TYPE_ACK) {
+			_dhcp_message_iter_init(&iter, message, len);
+
+			while (_dhcp_message_iter_next(&iter, &t, &l, &v))
+				if (t == DHCP_OPTION_RAPID_COMMIT) {
+					CLIENT_ENTER_STATE(
+							DHCP_STATE_REQUESTING);
+					goto receive_rapid_commit;
+				}
+		}
+
 		if (msg_type != DHCP_MESSAGE_TYPE_OFFER)
 			return;
 
@@ -835,6 +848,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
 	case DHCP_STATE_REQUESTING:
 	case DHCP_STATE_RENEWING:
 	case DHCP_STATE_REBINDING:
+	receive_rapid_commit:
 		if (msg_type == DHCP_MESSAGE_TYPE_NAK) {
 			CLIENT_DEBUG("Received NAK, Stopping...");
 			l_dhcp_client_stop(client);

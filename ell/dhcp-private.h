@@ -65,6 +65,7 @@ enum dhcp_option_overload {
 #define DHCP_OPTION_PARAMETER_REQUEST_LIST 55 /* Section 9.8 */
 #define DHCP_OPTION_MAXIMUM_MESSAGE_SIZE 57 /* Section 9.10 */
 #define DHCP_OPTION_CLIENT_IDENTIFIER 61 /* Section 9.14 */
+#define DHCP_OPTION_RAPID_COMMIT 80 /* RFC 4039 Section 4 */
 
 /* RFC 2131, Figure 2 */
 #define DHCP_FLAG_BROADCAST (1 << 15)
