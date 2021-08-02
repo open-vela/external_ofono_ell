@@ -131,15 +131,49 @@ static bool match_lease_mac(const void *data, const void *user_data)
 	return !memcmp(lease->mac, mac, 6);
 }
 
-static struct l_dhcp_lease *find_lease_by_id(struct l_dhcp_server *server,
+static bool match_lease_ip(const void *data, const void *user_data)
+{
+	const struct l_dhcp_lease *lease = data;
+
+	return lease->address == L_PTR_TO_UINT(user_data);
+}
+
+static struct l_dhcp_lease *find_lease_by_ip(struct l_queue *lease_list,
+						uint32_t nip)
+{
+	return l_queue_find(lease_list, match_lease_ip, L_UINT_TO_PTR(nip));
+}
+
+static struct l_dhcp_lease *find_lease_by_id(struct l_queue *lease_list,
 						const uint8_t *client_id,
 						const uint8_t *mac)
 {
 	if (client_id)
-		return l_queue_find(server->lease_list, match_lease_client_id,
+		return l_queue_find(lease_list, match_lease_client_id,
 					client_id);
 
-	return l_queue_find(server->lease_list, match_lease_mac, mac);
+	return l_queue_find(lease_list, match_lease_mac, mac);
+}
+
+static struct l_dhcp_lease *find_lease_by_id_and_ip(struct l_queue *lease_list,
+						const uint8_t *client_id,
+						const uint8_t *mac,
+						uint32_t ip)
+{
+	struct l_dhcp_lease *lease = find_lease_by_ip(lease_list, ip);
+
+	if (!lease)
+		return NULL;
+
+	if (client_id) {
+		if (!match_lease_client_id(lease, client_id))
+			return NULL;
+	} else {
+		if (!match_lease_mac(lease, mac))
+			return NULL;
+	}
+
+	return lease;
 }
 
 /* Clear the old lease and create the new one */
@@ -164,13 +198,17 @@ static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
 	if (l_memeqzero(mac, ETH_ALEN))
 		return -ENXIO;
 
-	lease = find_lease_by_id(server, client_id, mac);
-
+	lease = find_lease_by_ip(server->lease_list, yiaddr);
 	if (lease) {
 		l_queue_remove(server->lease_list, lease);
-
 		*lease_out = lease;
+		return 0;
+	}
 
+	lease = find_lease_by_ip(server->expired_list, yiaddr);
+	if (lease && lease->address == yiaddr) {
+		l_queue_remove(server->expired_list, lease);
+		*lease_out = lease;
 		return 0;
 	}
 
@@ -330,19 +368,6 @@ static void lease_release(struct l_dhcp_server *server,
 					server->user_data, lease);
 
 	set_next_expire_timer(server, lease);
-}
-
-static bool match_lease_ip(const void *data, const void *user_data)
-{
-	const struct l_dhcp_lease *lease = data;
-
-	return lease->address == L_PTR_TO_UINT(user_data);
-}
-
-static struct l_dhcp_lease *find_lease_by_ip(struct l_queue *lease_list,
-						uint32_t nip)
-{
-	return l_queue_find(lease_list, match_lease_ip, L_UINT_TO_PTR(nip));
 }
 
 static bool check_requested_ip(struct l_dhcp_server *server,
@@ -726,7 +751,15 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	if (type == 0)
 		return;
 
-	lease = find_lease_by_id(server, client_id_opt, message->chaddr);
+	if (requested_ip_opt)
+		lease = find_lease_by_id_and_ip(server->lease_list,
+						client_id_opt, message->chaddr,
+						requested_ip_opt);
+
+	if (!requested_ip_opt || !lease)
+		lease = find_lease_by_id(server->lease_list, client_id_opt,
+						message->chaddr);
+
 	if (!lease)
 		SERVER_DEBUG("No lease found for "MAC,
 					MAC_STR(message->chaddr));
@@ -1253,7 +1286,7 @@ LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
 	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
 			NIPQUAD(requested_ip_opt), MAC_STR(mac));
 
-	if ((lease = find_lease_by_id(server, client_id, mac)))
+	if ((lease = find_lease_by_id(server->lease_list, client_id, mac)))
 		requested_ip_opt = lease->address;
 	else if (!check_requested_ip(server, requested_ip_opt)) {
 		requested_ip_opt = find_free_or_expired_ip(server, mac);
@@ -1337,11 +1370,28 @@ LIB_EXPORT bool l_dhcp_server_lease_remove(struct l_dhcp_server *server,
 	return true;
 }
 
+struct dhcp_expire_by_mac_data {
+	struct l_dhcp_server *server;
+	const uint8_t *mac;
+};
+
+static bool dhcp_expire_by_mac(void *data, void *user_data)
+{
+	struct l_dhcp_lease *lease = data;
+	struct dhcp_expire_by_mac_data *expire_data = user_data;
+
+	if (!match_lease_mac(lease, expire_data->mac))
+		return false;
+
+	lease_release(expire_data->server, lease);
+	return true;
+}
+
 LIB_EXPORT void l_dhcp_server_expire_by_mac(struct l_dhcp_server *server,
 						const uint8_t *mac)
 {
-	struct l_dhcp_lease *lease = find_lease_by_id(server, NULL, mac);
+	struct dhcp_expire_by_mac_data expire_data = { server, mac };
 
-	if (likely(lease))
-		lease_release(server, lease);
+	l_queue_foreach_remove(server->lease_list, dhcp_expire_by_mac,
+				&expire_data);
 }
