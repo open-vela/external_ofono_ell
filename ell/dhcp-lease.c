@@ -49,6 +49,7 @@ void _dhcp_lease_free(struct l_dhcp_lease *lease)
 
 	l_free(lease->dns);
 	l_free(lease->domain_name);
+	l_free(lease->client_id);
 
 	l_free(lease);
 }
@@ -137,6 +138,14 @@ struct l_dhcp_lease *_dhcp_lease_parse_options(struct dhcp_message_iter *iter)
 			if (l_net_hostname_is_localhost(lease->domain_name))
 				goto error;
 
+			break;
+		case DHCP_OPTION_CLIENT_IDENTIFIER:
+			if (l < 1 || l > 253 || lease->client_id)
+				goto error;
+
+			lease->client_id = l_malloc(l + 1);
+			lease->client_id[0] = l;
+			memcpy(lease->client_id + 1, v, l);
 			break;
 		default:
 			break;
