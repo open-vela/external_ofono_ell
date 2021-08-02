@@ -971,8 +971,8 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 	 */
 	if (!server->start_ip) {
 		server->start_ip = ntohl(server->address) + 1;
-		server->end_ip = ntohl(server->address) |
-			(~ntohl(server->netmask));
+		server->end_ip = (ntohl(server->address) |
+			(~ntohl(server->netmask))) - 1;
 	} else {
 		if ((server->start_ip ^ ntohl(server->address)) &
 				ntohl(server->netmask))
@@ -981,17 +981,29 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 		if ((server->end_ip ^ ntohl(server->address)) &
 				ntohl(server->netmask))
 			return false;
+
+		/*
+		 * Directly ensure the [start_ip, end_ip] range doesn't
+		 * include the subnet address or the broadcast address so that
+		 * we have fewer checks to make when selecting a free address
+		 * from that range.  Additionally this ensures end_ip is not
+		 * 0xffffffff so we can use the condition "<= server->end_ip"
+		 * safely on uint32_t values.
+		 * In find_free_or_expired_ip we skip over IPs ending in .0 or
+		 * .255 even for netmasks other than 24-bit just to avoid
+		 * generating addresses that could look suspicious even if
+		 * they're legal.  We don't exclude these addresses when
+		 * explicitly requested by the client, i.e. in
+		 * check_requested_ip.
+		 */
+		if ((server->start_ip & (~ntohl(server->netmask))) == 0)
+			server->start_ip++;
+
+		if ((server->end_ip | ntohl(server->netmask)) == 0xffffffff)
+			server->end_ip--;
 	}
 
-	/*
-	 * We skip over IPs ending in 0 or 255 when selecting a free address
-	 * later on but make sure end_ip is not 0xffffffff so we can use
-	 * "<= server->end_ip" safely in the loop condition.
-	 */
-	if ((server->end_ip & 0xff) == 255)
-		server->end_ip--;
-
-	if (server->start_ip > server->end_ip)
+	if (server->start_ip >= server->end_ip)
 		return false;
 
 	if (!server->ifname) {
