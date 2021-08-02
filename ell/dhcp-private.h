@@ -167,6 +167,7 @@ struct l_dhcp_lease {
 	char *domain_name;
 	/* for server */
 	uint8_t mac[6];
+	uint8_t *client_id;
 
 	/* set for an offered lease, but not ACK'ed */
 	bool offering : 1;

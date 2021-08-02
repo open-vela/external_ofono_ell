@@ -114,6 +114,15 @@ static bool is_expired_lease(const struct l_dhcp_lease *lease)
 	return !l_time_after(get_lease_expiry_time(lease), l_time_now());
 }
 
+static bool match_lease_client_id(const void *data, const void *user_data)
+{
+	const struct l_dhcp_lease *lease = data;
+	const uint8_t *client_id = user_data;
+
+	return lease->client_id &&
+		!memcmp(lease->client_id, client_id, client_id[0] + 1);
+}
+
 static bool match_lease_mac(const void *data, const void *user_data)
 {
 	const struct l_dhcp_lease *lease = data;
@@ -122,16 +131,21 @@ static bool match_lease_mac(const void *data, const void *user_data)
 	return !memcmp(lease->mac, mac, 6);
 }
 
-static struct l_dhcp_lease *find_lease_by_mac(struct l_dhcp_server *server,
+static struct l_dhcp_lease *find_lease_by_id(struct l_dhcp_server *server,
+						const uint8_t *client_id,
 						const uint8_t *mac)
 {
+	if (client_id)
+		return l_queue_find(server->lease_list, match_lease_client_id,
+					client_id);
+
 	return l_queue_find(server->lease_list, match_lease_mac, mac);
 }
 
 /* Clear the old lease and create the new one */
 static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
-				const uint8_t *mac,
-				struct l_dhcp_lease **lease_out)
+			const uint8_t *client_id, const uint8_t *mac,
+			struct l_dhcp_lease **lease_out)
 {
 	struct l_dhcp_lease *lease;
 
@@ -150,7 +164,7 @@ static int get_lease(struct l_dhcp_server *server, uint32_t yiaddr,
 	if (l_memeqzero(mac, ETH_ALEN))
 		return -ENXIO;
 
-	lease = find_lease_by_mac(server, mac);
+	lease = find_lease_by_id(server, client_id, mac);
 
 	if (lease) {
 		l_queue_remove(server->lease_list, lease);
@@ -245,22 +259,26 @@ static void lease_expired_cb(struct l_timeout *timeout, void *user_data)
 }
 
 static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
-					bool offering, const uint8_t *chaddr,
-					uint32_t yiaddr)
+					bool offering, const uint8_t *client_id,
+					const uint8_t *chaddr, uint32_t yiaddr)
 {
 	struct l_dhcp_lease *lease = NULL;
 	int ret;
 
-	ret = get_lease(server, yiaddr, chaddr, &lease);
+	ret = get_lease(server, yiaddr, client_id, chaddr, &lease);
 	if (ret != 0)
 		return NULL;
 
+	l_free(lease->client_id);
 	memset(lease, 0, sizeof(*lease));
 
 	memcpy(lease->mac, chaddr, ETH_ALEN);
 	lease->address = yiaddr;
 	lease->subnet_mask = server->netmask;
 	lease->router = server->gateway;
+
+	if (client_id)
+		lease->client_id = l_memdup(client_id, client_id[0] + 1);
 
 	lease->offering = offering;
 	lease->bound_time = l_time_now();
@@ -509,7 +527,8 @@ static void add_server_options(struct l_dhcp_server *server,
 
 static void send_offer(struct l_dhcp_server *server,
 			const struct dhcp_message *client_msg,
-			struct l_dhcp_lease *lease, uint32_t requested_ip)
+			struct l_dhcp_lease *lease, uint32_t requested_ip,
+			const uint8_t *client_id)
 {
 	struct dhcp_message_builder builder;
 	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
@@ -531,7 +550,8 @@ static void send_offer(struct l_dhcp_server *server,
 		return;
 	}
 
-	lease = add_lease(server, true, client_msg->chaddr, reply->yiaddr);
+	lease = add_lease(server, true, client_id, client_msg->chaddr,
+				reply->yiaddr);
 	if (!lease) {
 		SERVER_DEBUG("add_lease() failed");
 		return;
@@ -598,13 +618,14 @@ static void send_nak(struct l_dhcp_server *server,
 }
 
 static void send_ack(struct l_dhcp_server *server,
-			const struct dhcp_message *client_msg, uint32_t dest)
+			const struct dhcp_message *client_msg,
+			struct l_dhcp_lease *lease)
 {
 	struct dhcp_message_builder builder;
 	size_t len = sizeof(struct dhcp_message) + DHCP_MIN_OPTIONS_SIZE;
 	L_AUTO_FREE_VAR(struct dhcp_message *, reply);
 	uint32_t lease_time = L_CPU_TO_BE32(server->lease_seconds);
-	struct l_dhcp_lease *lease;
+	L_AUTO_FREE_VAR(uint8_t *, client_id) = l_steal_ptr(lease->client_id);
 
 	reply = (struct dhcp_message *) l_new(uint8_t, len);
 
@@ -612,7 +633,7 @@ static void send_ack(struct l_dhcp_server *server,
 
 	_dhcp_message_builder_init(&builder, reply, len, DHCP_MESSAGE_TYPE_ACK);
 
-	reply->yiaddr = dest;
+	reply->yiaddr = lease->address;
 
 	_dhcp_message_builder_append(&builder,
 					L_DHCP_OPTION_IP_ADDRESS_LEASE_TIME,
@@ -630,7 +651,8 @@ static void send_ack(struct l_dhcp_server *server,
 	if (!server_message_send(server, reply, len, DHCP_MESSAGE_TYPE_ACK))
 		return;
 
-	lease = add_lease(server, false, reply->chaddr, reply->yiaddr);
+	lease = add_lease(server, false, client_id, reply->chaddr,
+				reply->yiaddr);
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_NEW_LEASE,
@@ -649,6 +671,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	bool server_id_opt = false;
 	bool server_id_match = true;
 	uint32_t requested_ip_opt = 0;
+	L_AUTO_FREE_VAR(uint8_t *, client_id_opt) = NULL;
 
 	SERVER_DEBUG("");
 
@@ -674,13 +697,21 @@ static void listener_event(const void *data, size_t len, void *user_data)
 				requested_ip_opt = l_get_u32(v);
 
 			break;
+		case DHCP_OPTION_CLIENT_IDENTIFIER:
+			if (l < 1 || l > 253 || client_id_opt)
+				break;
+
+			client_id_opt = l_malloc(l + 1);
+			client_id_opt[0] = l;
+			memcpy(client_id_opt + 1, v, l);
+			break;
 		}
 	}
 
 	if (type == 0)
 		return;
 
-	lease = find_lease_by_mac(server, message->chaddr);
+	lease = find_lease_by_id(server, client_id_opt, message->chaddr);
 	if (!lease)
 		SERVER_DEBUG("No lease found for "MAC,
 					MAC_STR(message->chaddr));
@@ -693,8 +724,8 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		if (!server_id_match)
 			break;
 
-		send_offer(server, message, lease, requested_ip_opt);
-
+		send_offer(server, message, lease, requested_ip_opt,
+				client_id_opt);
 		break;
 	case DHCP_MESSAGE_TYPE_REQUEST:
 		SERVER_DEBUG("Received REQUEST, requested IP "NIPQUAD_FMT,
@@ -778,7 +809,7 @@ static void listener_event(const void *data, size_t len, void *user_data)
 			}
 		}
 
-		send_ack(server, message, lease->address);
+		send_ack(server, message, lease);
 		break;
 	case DHCP_MESSAGE_TYPE_DECLINE:
 		SERVER_DEBUG("Received DECLINE");
@@ -1187,6 +1218,7 @@ LIB_EXPORT void l_dhcp_server_set_authoritative(struct l_dhcp_server *server,
 LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
 						struct l_dhcp_server *server,
 						uint32_t requested_ip_opt,
+						const uint8_t *client_id,
 						const uint8_t *mac)
 {
 	struct l_dhcp_lease *lease;
@@ -1194,7 +1226,7 @@ LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
 	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
 			NIPQUAD(requested_ip_opt), MAC_STR(mac));
 
-	if ((lease = find_lease_by_mac(server, mac)))
+	if ((lease = find_lease_by_id(server, client_id, mac)))
 		requested_ip_opt = lease->address;
 	else if (!check_requested_ip(server, requested_ip_opt)) {
 		requested_ip_opt = find_free_or_expired_ip(server, mac);
@@ -1205,7 +1237,7 @@ LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
 		}
 	}
 
-	lease = add_lease(server, true, mac, requested_ip_opt);
+	lease = add_lease(server, true, client_id, mac, requested_ip_opt);
 	if (unlikely(!lease)) {
 		SERVER_DEBUG("add_lease() failed");
 		return NULL;
@@ -1225,7 +1257,7 @@ LIB_EXPORT bool l_dhcp_server_request(struct l_dhcp_server *server,
 	SERVER_DEBUG("Requested IP " NIPQUAD_FMT " for " MAC,
 			NIPQUAD(lease->address), MAC_STR(lease->mac));
 
-	lease = add_lease(server, false, lease->mac, lease->address);
+	lease = add_lease(server, false, NULL, lease->mac, lease->address);
 
 	if (server->event_handler)
 		server->event_handler(server, L_DHCP_SERVER_EVENT_NEW_LEASE,
@@ -1278,7 +1310,7 @@ LIB_EXPORT bool l_dhcp_server_lease_remove(struct l_dhcp_server *server,
 LIB_EXPORT void l_dhcp_server_expire_by_mac(struct l_dhcp_server *server,
 						const uint8_t *mac)
 {
-	struct l_dhcp_lease *lease = find_lease_by_mac(server, mac);
+	struct l_dhcp_lease *lease = find_lease_by_id(server, NULL, mac);
 
 	if (likely(lease))
 		lease_release(server, lease);

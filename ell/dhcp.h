@@ -146,6 +146,7 @@ void l_dhcp_server_set_authoritative(struct l_dhcp_server *server,
 
 struct l_dhcp_lease *l_dhcp_server_discover(struct l_dhcp_server *server,
 						uint32_t requested_ip_opt,
+						const uint8_t *client_id,
 						const uint8_t *mac);
 bool l_dhcp_server_request(struct l_dhcp_server *server,
 				struct l_dhcp_lease *lease);
