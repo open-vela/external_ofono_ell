@@ -66,6 +66,9 @@ enum dhcp_option_overload {
 #define DHCP_OPTION_MAXIMUM_MESSAGE_SIZE 57 /* Section 9.10 */
 #define DHCP_OPTION_CLIENT_IDENTIFIER 61 /* Section 9.14 */
 
+/* RFC 2131, Figure 2 */
+#define DHCP_FLAG_BROADCAST (1 << 15)
+
 /* RFC 2131, Figure 1 */
 struct dhcp_message {
 	uint8_t op;
