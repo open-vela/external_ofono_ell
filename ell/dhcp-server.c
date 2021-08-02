@@ -87,6 +87,8 @@ struct l_dhcp_server {
 	struct dhcp_transport *transport;
 
 	struct l_acd *acd;
+
+	bool authoritative : 1;
 };
 
 #define MAC "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -596,7 +598,8 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	const void *v;
 	struct l_dhcp_lease *lease;
 	uint8_t type = 0;
-	uint32_t server_id_opt = 0;
+	bool server_id_opt = false;
+	bool server_id_match = true;
 	uint32_t requested_ip_opt = 0;
 
 	SERVER_DEBUG("");
@@ -612,12 +615,11 @@ static void listener_event(const void *data, size_t len, void *user_data)
 
 			break;
 		case L_DHCP_OPTION_SERVER_IDENTIFIER:
-			if (l == 4)
-				server_id_opt = l_get_u32(v);
+			if (l != 4)
+				break;
 
-			if (server->address != server_id_opt)
-				return;
-
+			server_id_opt = true;
+			server_id_match = (l_get_u32(v) == server->address);
 			break;
 		case L_DHCP_OPTION_REQUESTED_IP_ADDRESS:
 			if (l == 4)
@@ -640,6 +642,9 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		SERVER_DEBUG("Received DISCOVER, requested IP "NIPQUAD_FMT,
 					NIPQUAD(requested_ip_opt));
 
+		if (!server_id_match)
+			break;
+
 		send_offer(server, message, lease, requested_ip_opt);
 
 		break;
@@ -647,27 +652,91 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		SERVER_DEBUG("Received REQUEST, requested IP "NIPQUAD_FMT,
 				NIPQUAD(requested_ip_opt));
 
-		if (requested_ip_opt == 0) {
-			requested_ip_opt = message->ciaddr;
-			if (requested_ip_opt == 0)
+		/*
+		 * RFC2131 Section 3.5: "Those servers not selected by the
+		 * DHCPREQUEST message use the message as notification that
+		 * the client has declined that server's offer."
+		 */
+		if (!server_id_match) {
+			if (server->authoritative) {
+				send_nak(server, message);
 				break;
-		}
+			}
 
-		if (lease && requested_ip_opt == lease->address) {
-			send_ack(server, message, lease->address);
+			if (!lease || !lease->offering)
+				break;
+
+			remove_lease(server, lease);
 			break;
 		}
 
-		if (server_id_opt || !lease) {
-			send_nak(server, message);
+		/*
+		 * RFC2131 Section 3.5: "If the selected server is unable to
+		 * satisfy the DHCPREQUEST message (...), the server SHOULD
+		 * respond with a DHCPNAK message."
+		 *
+		 * But:
+		 * 4.3.2: "If the DHCP server has no record of this client,
+		 * then it MUST remain silent (...)"
+		 */
+		if (!lease) {
+			if (server_id_opt || server->authoritative)
+				send_nak(server, message);
+
 			break;
 		}
+
+		/*
+		 * 4.3.2: "If the DHCPREQUEST message contains a 'server
+		 * identifier' option, the message is in response to a
+		 * DHCPOFFER message.  Otherwise, the message is a request
+		 * to verify or extend an existing lease."
+		 */
+		if (server_id_opt && server_id_match) {
+			/*
+			 * Allow either no 'requested IP address' option or
+			 * a value identical with the one we offered because
+			 * the spec is unclear on whether it is to be
+			 * included:
+			 *
+			 * Section 4.3.2: "DHCPREQUEST generated during
+			 * SELECTING state: (...) 'requested IP address' MUST
+			 * be filled in with the yiaddr value from the chosen
+			 * DHCPOFFER."
+			 *
+			 * but section 3.5 suggests only in the INIT-REBOOT
+			 * state: "The 'requested IP address' option is to be
+			 * filled in only in a DHCPREQUEST message when the
+			 * client is verifying network parameters obtained
+			 * previously."
+			 */
+			if (!lease->offering ||
+					(requested_ip_opt &&
+					 requested_ip_opt != lease->address)) {
+				send_nak(server, message);
+				break;
+			}
+		} else {
+			/*
+			 * 3.5: "If a server receives a DHCPREQUEST message
+			 * with an invalid 'requested IP address', the server
+			 * SHOULD respond to the client with a DHCPNAK message"
+			 */
+			if (lease->offering ||
+					(requested_ip_opt &&
+					 requested_ip_opt != lease->address)) {
+				send_nak(server, message);
+				break;
+			}
+		}
+
+		send_ack(server, message, lease->address);
 		break;
 	case DHCP_MESSAGE_TYPE_DECLINE:
 		SERVER_DEBUG("Received DECLINE");
 
-		if (!server_id_opt || !requested_ip_opt || !lease ||
-				!lease->offering)
+		if (!server_id_opt || !server_id_match || !requested_ip_opt ||
+				!lease || !lease->offering)
 			break;
 
 		if (requested_ip_opt == lease->address)
@@ -677,7 +746,8 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	case DHCP_MESSAGE_TYPE_RELEASE:
 		SERVER_DEBUG("Received RELEASE");
 
-		if (!server_id_opt || !lease || lease->offering)
+		if (!server_id_opt || !server_id_match || !lease ||
+				lease->offering)
 			break;
 
 		if (message->ciaddr == lease->address)
@@ -686,6 +756,9 @@ static void listener_event(const void *data, size_t len, void *user_data)
 		break;
 	case DHCP_MESSAGE_TYPE_INFORM:
 		SERVER_DEBUG("Received INFORM");
+
+		if (!server_id_match)
+			break;
 
 		send_inform(server, message);
 		break;
@@ -732,6 +805,7 @@ LIB_EXPORT struct l_dhcp_server *l_dhcp_server_new(int ifindex)
 	server->expired_list = l_queue_new();
 
 	server->started = false;
+	server->authoritative = true;
 
 	server->lease_seconds = DEFAULT_DHCP_LEASE_SEC;
 	server->max_expired = MAX_EXPIRED_LEASES;
@@ -1051,6 +1125,15 @@ LIB_EXPORT bool l_dhcp_server_set_dns(struct l_dhcp_server *server, char **dns)
 failed:
 	l_free(dns_list);
 	return false;
+}
+
+LIB_EXPORT void l_dhcp_server_set_authoritative(struct l_dhcp_server *server,
+						bool authoritative)
+{
+	if (unlikely(!server))
+		return;
+
+	server->authoritative = authoritative;
 }
 
 LIB_EXPORT struct l_dhcp_lease *l_dhcp_server_discover(
