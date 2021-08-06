@@ -775,7 +775,8 @@ static int dhcp_client_receive_offer(struct l_dhcp_client *client,
 	return 0;
 }
 
-static void dhcp_client_rx_message(const void *data, size_t len, void *userdata)
+static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
+					const uint8_t *saddr)
 {
 	struct l_dhcp_client *client = userdata;
 	const struct dhcp_message *message = data;

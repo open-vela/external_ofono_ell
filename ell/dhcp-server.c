@@ -705,7 +705,8 @@ static void send_ack(struct l_dhcp_server *server,
 					server->user_data, lease);
 }
 
-static void listener_event(const void *data, size_t len, void *user_data)
+static void listener_event(const void *data, size_t len, void *user_data,
+				const uint8_t *saddr)
 {
 	struct l_dhcp_server *server = user_data;
 	const struct dhcp_message *message = data;
@@ -721,6 +722,9 @@ static void listener_event(const void *data, size_t len, void *user_data)
 	bool rapid_commit_opt = false;
 
 	SERVER_DEBUG("");
+
+	if (saddr && memcmp(saddr, message->chaddr, ETH_ALEN))
+		return;
 
 	if (!_dhcp_message_iter_init(&iter, message, len))
 		return;

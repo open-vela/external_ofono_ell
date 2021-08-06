@@ -111,8 +111,11 @@ static bool _dhcp_default_transport_read_handler(struct l_io *io,
 	ssize_t len;
 	struct dhcp_packet *p;
 	uint16_t c;
+	struct sockaddr_ll saddr;
+	socklen_t saddr_len = sizeof(saddr);
 
-	len = read(fd, buf, sizeof(buf));
+	len = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &saddr,
+			&saddr_len);
 	if (len < 0)
 		return false;
 
@@ -148,8 +151,15 @@ static bool _dhcp_default_transport_read_handler(struct l_io *io,
 
 	len -= sizeof(struct udphdr) - sizeof(struct iphdr);
 
-	if (transport->super.rx_cb)
-		transport->super.rx_cb(&p->dhcp, len, transport->super.rx_data);
+	if (transport->super.rx_cb) {
+		const uint8_t *src_mac = NULL;
+
+		if (saddr_len >= sizeof(saddr) && saddr.sll_halen == ETH_ALEN)
+			src_mac = saddr.sll_addr;
+
+		transport->super.rx_cb(&p->dhcp, len, transport->super.rx_data,
+					src_mac);
+	}
 
 	return true;
 }
