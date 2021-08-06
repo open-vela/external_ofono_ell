@@ -721,7 +721,7 @@ static void test_discover(const void *data)
 	assert(dhcp_message_compare(discover_data_1, sizeof(discover_data_1),
 					client_packet, client_packet_len));
 
-	transport->rx_cb(offer_data_1, sizeof(offer_data_1), client);
+	transport->rx_cb(offer_data_1, sizeof(offer_data_1), client, NULL);
 
 	assert(client_send_called);
 	client_send_called = false;
@@ -729,7 +729,7 @@ static void test_discover(const void *data)
 					client_packet, client_packet_len));
 
 	event_handler_called = false;
-	transport->rx_cb(ack_data_1, sizeof(ack_data_1), client);
+	transport->rx_cb(ack_data_1, sizeof(ack_data_1), client, NULL);
 	assert(!client_send_called);
 	assert(event_handler_called);
 
@@ -829,30 +829,36 @@ static void client_connect(struct l_dhcp_client *client,
 					_dhcp_server_get_transport(server);
 	struct dhcp_transport *cli_transport =
 					_dhcp_client_get_transport(client);
+	uint8_t cli_addr[ETH_ALEN];
+	const struct dhcp_message *msg = (struct dhcp_message *) client_packet;
 
 	assert(l_dhcp_client_start(client));
 	assert(client_send_called);
 	client_send_called = false;
+	memcpy(cli_addr, msg->chaddr, ETH_ALEN);
 
 	/* RX DISCOVER */
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	srv_transport->rx_cb(client_packet, client_packet_len, server,
+				cli_addr);
 	assert(l2_send_called);
 	l2_send_called = false;
 
 	if (!rapid_commit) {
 		/* RX OFFER */
-		cli_transport->rx_cb(server_packet, server_packet_len, client);
+		cli_transport->rx_cb(server_packet, server_packet_len, client,
+					NULL);
 		assert(client_send_called);
 		client_send_called = false;
 
 		/* RX REQUEST */
-		srv_transport->rx_cb(client_packet, client_packet_len, server);
+		srv_transport->rx_cb(client_packet, client_packet_len, server,
+					cli_addr);
 		assert(l2_send_called);
 		l2_send_called = false;
 	}
 
 	/* RX ACK */
-	cli_transport->rx_cb(server_packet, server_packet_len, client);
+	cli_transport->rx_cb(server_packet, server_packet_len, client, NULL);
 	assert(!client_send_called);
 
 	assert(event_handler_called);
@@ -966,7 +972,7 @@ static void test_complete_run(const void *data)
 	l_dhcp_client_stop(client1);
 	assert(client_send_called);
 	client_send_called = false;
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	srv_transport->rx_cb(client_packet, client_packet_len, server, addr1);
 	assert(expired_client);
 	assert(!strcmp(expired_client, "192.168.1.2"));
 	l_free(expired_client);
@@ -975,7 +981,7 @@ static void test_complete_run(const void *data)
 	l_dhcp_client_stop(client2);
 	assert(client_send_called);
 	client_send_called = false;
-	srv_transport->rx_cb(client_packet, client_packet_len, server);
+	srv_transport->rx_cb(client_packet, client_packet_len, server, addr2);
 	assert(expired_client);
 	assert(!strcmp(expired_client, "192.168.1.3"));
 	l_free(expired_client);
@@ -1023,7 +1029,8 @@ static void test_expired_ip_reuse(const void *data)
 		l_dhcp_client_destroy(client);
 		assert(client_send_called);
 		client_send_called = false;
-		srv_transport->rx_cb(client_packet, client_packet_len, server);
+		srv_transport->rx_cb(client_packet, client_packet_len, server,
+					addr);
 		l_free(expired_client);
 		expired_client = NULL;
 	}
