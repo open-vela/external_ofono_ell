@@ -1,3 +1,7 @@
+ver 0.43:
+	Add support for DHCP Rapid Commit feature.
+	Add support for DHCP authoritative mode feature.
+
 ver 0.42:
 	Add support for constant time security functions.
 	Add support for manipulating DHCP leases.
