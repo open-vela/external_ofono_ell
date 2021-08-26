@@ -27,6 +27,9 @@
 #define _GNU_SOURCE
 #include <linux/if.h>
 #include <linux/icmpv6.h>
+#include <linux/neighbour.h>
+#include <linux/if_ether.h>
+#include <net/if_arp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
@@ -34,6 +37,7 @@
 #include "useful.h"
 #include "netlink.h"
 #include "log.h"
+#include "util.h"
 #include "rtnl.h"
 #include "private.h"
 
@@ -1310,4 +1314,127 @@ LIB_EXPORT uint32_t l_rtnl_route_delete(struct l_netlink *rtnl, int ifindex,
 {
 	return _rtnl_route_change(rtnl, RTM_DELROUTE, ifindex, rt,
 						cb, user_data, destroy);
+}
+
+struct rtnl_neighbor_get_data {
+	l_rtnl_neighbor_get_cb_t cb;
+	void *user_data;
+	l_netlink_destroy_func_t destroy;
+};
+
+static void rtnl_neighbor_get_cb(int error, uint16_t type, const void *data,
+					uint32_t len, void *user_data)
+{
+	struct rtnl_neighbor_get_data *cb_data = user_data;
+	const struct ndmsg *ndmsg = data;
+	struct rtattr *attr;
+	const uint8_t *hwaddr = NULL;
+	size_t hwaddr_len = 0;
+
+	if (error != 0)
+		goto done;
+
+	if (type != RTM_NEWNEIGH || len < NLMSG_ALIGN(sizeof(*ndmsg))) {
+		error = -EIO;
+		goto done;
+	}
+
+	if (!(ndmsg->ndm_state & (NUD_PERMANENT | NUD_NOARP | NUD_REACHABLE))) {
+		error = -ENOENT;
+		goto done;
+	}
+
+	attr = (void *) ndmsg + NLMSG_ALIGN(sizeof(*ndmsg));
+	len -= NLMSG_ALIGN(sizeof(*ndmsg));
+
+	for (; RTA_OK(attr, len); attr = RTA_NEXT(attr, len))
+		switch (attr->rta_type) {
+		case NDA_LLADDR:
+			hwaddr = RTA_DATA(attr);
+			hwaddr_len = RTA_PAYLOAD(attr);
+			break;
+		}
+
+	if (!hwaddr)
+		error = -EIO;
+
+done:
+	if (cb_data->cb) {
+		cb_data->cb(error, hwaddr, hwaddr_len, cb_data->user_data);
+		cb_data->cb = NULL;
+	}
+}
+
+static void rtnl_neighbor_get_destroy_cb(void *user_data)
+{
+	struct rtnl_neighbor_get_data *cb_data = user_data;
+
+	if (cb_data->destroy)
+		cb_data->destroy(cb_data->user_data);
+
+	l_free(cb_data);
+}
+
+LIB_EXPORT uint32_t l_rtnl_neighbor_get_hwaddr(struct l_netlink *rtnl,
+					int ifindex, int family,
+					const void *ip,
+					l_rtnl_neighbor_get_cb_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy)
+{
+	size_t bufsize = NLMSG_ALIGN(sizeof(struct ndmsg)) +
+			RTA_SPACE(16); /* NDA_DST */
+	uint8_t buf[bufsize];
+	struct ndmsg *ndmsg = (struct ndmsg *) buf;
+	void *rta_buf = (void *) ndmsg + NLMSG_ALIGN(sizeof(struct ndmsg));
+	__auto_type cb_data = struct_alloc(rtnl_neighbor_get_data,
+						cb, user_data, destroy);
+	uint32_t ret;
+
+	memset(buf, 0, bufsize);
+	ndmsg->ndm_family = family;
+	ndmsg->ndm_ifindex = ifindex;
+	ndmsg->ndm_flags = 0;
+
+	rta_buf += rta_add_address(rta_buf, NDA_DST, family, ip, ip);
+
+	ret = l_netlink_send(rtnl, RTM_GETNEIGH, 0, ndmsg,
+				rta_buf - (void *) ndmsg,
+				rtnl_neighbor_get_cb, cb_data,
+				rtnl_neighbor_get_destroy_cb);
+	if (ret)
+		return ret;
+
+	l_free(cb_data);
+	return 0;
+}
+
+LIB_EXPORT uint32_t l_rtnl_neighbor_set_hwaddr(struct l_netlink *rtnl,
+					int ifindex, int family,
+					const void *ip,
+					const uint8_t *hwaddr,
+					size_t hwaddr_len,
+					l_netlink_command_func_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy)
+{
+	size_t bufsize = NLMSG_ALIGN(sizeof(struct ndmsg)) +
+			RTA_SPACE(16) +        /* NDA_DST */
+			RTA_SPACE(hwaddr_len); /* NDA_LLADDR */
+	uint8_t buf[bufsize];
+	struct ndmsg *ndmsg = (struct ndmsg *) buf;
+	void *rta_buf = (void *) ndmsg + NLMSG_ALIGN(sizeof(struct ndmsg));
+
+	memset(buf, 0, bufsize);
+	ndmsg->ndm_family = family;
+	ndmsg->ndm_ifindex = ifindex;
+	ndmsg->ndm_flags = 0;
+	ndmsg->ndm_state = NUD_REACHABLE;
+
+	rta_buf += rta_add_address(rta_buf, NDA_DST, family, ip, ip);
+	rta_buf += rta_add_data(rta_buf, NDA_LLADDR, hwaddr, hwaddr_len);
+
+	return l_netlink_send(rtnl, RTM_NEWNEIGH, NLM_F_CREATE | NLM_F_REPLACE,
+				ndmsg, rta_buf - (void *) ndmsg,
+				cb, user_data, destroy);
 }

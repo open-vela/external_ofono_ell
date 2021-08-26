@@ -33,6 +33,10 @@ extern "C" {
 struct l_rtnl_address;
 struct l_rtnl_route;
 
+typedef void (*l_rtnl_neighbor_get_cb_t) (int error, const uint8_t *hwaddr,
+						size_t hwaddr_len,
+						void *user_data);
+
 struct l_rtnl_address *l_rtnl_address_new(const char *ip, uint8_t prefix_len);
 struct l_rtnl_address *l_rtnl_address_clone(const struct l_rtnl_address *orig);
 void l_rtnl_address_free(struct l_rtnl_address *addr);
@@ -187,6 +191,19 @@ uint32_t l_rtnl_route_add(struct l_netlink *rtnl, int ifindex,
 					l_netlink_destroy_func_t destroy);
 uint32_t l_rtnl_route_delete(struct l_netlink *rtnl, int ifindex,
 					const struct l_rtnl_route *rt,
+					l_netlink_command_func_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy);
+
+uint32_t l_rtnl_neighbor_get_hwaddr(struct l_netlink *rtnl, int ifindex,
+					int family, const void *ip,
+					l_rtnl_neighbor_get_cb_t cb,
+					void *user_data,
+					l_netlink_destroy_func_t destroy);
+uint32_t l_rtnl_neighbor_set_hwaddr(struct l_netlink *rtnl, int ifindex,
+					int family, const void *ip,
+					const uint8_t *hwaddr,
+					size_t hwaddr_len,
 					l_netlink_command_func_t cb,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
