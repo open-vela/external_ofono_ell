@@ -663,6 +663,8 @@ global:
 	l_rtnl_ifaddr_extract;
 	l_rtnl_ifaddr_add;
 	l_rtnl_ifaddr_delete;
+	l_rtnl_neighbor_get_hwaddr;
+	l_rtnl_neighbor_set_hwaddr;
 /* icmp6 */
 	l_icmp6_client_new;
 	l_icmp6_client_free;

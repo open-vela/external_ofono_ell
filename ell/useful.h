@@ -83,3 +83,7 @@ static inline int secure_select(int select_left, int l, int r)
 
 	return r ^ ((l ^ r) & mask);
 }
+
+#define struct_alloc(structname, ...) \
+	(struct structname *) l_memdup(&(struct structname) { __VA_ARGS__ }, \
+					sizeof(struct structname))
