@@ -316,6 +316,13 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 	lease->subnet_mask = server->netmask;
 	lease->router = server->gateway;
 
+	if (server->dns_list) {
+		unsigned int i;
+
+		for (i = 0; server->dns_list[i]; i++);
+		lease->dns = l_memdup(server->dns_list, (i + 1) * 4);
+	}
+
 	if (client_id)
 		lease->client_id = l_memdup(client_id, client_id[0] + 1);
 
