@@ -227,13 +227,17 @@ int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
 
-	l_test_add("/uuid/v3", test_v3, NULL);
+	if (l_checksum_is_supported(L_CHECKSUM_MD5, false))
+		l_test_add("/uuid/v3", test_v3, NULL);
 
 	if (l_getrandom_is_supported())
 		l_test_add("/uuid/v4", test_v4, NULL);
 
-	l_test_add("/uuid/v5", test_v5, NULL);
-	l_test_add("/uuid/to string", test_to_string, NULL);
+	if (l_checksum_is_supported(L_CHECKSUM_SHA1, false)) {
+		l_test_add("/uuid/v5", test_v5, NULL);
+		l_test_add("/uuid/to string", test_to_string, NULL);
+	}
+
 	l_test_add("/uuid/from string", test_from_string, NULL);
 	l_test_add("/uuid/from string/too short", test_from_string_too_short, NULL);
 	l_test_add("/uuid/from string/too long", test_from_string_too_long, NULL);
