@@ -239,10 +239,14 @@ int main(int argc, char *argv[])
 	}
 
 	l_test_add("/uuid/from string", test_from_string, NULL);
-	l_test_add("/uuid/from string/too short", test_from_string_too_short, NULL);
-	l_test_add("/uuid/from string/too long", test_from_string_too_long, NULL);
-	l_test_add("/uuid/from string/invalid variant", test_from_string_invalid_variant, NULL);
-	l_test_add("/uuid/from string/invalid hex", test_from_string_invalid_hex, NULL);
+	l_test_add("/uuid/from string/too short",
+					test_from_string_too_short, NULL);
+	l_test_add("/uuid/from string/too long",
+					test_from_string_too_long, NULL);
+	l_test_add("/uuid/from string/invalid variant",
+					test_from_string_invalid_variant, NULL);
+	l_test_add("/uuid/from string/invalid hex",
+					test_from_string_invalid_hex, NULL);
 
 	return l_test_run();
 
