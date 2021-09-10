@@ -607,7 +607,10 @@ LIB_EXPORT bool l_aead_cipher_encrypt(struct l_aead_cipher *cipher,
 	if (unlikely(!cipher))
 		return false;
 
-	if (unlikely(!in) || unlikely(!out))
+	if (unlikely(!in && !ad) || unlikely(!out))
+		return false;
+
+	if (unlikely(!in && in_len) || unlikely(!ad && ad_len))
 		return false;
 
 	if (cipher->type == L_AEAD_CIPHER_AES_CCM) {
