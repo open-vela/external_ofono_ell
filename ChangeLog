@@ -1,3 +1,8 @@
+ver 0.44:
+	Fix issue with allowing zero byte input for AEAD cipher.
+	Fix issue with filling in DNS info in DHCP lease objects.
+	Add support neighbor discovery utility helpers.
+
 ver 0.43:
 	Add support for DHCP Rapid Commit feature.
 	Add support for DHCP authoritative mode feature.
