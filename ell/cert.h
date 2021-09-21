@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include <ell/cleanup.h>
 
 struct l_queue;
 struct l_cert;
@@ -42,6 +43,7 @@ typedef bool (*l_cert_walk_cb_t)(struct l_cert *cert, void *user_data);
 
 struct l_cert *l_cert_new_from_der(const uint8_t *buf, size_t buf_len);
 void l_cert_free(struct l_cert *cert);
+DEFINE_CLEANUP_FUNC(l_cert_free);
 
 const uint8_t *l_cert_get_der_data(struct l_cert *cert, size_t *out_len);
 const uint8_t *l_cert_get_dn(struct l_cert *cert, size_t *out_len);
@@ -49,6 +51,7 @@ enum l_cert_key_type l_cert_get_pubkey_type(struct l_cert *cert);
 struct l_key *l_cert_get_pubkey(struct l_cert *cert);
 
 void l_certchain_free(struct l_certchain *chain);
+DEFINE_CLEANUP_FUNC(l_certchain_free);
 
 struct l_cert *l_certchain_get_leaf(struct l_certchain *chain);
 void l_certchain_walk_from_leaf(struct l_certchain *chain,

@@ -59,7 +59,8 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/path.h \
 			ell/icmp6.h \
 			ell/acd.h \
-			ell/tester.h
+			ell/tester.h \
+			ell/cleanup.h
 
 lib_LTLIBRARIES = ell/libell.la
 

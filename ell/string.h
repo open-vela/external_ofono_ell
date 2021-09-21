@@ -24,6 +24,7 @@
 #define __ELL_STRING_H
 
 #include <stdarg.h>
+#include <ell/cleanup.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +34,7 @@ struct l_string;
 
 struct l_string *l_string_new(size_t initial_length);
 void l_string_free(struct l_string *string);
+DEFINE_CLEANUP_FUNC(l_string_free);
 char *l_string_unwrap(struct l_string *string);
 
 struct l_string *l_string_append(struct l_string *dest, const char *src);
