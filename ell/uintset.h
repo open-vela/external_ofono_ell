@@ -30,6 +30,7 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <ell/cleanup.h>
 
 typedef void (*l_uintset_foreach_func_t) (uint32_t number, void *user_data);
 
@@ -38,6 +39,7 @@ struct l_uintset;
 struct l_uintset *l_uintset_new_from_range(uint32_t min, uint32_t max);
 struct l_uintset *l_uintset_new(unsigned int size);
 void l_uintset_free(struct l_uintset *set);
+DEFINE_CLEANUP_FUNC(l_uintset_free);
 
 bool l_uintset_contains(struct l_uintset *set, uint32_t number);
 bool l_uintset_take(struct l_uintset *set, uint32_t number);

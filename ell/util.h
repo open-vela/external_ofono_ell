@@ -30,6 +30,7 @@
 #include <endian.h>
 #include <byteswap.h>
 #include <sys/uio.h>
+#include <ell/cleanup.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -235,6 +236,7 @@ void *l_malloc(size_t size) __attribute__ ((warn_unused_result, malloc));
 void *l_memdup(const void *mem, size_t size)
 			__attribute__ ((warn_unused_result, malloc));
 void l_free(void *ptr);
+DEFINE_CLEANUP_FUNC(l_free);
 
 void *l_realloc(void *mem, size_t size)
 			__attribute__ ((warn_unused_result, malloc));

@@ -25,6 +25,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <ell/cleanup.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ char *l_strjoinv(char **str_array, const char delim);
 
 char **l_strv_new(void);
 void l_strv_free(char **str_array);
+DEFINE_CLEANUP_FUNC(l_strv_free);
 unsigned int l_strv_length(char **str_array);
 bool l_strv_contains(char **str_array, const char *item);
 char **l_strv_append(char **str_array, const char *str);

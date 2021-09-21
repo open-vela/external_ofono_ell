@@ -25,6 +25,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <ell/cleanup.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,6 +38,7 @@ typedef void (*l_settings_destroy_cb_t) (void *user_data);
 
 struct l_settings *l_settings_new(void);
 void l_settings_free(struct l_settings *settings);
+DEFINE_CLEANUP_FUNC(l_settings_free);
 
 bool l_settings_load_from_data(struct l_settings *settings,
 						const char *data, size_t len);
