@@ -46,6 +46,7 @@ char **l_strv_append_vprintf(char **str_array, const char *format,
 							va_list args)
 					__attribute__((format(printf, 2, 0)));
 char **l_strv_copy(char **str_array);
+bool l_strv_eq(char **a, char **b);
 
 #ifdef __cplusplus
 }

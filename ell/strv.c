@@ -359,3 +359,23 @@ LIB_EXPORT char **l_strv_copy(char **str_array)
 
 	return copy;
 }
+
+/**
+ * l_strv_eq:
+ * @a: a %NULL terminated array of strings or %NULL
+ * @b: another %NULL terminated array of strings or %NULL
+ *
+ * Returns: Whether @a and @b's contents are identical, including the
+ * order, or @a and @b are both %NULL.
+ */
+LIB_EXPORT bool l_strv_eq(char **a, char **b)
+{
+	if (!a || !b)
+		return a == b;
+
+	for (; *a; a++, b++)
+		if (!*b || strcmp(*a, *b))
+			return false;
+
+	return !*b;
+}
