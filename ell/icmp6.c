@@ -344,6 +344,11 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 		client->ra = r;
 		icmp6_client_event_notify(client,
 					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND);
+
+		/* DHCP6 client may have stopped us */
+		if (!client->ra)
+			return -ECANCELED;
+
 		icmp6_client_setup_routes(client);
 		return 0;
 	}
@@ -364,6 +369,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 	struct nd_router_advert *ra;
 	ssize_t l;
 	struct in6_addr src;
+	int r;
 
 	/* Poke to see how many bytes we need to read / alloc */
 	l = recv(s, NULL, 0, MSG_PEEK|MSG_TRUNC);
@@ -382,7 +388,10 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 		goto done;
 	}
 
-	if (icmp6_client_handle_message(client, ra, l, &src) < 0)
+	r = icmp6_client_handle_message(client, ra, l, &src);
+	if (r == -ECANCELED)
+		return true;
+	else if (r < 0)
 		goto done;
 
 	/* Stop solicitations */
