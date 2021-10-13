@@ -725,15 +725,11 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 			l_dhcp_lease_get_address(client->lease);
 		uint8_t prefix_len;
 		uint32_t l = l_dhcp_lease_get_lifetime(client->lease);
-		L_AUTO_FREE_VAR(char *, netmask) =
-				l_dhcp_lease_get_netmask(client->lease);
 		L_AUTO_FREE_VAR(char *, broadcast) =
 				l_dhcp_lease_get_broadcast(client->lease);
-		struct in_addr in_addr;
 
-		if (inet_pton(AF_INET, netmask, &in_addr) > 0)
-			prefix_len = __builtin_popcountl(in_addr.s_addr);
-		else
+		prefix_len = l_dhcp_lease_get_prefix_length(client->lease);
+		if (!prefix_len)
 			prefix_len = 24;
 
 		a = l_rtnl_address_new(ip, prefix_len);
