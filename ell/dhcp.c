@@ -673,6 +673,7 @@ static void dhcp_client_address_add_cb(int error, uint16_t type,
 }
 
 static int dhcp_client_receive_ack(struct l_dhcp_client *client,
+					const uint8_t *saddr,
 					const struct dhcp_message *ack,
 					size_t len)
 {
@@ -696,6 +697,9 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 	}
 
 	lease->address = ack->yiaddr;
+
+	if (saddr)
+		memcpy(lease->server_mac, saddr, ETH_ALEN);
 
 	r = L_DHCP_CLIENT_EVENT_LEASE_RENEWED;
 
@@ -862,7 +866,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 		if (msg_type != DHCP_MESSAGE_TYPE_ACK)
 			return;
 
-		r = dhcp_client_receive_ack(client, message, len);
+		r = dhcp_client_receive_ack(client, saddr, message, len);
 		if (r < 0)
 			return;
 

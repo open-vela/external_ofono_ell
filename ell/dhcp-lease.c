@@ -239,6 +239,18 @@ LIB_EXPORT char *l_dhcp_lease_get_server_id(const struct l_dhcp_lease *lease)
 	return get_ip(lease->server_address);
 }
 
+LIB_EXPORT const uint8_t *l_dhcp_lease_get_server_mac(
+					const struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return NULL;
+
+	if (l_memeqzero(lease->server_mac, sizeof(lease->server_mac)))
+		return NULL;
+
+	return lease->server_mac;
+}
+
 LIB_EXPORT char **l_dhcp_lease_get_dns(const struct l_dhcp_lease *lease)
 {
 	unsigned i;
