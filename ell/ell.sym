@@ -228,6 +228,7 @@ global:
 	l_dhcp_lease_get_gateway;
 	l_dhcp_lease_get_mac;
 	l_dhcp_lease_get_netmask;
+	l_dhcp_lease_get_prefix_length;
 	l_dhcp_lease_get_broadcast;
 	l_dhcp_lease_get_server_id;
 	l_dhcp_lease_get_server_mac;

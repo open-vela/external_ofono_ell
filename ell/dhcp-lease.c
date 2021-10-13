@@ -223,6 +223,25 @@ LIB_EXPORT char *l_dhcp_lease_get_netmask(const struct l_dhcp_lease *lease)
 	return get_ip(lease->subnet_mask);
 }
 
+LIB_EXPORT uint32_t l_dhcp_lease_get_prefix_length(
+					const struct l_dhcp_lease *lease)
+{
+	int pl;
+
+	if (unlikely(!lease))
+		return 0;
+
+	if (!lease->subnet_mask)
+		return 0;
+
+	pl = __builtin_popcount(lease->subnet_mask);
+
+	if (__builtin_ctz(lease->subnet_mask) != 32 - pl)
+		return 0;
+
+	return pl;
+}
+
 LIB_EXPORT char *l_dhcp_lease_get_broadcast(const struct l_dhcp_lease *lease)
 {
 	if (unlikely(!lease))
