@@ -166,6 +166,7 @@ struct l_dhcp_lease {
 	uint64_t bound_time;
 	uint32_t router;
 	uint32_t *dns;
+	uint8_t server_mac[6];
 	char *domain_name;
 	/* for server */
 	uint8_t mac[6];

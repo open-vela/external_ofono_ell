@@ -110,6 +110,7 @@ char *l_dhcp_lease_get_gateway(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_netmask(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_broadcast(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_server_id(const struct l_dhcp_lease *lease);
+const uint8_t *l_dhcp_lease_get_server_mac(const struct l_dhcp_lease *lease);
 char **l_dhcp_lease_get_dns(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_domain_name(const struct l_dhcp_lease *lease);
 const uint8_t *l_dhcp_lease_get_mac(const struct l_dhcp_lease *lease);

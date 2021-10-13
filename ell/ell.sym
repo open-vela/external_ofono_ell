@@ -230,6 +230,7 @@ global:
 	l_dhcp_lease_get_netmask;
 	l_dhcp_lease_get_broadcast;
 	l_dhcp_lease_get_server_id;
+	l_dhcp_lease_get_server_mac;
 	l_dhcp_lease_get_dns;
 	l_dhcp_lease_get_domain_name;
 	l_dhcp_lease_get_t1;
