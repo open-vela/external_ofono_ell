@@ -207,6 +207,15 @@ LIB_EXPORT char *l_dhcp_lease_get_address(const struct l_dhcp_lease *lease)
 	return get_ip(lease->address);
 }
 
+LIB_EXPORT uint32_t l_dhcp_lease_get_address_u32(
+					const struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	return lease->address;
+}
+
 LIB_EXPORT char *l_dhcp_lease_get_gateway(const struct l_dhcp_lease *lease)
 {
 	if (unlikely(!lease))
@@ -215,12 +224,30 @@ LIB_EXPORT char *l_dhcp_lease_get_gateway(const struct l_dhcp_lease *lease)
 	return get_ip(lease->router);
 }
 
+LIB_EXPORT uint32_t l_dhcp_lease_get_gateway_u32(
+					const struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	return lease->router;
+}
+
 LIB_EXPORT char *l_dhcp_lease_get_netmask(const struct l_dhcp_lease *lease)
 {
 	if (unlikely(!lease))
 		return NULL;
 
 	return get_ip(lease->subnet_mask);
+}
+
+LIB_EXPORT uint32_t l_dhcp_lease_get_netmask_u32(
+					const struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	return lease->subnet_mask;
 }
 
 LIB_EXPORT uint32_t l_dhcp_lease_get_prefix_length(

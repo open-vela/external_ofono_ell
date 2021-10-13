@@ -106,8 +106,11 @@ bool l_dhcp_client_set_debug(struct l_dhcp_client *client,
 
 
 char *l_dhcp_lease_get_address(const struct l_dhcp_lease *lease);
+uint32_t l_dhcp_lease_get_address_u32(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_gateway(const struct l_dhcp_lease *lease);
+uint32_t l_dhcp_lease_get_gateway_u32(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_netmask(const struct l_dhcp_lease *lease);
+uint32_t l_dhcp_lease_get_netmask_u32(const struct l_dhcp_lease *lease);
 uint32_t l_dhcp_lease_get_prefix_length(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_broadcast(const struct l_dhcp_lease *lease);
 char *l_dhcp_lease_get_server_id(const struct l_dhcp_lease *lease);
