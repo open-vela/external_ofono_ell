@@ -225,9 +225,12 @@ global:
 	l_dbus_name_acquire;
 	/* dhcp */
 	l_dhcp_lease_get_address;
+	l_dhcp_lease_get_address_u32;
 	l_dhcp_lease_get_gateway;
+	l_dhcp_lease_get_gateway_u32;
 	l_dhcp_lease_get_mac;
 	l_dhcp_lease_get_netmask;
+	l_dhcp_lease_get_netmask_u32;
 	l_dhcp_lease_get_prefix_length;
 	l_dhcp_lease_get_broadcast;
 	l_dhcp_lease_get_server_id;
