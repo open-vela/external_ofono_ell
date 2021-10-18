@@ -263,7 +263,7 @@ LIB_EXPORT uint32_t l_dhcp_lease_get_prefix_length(
 
 	pl = __builtin_popcount(lease->subnet_mask);
 
-	if (__builtin_ctz(lease->subnet_mask) != 32 - pl)
+	if (__builtin_ctz(L_BE32_TO_CPU(lease->subnet_mask)) != 32 - pl)
 		return 0;
 
 	return pl;
