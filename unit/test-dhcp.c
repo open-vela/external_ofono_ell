@@ -945,6 +945,8 @@ static void test_complete_run(const void *data)
 	assert(!strcmp(tmp_addr, "255.255.255.0"));
 	l_free(tmp_addr);
 
+	assert(l_dhcp_lease_get_prefix_length(cli_lease) == 24);
+
 	dns_list = l_dhcp_lease_get_dns(cli_lease);
 	assert(dns_list && dns_list[0] && dns_list[1]);
 	assert(!strcmp(dns_list[0], "192.168.1.1"));
