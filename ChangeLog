@@ -1,3 +1,6 @@
+ver 0.45:
+	Fix issue with ICMPv6 and handling re-entrantly callbacks.
+
 ver 0.44:
 	Fix issue with allowing zero byte input for AEAD cipher.
 	Fix issue with filling in DNS info in DHCP lease objects.
