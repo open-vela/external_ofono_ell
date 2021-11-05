@@ -1032,10 +1032,6 @@ LIB_EXPORT bool l_dhcp_server_start(struct l_dhcp_server *server)
 		server->address = ia.s_addr;
 	}
 
-	/* Assign a default gateway if not already set */
-	if (!server->gateway)
-		server->gateway = server->address;
-
 	/* Assign a default netmask if not already */
 	if (!server->netmask) {
 		if (inet_pton(AF_INET,"255.255.255.0", &ia) != 1)
