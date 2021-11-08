@@ -1401,8 +1401,8 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	if (r == DHCP6_STATE_BOUND) {
 		l_timeout_remove(client->timeout_send);
 		client->timeout_send = NULL;
-		dhcp6_client_setup_lease(client);
 		dhcp6_client_new_transaction(client, r);
+		dhcp6_client_setup_lease(client);
 		return;
 	}
 
