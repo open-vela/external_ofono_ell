@@ -61,12 +61,20 @@ struct l_debug_desc {
 	unsigned int flags;
 } __attribute__((aligned(8)));
 
+/*
+ * Set the retain attribute so that the section cannot be discarded by ld
+ * --gc-sections -z start-stop-gc. Older compilers would warn for the unknown
+ *  attribute, so just disable -Wattributes.
+ */
 #define L_DEBUG_SYMBOL(symbol, format, ...) do { \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wattributes\"") \
 	static struct l_debug_desc symbol \
-	__attribute__((used, section("__ell_debug"), aligned(8))) = { \
+	__attribute__((used, retain, section("__ell_debug"), aligned(8))) = { \
 		.file = __FILE__, .func = __func__, \
 		.flags = L_DEBUG_FLAG_DEFAULT, \
 	}; \
+_Pragma("GCC diagnostic pop") \
 	if (symbol.flags & L_DEBUG_FLAG_PRINT) \
 		l_log(L_LOG_DEBUG, "%s:%s() " format, __FILE__, \
 					__func__ , ##__VA_ARGS__); \
