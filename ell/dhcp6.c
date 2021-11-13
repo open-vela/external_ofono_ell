@@ -850,6 +850,14 @@ static inline void dhcp6_client_event_notify(struct l_dhcp6_client *client,
 		client->event_handler(client, event, client->event_data);
 }
 
+static void dhcp6_client_enter_state(struct l_dhcp6_client *client,
+					enum dhcp6_state new_state)
+{
+	client->state = new_state;
+	l_util_debug(client->debug_handler, client->debug_data,
+			"Entering state: %s", dhcp6_state_to_str(new_state));
+}
+
 static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 						enum dhcp6_state new_state)
 {
@@ -858,9 +866,7 @@ static inline void dhcp6_client_new_transaction(struct l_dhcp6_client *client,
 	client->transaction_id = l_getrandom_uint32() & 0x00FFFFFFU;
 	client->transaction_start_t = 0;
 
-	client->state = new_state;
-	l_util_debug(client->debug_handler, client->debug_data,
-			"Entering state: %s", dhcp6_state_to_str(new_state));
+	dhcp6_client_enter_state(client, new_state);
 }
 
 static void dhcp6_client_timeout_send(struct l_timeout *timeout,
@@ -960,20 +966,26 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 {
 	uint32_t t1 = _dhcp6_lease_get_t1(client->lease);
 	uint32_t t2 = _dhcp6_lease_get_t2(client->lease);
+	enum l_dhcp6_client_event event;
 
 	client->lease_start_t = l_time_now();
 
 	/* TODO: Emit IP_CHANGED if any addresses were removed / added */
 	if (client->state == DHCP6_STATE_REQUESTING ||
 			client->state == DHCP6_STATE_SOLICITING)
-		dhcp6_client_event_notify(client,
-					L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED);
+		event = L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED;
 	else
-		dhcp6_client_event_notify(client,
-					L_DHCP6_CLIENT_EVENT_LEASE_RENEWED);
+		event = L_DHCP6_CLIENT_EVENT_LEASE_RENEWED;
 
 	l_timeout_remove(client->timeout_lease);
 	client->timeout_lease = NULL;
+
+	/*
+	 * Switch over to BOUND state so that l_dhcp6_client_get_lease() will
+	 * return the lease properly
+	 */
+	dhcp6_client_enter_state(client, DHCP6_STATE_BOUND);
+	dhcp6_client_event_notify(client, event);
 
 	if (t1 == 0xffffffff || t2 == 0xffffffff) {
 		CLIENT_DEBUG("T1 (%u) or T2 (%u) was infinite", t1, t2);
@@ -1402,7 +1414,6 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 		l_timeout_remove(client->timeout_send);
 		client->timeout_send = NULL;
 		dhcp6_client_setup_lease(client);
-		dhcp6_client_new_transaction(client, r);
 		return;
 	}
 
