@@ -115,13 +115,12 @@ static void test_base64_encode(const void *data)
 {
 	const struct base64_encode_test *test = data;
 	char *encoded;
-	size_t encoded_size;
 
 	encoded = l_base64_encode((uint8_t *)test->input, strlen(test->input),
-					test->columns, &encoded_size);
+					test->columns);
 	assert(encoded);
-	assert(encoded_size == strlen(test->output));
-	assert(!memcmp(encoded, test->output, encoded_size));
+	assert(strlen(encoded) == strlen(test->output));
+	assert(!memcmp(encoded, test->output, strlen(encoded)));
 
 	l_free(encoded);
 }
