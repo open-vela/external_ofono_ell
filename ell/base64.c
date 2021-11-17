@@ -107,8 +107,7 @@ LIB_EXPORT uint8_t *l_base64_decode(const char *in, size_t in_len,
 	return out_buf;
 }
 
-LIB_EXPORT char *l_base64_encode(const uint8_t *in, size_t in_len,
-					int columns, size_t *n_written)
+LIB_EXPORT char *l_base64_encode(const uint8_t *in, size_t in_len, int columns)
 {
 	const uint8_t *in_end = in + in_len;
 	char *out_buf, *out;
@@ -127,8 +126,7 @@ LIB_EXPORT char *l_base64_encode(const uint8_t *in, size_t in_len,
 	if (columns && out_len)
 		out_len += (out_len - 4) / columns;
 
-	out_buf = l_malloc(out_len);
-	*n_written = out_len;
+	out_buf = l_malloc(out_len + 1);
 
 	out = out_buf;
 
@@ -168,6 +166,8 @@ LIB_EXPORT char *l_base64_encode(const uint8_t *in, size_t in_len,
 
 	for (; pad < 4; pad++)
 		*out++ = '=';
+
+	*out = '\0';
 
 	return out_buf;
 }

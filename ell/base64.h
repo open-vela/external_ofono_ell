@@ -27,8 +27,7 @@ extern "C" {
 
 uint8_t *l_base64_decode(const char *in, size_t in_len, size_t *n_written);
 
-char *l_base64_encode(const uint8_t *in, size_t in_len, int columns,
-				size_t *n_written);
+char *l_base64_encode(const uint8_t *in, size_t in_len, int columns);
 
 #ifdef __cplusplus
 }
