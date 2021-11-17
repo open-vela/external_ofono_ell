@@ -379,7 +379,8 @@ static bool pem_write_one_cert(struct l_cert *cert, void *user_data)
 
 	iov[0].iov_base = "-----BEGIN CERTIFICATE-----\n";
 	iov[0].iov_len = strlen(iov[0].iov_base);
-	iov[1].iov_base = l_base64_encode(der, der_len, 64, &iov[1].iov_len);
+	iov[1].iov_base = l_base64_encode(der, der_len, 64);
+	iov[1].iov_len = strlen(iov[1].iov_base);
 	iov[2].iov_base = "\n-----END CERTIFICATE-----\n";
 	iov[2].iov_len = strlen(iov[2].iov_base);
 	r = L_TFR(writev(*fd, iov, 3));
