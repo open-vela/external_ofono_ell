@@ -1,3 +1,7 @@
+ver 0.46:
+	Fix issue with DHCP server when OPTION_ROUTER is not configured.
+	Fix issue with DHCP obtained lease to retrieve it properly.
+
 ver 0.45:
 	Fix issue with ICMPv6 and handling re-entrantly callbacks.
 
