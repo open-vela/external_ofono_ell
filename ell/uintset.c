@@ -555,3 +555,27 @@ LIB_EXPORT bool l_uintset_isempty(const struct l_uintset *set)
 
 	return true;
 }
+
+/**
+ * l_uintset_size
+ *
+ * @set: The set of numbers
+ *
+ * Returns the number of set elements
+ */
+LIB_EXPORT uint32_t l_uintset_size(const struct l_uintset *set)
+{
+	uint16_t i;
+	uint32_t offset_max;
+	uint32_t count = 0;
+
+	if (unlikely(!set))
+		return 0;
+
+	offset_max = (set->size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+
+	for (i = 0; i < offset_max; i++)
+		count += __builtin_popcountl(set->bits[i]);
+
+	return count;
+}

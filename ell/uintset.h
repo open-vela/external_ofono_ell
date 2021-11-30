@@ -61,6 +61,7 @@ struct l_uintset *l_uintset_clone(const struct l_uintset *original);
 struct l_uintset *l_uintset_intersect(const struct l_uintset *set_a,
 						const struct l_uintset *set_b);
 bool l_uintset_isempty(const struct l_uintset *set);
+uint32_t l_uintset_size(const struct l_uintset *set);
 
 #ifdef __cplusplus
 }
