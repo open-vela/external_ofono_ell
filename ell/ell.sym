@@ -342,6 +342,7 @@ global:
 	l_genl_family_send;
 	l_genl_family_dump;
 	l_genl_family_cancel;
+	l_genl_family_request_sent;
 	l_genl_family_register;
 	l_genl_family_unregister;
 	/* hwdb */
