@@ -1960,6 +1960,22 @@ done:
 	return true;
 }
 
+LIB_EXPORT bool l_genl_family_request_sent(struct l_genl_family *family,
+						unsigned int id)
+{
+	struct l_genl *genl;
+
+	if (unlikely(!family) || unlikely(!id))
+		return false;
+
+	genl = family->genl;
+	if (!genl)
+		return false;
+
+	return l_queue_find(genl->pending_list, match_request_id,
+				L_UINT_TO_PTR(id)) != NULL;
+}
+
 static void add_membership(struct l_genl *genl, struct genl_mcast *mcast)
 {
 	int group = mcast->id;

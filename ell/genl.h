@@ -141,6 +141,7 @@ unsigned int l_genl_family_dump(struct l_genl_family *family,
 				void *user_data,
 				l_genl_destroy_func_t destroy);
 bool l_genl_family_cancel(struct l_genl_family *family, unsigned int id);
+bool l_genl_family_request_sent(struct l_genl_family *family, unsigned int id);
 
 unsigned int l_genl_family_register(struct l_genl_family *family,
 				const char *group, l_genl_msg_func_t callback,
