@@ -370,18 +370,18 @@ static void test_uintset_size(const void *user_data)
 
 	assert(l_uintset_size(set) == 0);
 
-	for (i = 0; i < 32; i++) {
-		l_uintset_put(set, i);
+	for (i = 1; i < 32; i++) {
+		assert(l_uintset_put(set, i));
 		assert(l_uintset_size(set) == i);
 	}
 
 	assert(l_uintset_size(set) == i - 1);
 
-	l_uintset_take(set, 10);
+	assert(l_uintset_take(set, 10));
 	assert(l_uintset_size(set) == i - 2);
 
-	for (i = 0; i < 32; i++)
-		l_uintset_take(set, i);
+	for (i = 1; i < 32; i++)
+		assert(l_uintset_take(set, i));
 
 	assert(l_uintset_size(set) == 0);
 }
