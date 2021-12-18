@@ -384,6 +384,8 @@ static void test_uintset_size(const void *user_data)
 		assert(l_uintset_take(set, i));
 
 	assert(l_uintset_size(set) == 0);
+
+	l_uintset_free(set);
 }
 
 int main(int argc, char *argv[])
