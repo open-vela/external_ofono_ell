@@ -147,7 +147,7 @@ static void route6_dump_cb(int error,
 {
 	const struct rtmsg *rtmsg = data;
 	char *dst = NULL, *gateway = NULL, *src = NULL;
-	uint32_t table, ifindex;
+	uint32_t table = 0, ifindex = 0;
 
 	test_assert(!error);
 	test_assert(type == RTM_NEWROUTE);
