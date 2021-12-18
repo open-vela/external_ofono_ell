@@ -308,6 +308,7 @@ static struct l_dhcp_lease *add_lease(struct l_dhcp_server *server,
 	if (ret != 0)
 		return NULL;
 
+	l_free(lease->dns);
 	l_free(lease->client_id);
 	memset(lease, 0, sizeof(*lease));
 
