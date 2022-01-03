@@ -1493,7 +1493,7 @@ static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
 			return;
 		}
 
-		if (l_icmp6_router_get_managed(r))
+		if (managed)
 			dhcp6_client_send_initial(client);
 
 		break;
