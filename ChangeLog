@@ -1,3 +1,7 @@
+ver 0.47:
+	Fix issue with memory leaking from DHCP leases.
+	Fix issue with NULL terminating of Base64 encoding.
+
 ver 0.46:
 	Fix issue with DHCP server when OPTION_ROUTER is not configured.
 	Fix issue with DHCP obtained lease to retrieve it properly.
