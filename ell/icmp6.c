@@ -401,9 +401,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 	}
 
 	r = icmp6_client_handle_message(client, ra, l, &src);
-	if (r == -ECANCELED)
-		return true;
-	else if (r < 0)
+	if (r < 0)
 		goto done;
 
 	/* Stop solicitations */
