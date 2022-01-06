@@ -266,8 +266,8 @@ struct l_icmp6_client {
 };
 
 static inline void icmp6_client_event_notify(struct l_icmp6_client *client,
-						enum l_icmp6_client_event event,
-						void *event_data)
+					enum l_icmp6_client_event event,
+					void *event_data)
 {
 	const struct l_queue_entry *entry;
 
@@ -286,7 +286,7 @@ static bool icmp6_client_remove_route(void *data, void *user_data)
 
 	if (client->rtnl)
 		l_rtnl_route_delete(client->rtnl, client->ifindex, r,
-				NULL, NULL, NULL);
+					NULL, NULL, NULL);
 
 	l_free(r);
 	return true;
@@ -417,9 +417,10 @@ done:
 }
 
 static void icmp6_client_timeout_send(struct l_timeout *timeout,
-								void *user_data)
+							void *user_data)
 {
-	static const uint64_t MAX_SOLICITATION_INTERVAL = 3600 * L_MSEC_PER_SEC;
+	static const uint64_t MAX_SOLICITATION_INTERVAL =
+							3600 * L_MSEC_PER_SEC;
 	static const uint64_t SOLICITATION_INTERVAL = 4 * L_MSEC_PER_SEC;
 	struct l_icmp6_client *client = user_data;
 	int r;
@@ -636,8 +637,9 @@ LIB_EXPORT bool l_icmp6_client_set_rtnl(struct l_icmp6_client *client,
 	return true;
 }
 
-LIB_EXPORT bool l_icmp6_client_set_route_priority(struct l_icmp6_client *client,
-							uint32_t priority)
+LIB_EXPORT bool l_icmp6_client_set_route_priority(
+						struct l_icmp6_client *client,
+						uint32_t priority)
 {
 	if (unlikely(!client))
 		return false;
