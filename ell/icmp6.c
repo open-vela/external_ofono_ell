@@ -475,6 +475,7 @@ LIB_EXPORT void l_icmp6_client_free(struct l_icmp6_client *client)
 
 	l_icmp6_client_stop(client);
 	l_queue_destroy(client->routes, NULL);
+	l_icmp6_client_set_debug(client, NULL, NULL, NULL);
 	l_queue_destroy(client->event_handlers, icmp6_event_handler_destroy);
 	l_free(client);
 }
