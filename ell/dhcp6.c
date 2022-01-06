@@ -1467,7 +1467,7 @@ static void dhcp6_client_send_initial(struct l_dhcp6_client *client)
 
 static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
 					enum l_icmp6_client_event event,
-					void *user_data)
+					void *event_data, void *user_data)
 {
 	struct l_dhcp6_client *client = user_data;
 
@@ -1521,7 +1521,7 @@ LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 	client->request_na = true;
 
 	client->icmp6 = l_icmp6_client_new(ifindex);
-	l_icmp6_client_set_event_handler(client->icmp6,
+	l_icmp6_client_add_event_handler(client->icmp6,
 						dhcp6_client_icmp6_event,
 						client, NULL);
 

@@ -237,6 +237,12 @@ static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src)
 	return 0;
 }
 
+struct icmp6_event_handler_entry {
+	l_icmp6_client_event_cb_t handle;
+	void *user_data;
+	l_icmp6_destroy_cb_t destroy;
+};
+
 struct l_icmp6_client {
 	uint32_t ifindex;
 	uint8_t mac[6];
@@ -249,9 +255,7 @@ struct l_icmp6_client {
 	uint32_t route_priority;
 	struct l_queue *routes;
 
-	l_icmp6_client_event_cb_t event_handler;
-	void *event_data;
-	l_icmp6_destroy_cb_t event_destroy;
+	struct l_queue *event_handlers;
 
 	l_icmp6_debug_cb_t debug_handler;
 	l_icmp6_destroy_cb_t debug_destroy;
@@ -262,10 +266,17 @@ struct l_icmp6_client {
 };
 
 static inline void icmp6_client_event_notify(struct l_icmp6_client *client,
-						enum l_icmp6_client_event event)
+						enum l_icmp6_client_event event,
+						void *event_data)
 {
-	if (client->event_handler)
-		client->event_handler(client, event, client->event_data);
+	const struct l_queue_entry *entry;
+
+	for (entry = l_queue_get_entries(client->event_handlers); entry;
+			entry = entry->next) {
+		struct icmp6_event_handler_entry *handler = entry->data;
+
+		handler->handle(client, event, event_data, handler->user_data);
+	}
 }
 
 static bool icmp6_client_remove_route(void *data, void *user_data)
@@ -343,7 +354,8 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 	if (!client->ra) {
 		client->ra = r;
 		icmp6_client_event_notify(client,
-					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND);
+					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND,
+					NULL);
 
 		/* DHCP6 client may have stopped us */
 		if (!client->ra)
@@ -446,6 +458,16 @@ LIB_EXPORT struct l_icmp6_client *l_icmp6_client_new(uint32_t ifindex)
 	return client;
 }
 
+static void icmp6_event_handler_destroy(void *data)
+{
+	struct icmp6_event_handler_entry *handler = data;
+
+	if (handler->destroy)
+		handler->destroy(handler->user_data);
+
+	l_free(handler);
+}
+
 LIB_EXPORT void l_icmp6_client_free(struct l_icmp6_client *client)
 {
 	if (unlikely(!client))
@@ -453,6 +475,7 @@ LIB_EXPORT void l_icmp6_client_free(struct l_icmp6_client *client)
 
 	l_icmp6_client_stop(client);
 	l_queue_destroy(client->routes, NULL);
+	l_queue_destroy(client->event_handlers, icmp6_event_handler_destroy);
 	l_free(client);
 }
 
@@ -537,20 +560,24 @@ LIB_EXPORT const struct l_icmp6_router *l_icmp6_client_get_router(
 	return client->ra;
 }
 
-LIB_EXPORT bool l_icmp6_client_set_event_handler(struct l_icmp6_client *client,
+LIB_EXPORT bool l_icmp6_client_add_event_handler(struct l_icmp6_client *client,
 					l_icmp6_client_event_cb_t handler,
-					void *userdata,
+					void *user_data,
 					l_icmp6_destroy_cb_t destroy)
 {
+	struct icmp6_event_handler_entry *handler_entry;
+
 	if (unlikely(!client))
 		return false;
 
-	if (client->event_destroy)
-		client->event_destroy(client->event_data);
+	if (!client->event_handlers)
+		client->event_handlers = l_queue_new();
 
-	client->event_handler = handler;
-	client->event_data = userdata;
-	client->event_destroy = destroy;
+	handler_entry = l_new(struct icmp6_event_handler_entry, 1);
+	handler_entry->handle = handler;
+	handler_entry->user_data = user_data;
+	handler_entry->destroy = destroy;
+	l_queue_push_head(client->event_handlers, handler_entry);
 
 	return true;
 }
@@ -682,7 +709,6 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 		opts += l;
 		opts_len -= l;
 	}
-
 
 	r = _icmp6_router_new();
 	memcpy(r->address, src, sizeof(r->address));
