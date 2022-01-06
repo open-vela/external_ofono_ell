@@ -38,10 +38,10 @@ enum l_icmp6_client_event {
 };
 
 typedef void (*l_icmp6_debug_cb_t)(const char *str, void *user_data);
-typedef void (*l_icmp6_destroy_cb_t)(void *userdata);
+typedef void (*l_icmp6_destroy_cb_t)(void *user_data);
 typedef void (*l_icmp6_client_event_cb_t)(struct l_icmp6_client *client,
 					enum l_icmp6_client_event event,
-					void *userdata);
+					void *event_data, void *user_data);
 
 struct l_icmp6_client *l_icmp6_client_new(uint32_t ifindex);
 void l_icmp6_client_free(struct l_icmp6_client *client);
@@ -51,9 +51,9 @@ bool l_icmp6_client_stop(struct l_icmp6_client *client);
 
 const struct l_icmp6_router *l_icmp6_client_get_router(
 						struct l_icmp6_client *client);
-bool l_icmp6_client_set_event_handler(struct l_icmp6_client *client,
+bool l_icmp6_client_add_event_handler(struct l_icmp6_client *client,
 					l_icmp6_client_event_cb_t handler,
-					void *userdata,
+					void *user_data,
 					l_icmp6_destroy_cb_t destroy);
 bool l_icmp6_client_set_debug(struct l_icmp6_client *client,
 				l_icmp6_debug_cb_t function,
