@@ -534,6 +534,8 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 {
 	struct l_ecc_point *p;
 	size_t bytes = curve->ndigits * 8;
+	uint64_t tmp[L_ECC_MAX_DIGITS];
+	bool sub;
 
 	if (!data)
 		return NULL;
@@ -556,20 +558,18 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 
 		break;
 	case L_ECC_POINT_TYPE_COMPRESSED_BIT0:
-		if (!_ecc_compute_y(curve, p->y, p->x))
-			goto failed;
-
-		if (!(p->y[0] & 1))
-			_vli_mod_sub(p->y, curve->p, p->y, curve->p,
-						curve->ndigits);
-		break;
 	case L_ECC_POINT_TYPE_COMPRESSED_BIT1:
 		if (!_ecc_compute_y(curve, p->y, p->x))
 			goto failed;
 
-		if (p->y[0] & 1)
-			_vli_mod_sub(p->y, curve->p, p->y, curve->p,
-						curve->ndigits);
+		sub = ((type == L_ECC_POINT_TYPE_COMPRESSED_BIT0 &&
+				!(p->y[0] & 1)) ||
+				(type == L_ECC_POINT_TYPE_COMPRESSED_BIT1 &&
+				(p->y[0] & 1)));
+
+		_vli_mod_sub(tmp, curve->p, p->y, curve->p, curve->ndigits);
+
+		l_secure_select(sub, tmp, p->y, p->y, curve->ndigits * 8);
 
 		break;
 	case L_ECC_POINT_TYPE_FULL:
