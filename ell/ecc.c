@@ -734,6 +734,11 @@ LIB_EXPORT ssize_t l_ecc_point_get_y(const struct l_ecc_point *p, void *y,
 	return p->curve->ndigits * 8;
 }
 
+LIB_EXPORT bool l_ecc_point_y_isodd(const struct l_ecc_point *p)
+{
+	return p->y[0] & 1;
+}
+
 LIB_EXPORT ssize_t l_ecc_point_get_data(const struct l_ecc_point *p, void *buf,
 					size_t len)
 {
