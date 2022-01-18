@@ -69,6 +69,7 @@ struct l_ecc_point *l_ecc_point_clone(const struct l_ecc_point *p);
 const struct l_ecc_curve *l_ecc_point_get_curve(const struct l_ecc_point *p);
 ssize_t l_ecc_point_get_x(const struct l_ecc_point *p, void *x, size_t xlen);
 ssize_t l_ecc_point_get_y(const struct l_ecc_point *p, void *y, size_t ylen);
+bool l_ecc_point_y_isodd(const struct l_ecc_point *p);
 
 ssize_t l_ecc_point_get_data(const struct l_ecc_point *p, void *buf, size_t len);
 void l_ecc_point_free(struct l_ecc_point *p);
