@@ -534,7 +534,7 @@ static void tls_handle_ecdhe_server_key_xchg(struct l_tls *tls,
 	params->curve = l_ecc_curve_from_tls_group(tls->negotiated_curve->id);
 	params->public = l_ecc_point_from_data(params->curve,
 						L_ECC_POINT_TYPE_FULL,
-						buf, len);
+						buf, point_bytes);
 	tls->pending.key_xchg_params = params;
 	buf += point_bytes;
 	len -= point_bytes;
