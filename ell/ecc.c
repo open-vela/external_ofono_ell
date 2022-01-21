@@ -538,8 +538,11 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 	if (!data)
 		return NULL;
 
-	/* In all cases there should be an X coordinate in data */
-	if (len < bytes)
+	/* Verify the data length matches a full point or X coordinate */
+	if (type == L_ECC_POINT_TYPE_FULL) {
+		if (len != bytes * 2)
+			return NULL;
+	} else if (len != bytes)
 		return NULL;
 
 	p = l_ecc_point_new(curve);
@@ -570,9 +573,6 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 
 		break;
 	case L_ECC_POINT_TYPE_FULL:
-		if (len < bytes * 2)
-			goto failed;
-
 		_ecc_be2native(p->y, (void *) data + bytes, curve->ndigits);
 
 		if (!ecc_valid_point(p))
