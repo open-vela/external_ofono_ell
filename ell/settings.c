@@ -1061,7 +1061,8 @@ LIB_EXPORT bool l_settings_set_int(struct l_settings *settings,
 }
 
 LIB_EXPORT bool l_settings_get_uint(const struct l_settings *settings,
-					const char *group_name, const char *key,
+					const char *group_name,
+					const char *key,
 					unsigned int *out)
 {
 	const char *value = l_settings_get_value(settings, group_name, key);
@@ -1072,7 +1073,8 @@ LIB_EXPORT bool l_settings_get_uint(const struct l_settings *settings,
 	if (!value)
 		return false;
 
-	if (*value == '\0')
+	/* Do not allow '+' or '-' or empty string */
+	if (!l_ascii_isdigit(*value))
 		goto error;
 
 	errno = 0;
@@ -1154,7 +1156,8 @@ LIB_EXPORT bool l_settings_set_int64(struct l_settings *settings,
 }
 
 LIB_EXPORT bool l_settings_get_uint64(const struct l_settings *settings,
-					const char *group_name, const char *key,
+					const char *group_name,
+					const char *key,
 					uint64_t *out)
 {
 	const char *value = l_settings_get_value(settings, group_name, key);
@@ -1164,7 +1167,8 @@ LIB_EXPORT bool l_settings_get_uint64(const struct l_settings *settings,
 	if (!value)
 		return false;
 
-	if (*value == '\0')
+	/* Do not allow '+' or '-' or empty string */
+	if (!l_ascii_isdigit(*value))
 		goto error;
 
 	errno = 0;
