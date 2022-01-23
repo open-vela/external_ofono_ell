@@ -39,6 +39,7 @@
 #include "dbus-private.h"
 #include "string.h"
 #include "queue.h"
+#include "utf8.h"
 
 #define DBUS_MAX_INTERFACE_LEN 255
 #define DBUS_MAX_METHOD_LEN 255
@@ -341,9 +342,18 @@ bool _dbus_parse_unique_name(const char *name, uint64_t *out_id)
 	if (!l_str_has_prefix(name, ":1."))
 		return false;
 
+	name += 3;
+
+	/*
+	 * Disallow '+' or '-' at the beginning of the string
+	 * must have at least one digit
+	 */
+	if (!l_ascii_isdigit(*name))
+		return false;
+
 	errno = 0;
-	r = strtoull(name + 3, &endp, 10);
-	if (!endp || endp == name || *endp || errno)
+	r = strtoull(name, &endp, 10);
+	if (!endp || *endp || errno)
 		return false;
 
 	if (out_id)
