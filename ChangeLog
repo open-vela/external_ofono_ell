@@ -1,3 +1,6 @@
+ver 0.48:
+	Fix issue with memory leaking from ICMPv6 RA.
+
 ver 0.47:
 	Fix issue with memory leaking from DHCP leases.
 	Fix issue with NULL terminating of Base64 encoding.
