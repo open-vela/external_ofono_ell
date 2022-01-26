@@ -216,7 +216,7 @@ uint8_t *cert_pkcs12_pbkdf(const char *password,
 	 * characters used.  Recalculate p_len after we know it.
 	 * Important: The password must be valid UTF-8 here.
 	 */
-	if (password) {
+	if (p_len) {
 		if (!(bmpstring = l_utf8_to_ucs2be(password, &passwd_len))) {
 			l_checksum_free(h);
 			return NULL;
