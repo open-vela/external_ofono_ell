@@ -281,11 +281,8 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 	target_conflict = probe &&
 		!memcmp(arp.arp_tpa, &acd->ip, sizeof(uint32_t));
 
-	if (!source_conflict && !target_conflict) {
-		ACD_DEBUG("No target or source conflict detected for "NIPQUAD_FMT,
-				NIPQUAD(acd->ip));
+	if (!source_conflict && !target_conflict)
 		return true;
-	}
 
 	switch (acd->state) {
 	case ACD_STATE_PROBE:
