@@ -757,6 +757,7 @@ static int dhcp_client_receive_offer(struct l_dhcp_client *client,
 					size_t len)
 {
 	struct dhcp_message_iter iter;
+	struct l_dhcp_lease *lease;
 
 	CLIENT_DEBUG("");
 
@@ -766,13 +767,53 @@ static int dhcp_client_receive_offer(struct l_dhcp_client *client,
 	if (!_dhcp_message_iter_init(&iter, offer, len))
 		return -EINVAL;
 
-	client->lease = _dhcp_lease_parse_options(&iter);
-	if (!client->lease)
+	lease = _dhcp_lease_parse_options(&iter);
+	if (!lease)
 		return -ENOMSG;
+
+	/*
+	 * Received another offer. In the case of multiple DHCP servers we want
+	 * to ignore it and continue using the first offer. If this is from the
+	 * same server its likely a buggy DHCP implementation and we should
+	 * use the last offer it sends.
+	 */
+	if (client->lease) {
+		if (client->lease->server_address != lease->server_address) {
+			_dhcp_lease_free(lease);
+			return -ENOMSG;
+		}
+
+		CLIENT_DEBUG("Server sent another offer, using it instead");
+
+		_dhcp_lease_free(client->lease);
+	}
+
+	client->lease = lease;
 
 	client->lease->address = offer->yiaddr;
 
 	return 0;
+}
+
+static bool dhcp_client_handle_offer(struct l_dhcp_client *client,
+					const struct dhcp_message *message,
+					size_t len)
+{
+	if (dhcp_client_receive_offer(client, message, len) < 0)
+		return false;
+
+	CLIENT_ENTER_STATE(DHCP_STATE_REQUESTING);
+	client->attempt = 1;
+
+	if (dhcp_client_send_request(client) < 0) {
+		l_dhcp_client_stop(client);
+
+		return false;
+	}
+
+	l_timeout_modify_ms(client->timeout_resend, dhcp_fuzz_secs(4));
+
+	return true;
 }
 
 static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
@@ -832,21 +873,16 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 		if (msg_type != DHCP_MESSAGE_TYPE_OFFER)
 			return;
 
-		if (dhcp_client_receive_offer(client, message, len) < 0)
+		if (!dhcp_client_handle_offer(client, message, len))
 			return;
 
-		CLIENT_ENTER_STATE(DHCP_STATE_REQUESTING);
-		client->attempt = 1;
-
-		if (dhcp_client_send_request(client) < 0) {
-			l_dhcp_client_stop(client);
-
-			return;
-		}
-
-		l_timeout_modify_ms(client->timeout_resend, dhcp_fuzz_secs(4));
 		break;
 	case DHCP_STATE_REQUESTING:
+		if (msg_type == DHCP_MESSAGE_TYPE_OFFER) {
+			dhcp_client_handle_offer(client, message, len);
+			return;
+		}
+		/* Fall through */
 	case DHCP_STATE_RENEWING:
 	case DHCP_STATE_REBINDING:
 	receive_rapid_commit:
