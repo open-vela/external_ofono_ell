@@ -559,6 +559,45 @@ static void test_invalid_data(const void *test_data)
 	l_settings_free(settings);
 }
 
+static void check_clone_data(struct l_settings *settings)
+{
+	const char *value;
+	const char *type = NULL;
+
+	assert(l_settings_has_group(settings, "normal"));
+	assert(l_settings_has_key(settings, "normal", "key"));
+	value = l_settings_get_value(settings, "normal", "key");
+	assert(value);
+	assert(!strcmp(value, "value"));
+
+	assert(l_settings_has_embedded_group(settings, "single_cert"));
+	value = l_settings_get_embedded_value(settings, "single_cert",
+								&type);
+	assert(value && type);
+	assert(!strcmp(type, "pem"));
+	assert(!strcmp(value, TEST_CERTIFICATE));
+}
+
+static void test_clone(const void *data)
+{
+	const char *raw_data =
+			"[normal]\n"
+			"key=value\n"
+			"[@pem@single_cert]\n"
+			TEST_CERTIFICATE;
+
+	struct l_settings *settings = l_settings_new();
+	struct l_settings *copy;
+
+	assert(l_settings_load_from_data(settings, raw_data, strlen(raw_data)));
+	check_clone_data(settings);
+
+	copy = l_settings_clone(settings);
+	check_clone_data(copy);
+	l_settings_free(copy);
+	l_settings_free(settings);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -571,7 +610,7 @@ int main(int argc, char *argv[])
 	l_test_add("Invalid Data 2", test_invalid_data, key_before_group_data);
 	l_test_add("Test valid ext group", test_valid_extended_group, NULL);
 	l_test_add("Test invalid ext group", test_invalid_extended_group, NULL);
-
+	l_test_add("Test clone", test_clone, NULL);
 
 	return l_test_run();
 }
