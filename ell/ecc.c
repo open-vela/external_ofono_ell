@@ -562,10 +562,8 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 		if (!_ecc_compute_y(curve, p->y, p->x))
 			goto failed;
 
-		sub = ((type == L_ECC_POINT_TYPE_COMPRESSED_BIT0 &&
-				!(p->y[0] & 1)) ||
-				(type == L_ECC_POINT_TYPE_COMPRESSED_BIT1 &&
-				(p->y[0] & 1)));
+		sub = secure_select(type == L_ECC_POINT_TYPE_COMPRESSED_BIT0,
+					!(p->y[0] & 1), p->y[0] & 1);
 
 		_vli_mod_sub(tmp, curve->p, p->y, curve->p, curve->ndigits);
 
