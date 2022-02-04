@@ -452,6 +452,7 @@ global:
 	l_ringbuf_append;
 	/* settings */
 	l_settings_new;
+	l_settings_clone;
 	l_settings_free;
 	l_settings_load_from_data;
 	l_settings_to_data;
