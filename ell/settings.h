@@ -37,6 +37,8 @@ typedef void (*l_settings_debug_cb_t) (const char *str, void *user_data);
 typedef void (*l_settings_destroy_cb_t) (void *user_data);
 
 struct l_settings *l_settings_new(void);
+struct l_settings *l_settings_clone(const struct l_settings *settings);
+
 void l_settings_free(struct l_settings *settings);
 DEFINE_CLEANUP_FUNC(l_settings_free);
 
