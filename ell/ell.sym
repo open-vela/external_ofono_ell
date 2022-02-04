@@ -490,6 +490,7 @@ global:
 	l_settings_has_embedded_group;
 	l_settings_get_embedded_groups;
 	l_settings_get_embedded_value;
+	l_settings_remove_embedded_groups;
 	/* signal */
 	l_signal_create;
 	l_signal_remove;

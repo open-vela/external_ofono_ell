@@ -1561,3 +1561,13 @@ LIB_EXPORT const char *l_settings_get_embedded_value(
 
 	return group->data;
 }
+
+LIB_EXPORT bool l_settings_remove_embedded_groups(struct l_settings *settings)
+{
+	if (unlikely(!settings))
+		return false;
+
+	l_queue_clear(settings->embedded_groups, embedded_group_destroy);
+
+	return true;
+}
