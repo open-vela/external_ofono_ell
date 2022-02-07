@@ -636,6 +636,7 @@ global:
 	l_rtnl_route_free;
 	l_rtnl_route_get_family;
 	l_rtnl_route_get_gateway;
+	l_rtnl_route_get_dst;
 	l_rtnl_route_get_lifetime;
 	l_rtnl_route_set_lifetime;
 	l_rtnl_route_get_mtu;
