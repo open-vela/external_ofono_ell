@@ -70,7 +70,7 @@ static inline int address_to_string(int family, const struct in_addr *v4,
 			return -errno;
 		break;
 	default:
-		return  false;
+		return -EAFNOSUPPORT;
 	}
 
 	return 0;
