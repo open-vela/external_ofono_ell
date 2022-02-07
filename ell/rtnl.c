@@ -403,6 +403,21 @@ LIB_EXPORT bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt,
 					out_buf);
 }
 
+LIB_EXPORT bool l_rtnl_route_get_dst(const struct l_rtnl_route *rt,
+						char *out_buf,
+						uint8_t *out_prefix_len)
+{
+	if (unlikely(!rt))
+		return false;
+
+	if (address_to_string(rt->family, &rt->dst.in_addr, &rt->dst.in6_addr,
+					out_buf) != 0)
+		return false;
+
+	*out_prefix_len = rt->dst_prefix_len;
+	return true;
+}
+
 LIB_EXPORT uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt)
 {
 	if (unlikely(!rt))
