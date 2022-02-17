@@ -30,6 +30,7 @@
 
 struct base64_decode_test {
 	const char *input;
+	size_t input_size;
 	const uint8_t *output;
 	size_t output_size;
 };
@@ -79,6 +80,46 @@ static void test_base64_decode(const void *data)
 	assert(!memcmp(decoded, test->output, decoded_size));
 
 	l_free(decoded);
+}
+
+/* Length != string length */
+static const struct base64_decode_test error_1 = {
+	.input = "cGxlYXN1cmUu",
+	.input_size = 11
+};
+
+/* Length doesn't include pad */
+static const struct base64_decode_test error_2 = {
+	.input = "bGVhc3VyZS4=",
+	.input_size = 11,
+};
+
+/* Length doesn't include pad */
+static const struct base64_decode_test error_3 = {
+	.input = "ZWFzdXJlLg==",
+	.input_size = 10
+};
+
+/* Length correct, but data after padding */
+static const struct base64_decode_test error_4 = {
+	.input = "ZWFzdXJlLg==bG",
+	.input_size = 14
+};
+
+/* Only pad */
+static const struct base64_decode_test error_5 = {
+	.input = "==",
+	.input_size = 2
+};
+
+static void test_base64_error(const void *data)
+{
+	const struct base64_decode_test *test = data;
+	uint8_t *decoded;
+	size_t decoded_size;
+
+	decoded = l_base64_decode(test->input, test->input_size, &decoded_size);
+	assert(!decoded);
 }
 
 struct base64_encode_test {
@@ -133,6 +174,11 @@ int main(int argc, char *argv[])
 	l_test_add("base64/decode/test2", test_base64_decode, &decode_2);
 	l_test_add("base64/decode/test3", test_base64_decode, &decode_3);
 	l_test_add("base64/decode/test4", test_base64_decode, &decode_4);
+	l_test_add("base64/decode/test5", test_base64_error, &error_1);
+	l_test_add("base64/decode/test6", test_base64_error, &error_2);
+	l_test_add("base64/decode/test7", test_base64_error, &error_3);
+	l_test_add("base64/decode/test8", test_base64_error, &error_4);
+	l_test_add("base64/decode/test9", test_base64_error, &error_5);
 
 	l_test_add("base64/encode/test1", test_base64_encode, &encode_1);
 	l_test_add("base64/encode/test2", test_base64_encode, &encode_2);
