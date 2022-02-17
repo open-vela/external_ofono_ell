@@ -27,48 +27,51 @@
 #include "utf8.h"
 #include "base64.h"
 #include "private.h"
+#include "useful.h"
+
+#include <stdio.h>
 
 LIB_EXPORT uint8_t *l_base64_decode(const char *in, size_t in_len,
 					size_t *n_written)
 {
 	const char *ptr, *in_end = in + in_len;
+	const char *base64_end = NULL;
 	uint8_t *out_buf, *out;
-	int base64_len = 0, pad_len;
+	int base64_len = 0, pad_len = 0;
 	uint16_t reg = 0;
 
-	for (ptr = in; ptr < in_end; ptr++)
+	for (ptr = in; ptr < in_end; ptr++) {
 		if (l_ascii_isspace(*ptr))
 			/* Whitespace */
 			continue;
-		else if (*ptr == '=')
+		else if (*ptr == '=') {
 			/* Final padding */
-			break;
-		else if (l_ascii_isalnum(*ptr) || *ptr == '+' || *ptr == '/')
+			if (!pad_len)
+				base64_end = ptr;
+
+			pad_len++;
+		} else if (!pad_len && (l_ascii_isalnum(*ptr) || *ptr == '+' ||
+					*ptr == '/'))
 			/* Base64 character */
 			base64_len++;
 		else
 			/* Bad character */
 			return NULL;
+	}
 
-	in_end = ptr;
+	if (ptr != in_end)
+		return NULL;
 
 	if ((base64_len & 3) == 1)
 		/* Invalid length */
 		return NULL;
 
-	pad_len = (4 - base64_len) & 3;
-	for (; ptr < in + in_len && pad_len; ptr++)
-		if (l_ascii_isspace(*ptr))
-			/* Whitespace */
-			continue;
-		else if (*ptr == '=')
-			/* Final padding */
-			pad_len--;
-		else
-			/* Bad character */
-			return NULL;
-	if (pad_len)
+	if (pad_len != align_len(base64_len, 4) - base64_len)
 		return NULL;
+
+	/* No padding */
+	if (!base64_end)
+		base64_end = ptr;
 
 	*n_written = base64_len * 3 / 4;
 	out_buf = l_malloc(*n_written);
@@ -76,7 +79,7 @@ LIB_EXPORT uint8_t *l_base64_decode(const char *in, size_t in_len,
 	out = out_buf;
 	base64_len = 0;
 
-	for (ptr = in; ptr < in_end; ptr++) {
+	for (ptr = in; ptr < base64_end; ptr++) {
 		if (l_ascii_isspace(*ptr))
 			/* Whitespace */
 			continue;
