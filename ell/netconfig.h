@@ -65,6 +65,17 @@ void l_netconfig_set_event_handler(struct l_netconfig *netconfig,
 					void *user_data,
 					l_netconfig_destroy_cb_t destroy);
 
+void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
+				struct l_netlink *rtnl);
+struct l_queue *l_netconfig_get_addresses(struct l_netconfig *netconfig,
+					struct l_queue **out_added,
+					struct l_queue **out_updated,
+					struct l_queue **out_removed);
+struct l_queue *l_netconfig_get_routes(struct l_netconfig *netconfig,
+					struct l_queue **out_added,
+					struct l_queue **out_updated,
+					struct l_queue **out_removed);
+
 #ifdef __cplusplus
 }
 #endif
