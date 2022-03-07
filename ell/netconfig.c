@@ -380,3 +380,76 @@ LIB_EXPORT void l_netconfig_set_event_handler(struct l_netconfig *netconfig,
 	netconfig->handler.user_data = user_data;
 	netconfig->handler.destroy = destroy;
 }
+
+LIB_EXPORT void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
+					struct l_netlink *rtnl)
+{
+	const struct l_queue_entry *entry;
+
+	for (entry = l_queue_get_entries(netconfig->addresses.removed); entry;
+			entry = entry->next)
+		l_rtnl_ifaddr_delete(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+
+	for (entry = l_queue_get_entries(netconfig->addresses.added); entry;
+			entry = entry->next)
+		l_rtnl_ifaddr_add(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+
+	/* We can use l_rtnl_ifaddr_add here since that uses NLM_F_REPLACE */
+	for (entry = l_queue_get_entries(netconfig->addresses.updated); entry;
+			entry = entry->next)
+		l_rtnl_ifaddr_add(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+
+	for (entry = l_queue_get_entries(netconfig->routes.removed); entry;
+			entry = entry->next)
+		l_rtnl_route_delete(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+
+	for (entry = l_queue_get_entries(netconfig->routes.added); entry;
+			entry = entry->next)
+		l_rtnl_route_add(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+
+	/* We can use l_rtnl_route_add here since that uses NLM_F_REPLACE */
+	for (entry = l_queue_get_entries(netconfig->routes.updated); entry;
+			entry = entry->next)
+		l_rtnl_route_add(rtnl, netconfig->ifindex, entry->data,
+					NULL, NULL, NULL);
+}
+
+LIB_EXPORT struct l_queue *l_netconfig_get_addresses(
+						struct l_netconfig *netconfig,
+						struct l_queue **out_added,
+						struct l_queue **out_updated,
+						struct l_queue **out_removed)
+{
+	if (out_added)
+		*out_added = netconfig->addresses.added;
+
+	if (out_updated)
+		*out_updated = netconfig->addresses.updated;
+
+	if (out_removed)
+		*out_removed = netconfig->addresses.removed;
+
+	return netconfig->addresses.current;
+}
+
+LIB_EXPORT struct l_queue *l_netconfig_get_routes(struct l_netconfig *netconfig,
+						struct l_queue **out_added,
+						struct l_queue **out_updated,
+						struct l_queue **out_removed)
+{
+	if (out_added)
+		*out_added = netconfig->routes.added;
+
+	if (out_updated)
+		*out_updated = netconfig->routes.updated;
+
+	if (out_removed)
+		*out_removed = netconfig->routes.removed;
+
+	return netconfig->routes.current;
+}
