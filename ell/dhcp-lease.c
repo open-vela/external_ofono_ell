@@ -351,6 +351,15 @@ LIB_EXPORT uint32_t l_dhcp_lease_get_lifetime(const struct l_dhcp_lease *lease)
 	return lease->lifetime;
 }
 
+LIB_EXPORT uint64_t l_dhcp_lease_get_start_time(
+					const struct l_dhcp_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	return lease->bound_time;
+}
+
 LIB_EXPORT const uint8_t *l_dhcp_lease_get_mac(const struct l_dhcp_lease *lease)
 {
 	if (unlikely(!lease))
