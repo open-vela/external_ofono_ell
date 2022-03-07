@@ -38,6 +38,7 @@
 #include "netlink.h"
 #include "log.h"
 #include "util.h"
+#include "time.h"
 #include "rtnl.h"
 #include "private.h"
 
@@ -53,6 +54,8 @@ struct l_rtnl_address {
 	char label[IFNAMSIZ];
 	uint32_t preferred_lifetime;
 	uint32_t valid_lifetime;
+	uint32_t preferred_expiry_time;
+	uint32_t valid_expiry_time;
 	uint32_t flags;
 };
 
@@ -110,6 +113,8 @@ static inline void _rtnl_address_init(struct l_rtnl_address *addr,
 	memset(addr->label, 0, sizeof(addr->label));
 	addr->preferred_lifetime = 0;
 	addr->valid_lifetime = 0;
+	addr->preferred_expiry_time = 0;
+	addr->valid_expiry_time = 0;
 
 	l_rtnl_address_set_broadcast(addr, NULL);
 }
@@ -276,12 +281,45 @@ LIB_EXPORT bool l_rtnl_address_set_lifetimes(struct l_rtnl_address *addr,
 						uint32_t preferred_lifetime,
 						uint32_t valid_lifetime)
 {
+	uint64_t now = l_time_now();
+
 	if (unlikely(!addr))
 		return false;
 
 	addr->preferred_lifetime = preferred_lifetime;
 	addr->valid_lifetime = valid_lifetime;
+	addr->preferred_expiry_time = preferred_lifetime ?
+		now + preferred_lifetime * L_USEC_PER_SEC : 0;
+	addr->valid_expiry_time = valid_lifetime ?
+		now + valid_lifetime * L_USEC_PER_SEC : 0;
+	return true;
+}
 
+LIB_EXPORT bool l_rtnl_address_get_expiry(const struct l_rtnl_address *addr,
+						uint64_t *preferred_expiry_time,
+						uint64_t *valid_expiry_time)
+{
+	if (unlikely(!addr))
+		return false;
+
+	if (preferred_expiry_time)
+		*preferred_expiry_time = addr->preferred_expiry_time;
+
+	if (valid_expiry_time)
+		*valid_expiry_time = addr->valid_expiry_time;
+
+	return true;
+}
+
+LIB_EXPORT bool l_rtnl_address_set_expiry(struct l_rtnl_address *addr,
+						uint64_t preferred_expiry_time,
+						uint64_t valid_expiry_time)
+{
+	if (unlikely(!addr))
+		return false;
+
+	addr->preferred_expiry_time = preferred_expiry_time;
+	addr->valid_expiry_time = valid_expiry_time;
 	return true;
 }
 
@@ -313,6 +351,7 @@ struct l_rtnl_route {
 		struct in_addr in_addr;
 	} prefsrc;
 	uint32_t lifetime;
+	uint64_t expiry_time;
 	uint32_t mtu;
 	uint32_t priority;
 	uint8_t preference;
@@ -432,6 +471,23 @@ LIB_EXPORT bool l_rtnl_route_set_lifetime(struct l_rtnl_route *rt, uint32_t lt)
 		return false;
 
 	rt->lifetime = lt;
+	rt->expiry_time = lt ? l_time_now() + lt * L_USEC_PER_SEC : 0;
+
+	return true;
+}
+
+LIB_EXPORT uint64_t l_rtnl_route_get_expiry(const struct l_rtnl_route *rt)
+{
+	return rt->expiry_time;
+}
+
+LIB_EXPORT bool l_rtnl_route_set_expiry(struct l_rtnl_route *rt,
+					uint64_t expiry_time)
+{
+	if (unlikely(!rt))
+		return false;
+
+	rt->expiry_time = expiry_time;
 	return true;
 }
 
@@ -1102,6 +1158,7 @@ static uint32_t _rtnl_ifaddr_change(struct l_netlink *rtnl, uint16_t nlmsg_type,
 	size_t bufsize;
 	uint32_t id;
 	int flags = 0;
+	uint64_t now = l_time_now();
 
 	if  (nlmsg_type == RTM_NEWADDR)
 		flags = NLM_F_CREATE | NLM_F_REPLACE;
@@ -1145,12 +1202,15 @@ static uint32_t _rtnl_ifaddr_change(struct l_netlink *rtnl, uint16_t nlmsg_type,
 		buf += rta_add_data(buf, IFA_LABEL,
 					addr->label, strlen(addr->label) + 1);
 
-	if (addr->preferred_lifetime || addr->valid_lifetime) {
+	if (addr->preferred_expiry_time > now ||
+			addr->valid_expiry_time > now) {
 		struct ifa_cacheinfo cinfo;
 
 		memset(&cinfo, 0, sizeof(cinfo));
-		cinfo.ifa_prefered = addr->preferred_lifetime;
-		cinfo.ifa_valid = addr->valid_lifetime;
+		cinfo.ifa_prefered = addr->preferred_expiry_time > now ?
+			l_time_to_secs(addr->preferred_expiry_time - now) : 0;
+		cinfo.ifa_valid =  addr->valid_expiry_time > now ?
+			l_time_to_secs(addr->valid_expiry_time - now) : 0;
 
 		buf += rta_add_data(buf, IFA_CACHEINFO, &cinfo, sizeof(cinfo));
 	}
@@ -1208,8 +1268,8 @@ LIB_EXPORT struct l_rtnl_address *l_rtnl_ifaddr_extract(
 			break;
 		case IFA_CACHEINFO:
 			cinfo = RTA_DATA(attr);
-			addr->preferred_lifetime = cinfo->ifa_prefered;
-			addr->valid_lifetime = cinfo->ifa_valid;
+			l_rtnl_address_set_lifetimes(addr, cinfo->ifa_prefered,
+							cinfo->ifa_valid);
 			break;
 		}
 	}
@@ -1248,6 +1308,7 @@ static uint32_t _rtnl_route_change(struct l_netlink *rtnl,
 	size_t bufsize;
 	void *rta_buf;
 	uint16_t flags;
+	uint64_t now = l_time_now();
 
 	bufsize = NLMSG_ALIGN(sizeof(struct rtmsg)) +
 			RTA_SPACE(sizeof(uint32_t)) +        /* RTA_OIF */
@@ -1303,8 +1364,9 @@ static uint32_t _rtnl_route_change(struct l_netlink *rtnl,
 	if (rt->preference)
 		rta_buf += rta_add_u8(rta_buf, RTA_PREF, rt->preference);
 
-	if (rt->lifetime != 0xffffffff)
-		rta_buf += rta_add_u32(rta_buf, RTA_EXPIRES, rt->lifetime);
+	if (rt->expiry_time > now)
+		rta_buf += rta_add_u32(rta_buf, RTA_EXPIRES,
+					l_time_to_secs(rt->expiry_time - now));
 
 	return l_netlink_send(rtnl, nlmsg_type, flags, rtmmsg,
 				rta_buf - (void *) rtmmsg, cb, user_data,
