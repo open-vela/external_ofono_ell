@@ -129,6 +129,10 @@ static int icmp6_open_router_common(const struct icmp6_filter *filter,
 	if (r < 0)
 		goto fail;
 
+	r = setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &yes, sizeof(yes));
+	if (r < 0)
+		goto fail;
+
 	return s;
 
 fail:
@@ -191,7 +195,8 @@ static int icmp6_send_router_solicitation(int s, const uint8_t mac[static 6])
 	return 0;
 }
 
-static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src)
+static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src,
+				uint64_t *out_timestamp)
 {
 	char c_msg_buf[CMSG_SPACE(sizeof(int))];
 	struct iovec iov = {
@@ -210,6 +215,7 @@ static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src)
 	};
 	struct cmsghdr *cmsg;
 	ssize_t l;
+	uint64_t timestamp = 0;
 
 	l = recvmsg(s, &msg, MSG_DONTWAIT);
 	if (l < 0)
@@ -230,10 +236,16 @@ static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src)
 
 			if (hops != 255)
 				return -EMULTIHOP;
+		} else if (cmsg->cmsg_level == SOL_SOCKET &&
+				cmsg->cmsg_type == SCM_TIMESTAMP) {
+			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
+
+			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
 		}
 	}
 
 	memcpy(src, &saddr.sin6_addr, sizeof(saddr.sin6_addr));
+	*out_timestamp = timestamp ?: l_time_now();
 	return 0;
 }
 
@@ -344,9 +356,11 @@ static void icmp6_client_setup_routes(struct l_icmp6_client *client)
 static int icmp6_client_handle_message(struct l_icmp6_client *client,
 						struct nd_router_advert *ra,
 						size_t len,
-						const struct in6_addr *src)
+						const struct in6_addr *src,
+						uint64_t timestamp)
 {
-	struct l_icmp6_router *r = _icmp6_router_parse(ra, len, src->s6_addr);
+	struct l_icmp6_router *r =
+		_icmp6_router_parse(ra, len, src->s6_addr, timestamp);
 
 	if (!r)
 		return -EBADMSG;
@@ -382,6 +396,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 	ssize_t l;
 	struct in6_addr src;
 	int r;
+	uint64_t timestamp = 0;
 
 	/* Poke to see how many bytes we need to read / alloc */
 	l = recv(s, NULL, 0, MSG_PEEK|MSG_TRUNC);
@@ -392,7 +407,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 	}
 
 	ra = l_malloc(l);
-	if (icmp6_receive(s, ra, l, &src) < 0)
+	if (icmp6_receive(s, ra, l, &src, &timestamp) < 0)
 		goto done;
 
 	if ((size_t) l < sizeof(struct nd_router_advert)) {
@@ -400,7 +415,7 @@ static bool icmp6_client_read_handler(struct l_io *io, void *userdata)
 		goto done;
 	}
 
-	r = icmp6_client_handle_message(client, ra, l, &src);
+	r = icmp6_client_handle_message(client, ra, l, &src, timestamp);
 	if (r < 0)
 		goto done;
 
@@ -661,7 +676,8 @@ void _icmp6_router_free(struct l_icmp6_router *r)
 
 struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 						size_t len,
-						const uint8_t src[static 16])
+						const uint8_t src[static 16],
+						uint64_t timestamp)
 {
 	struct l_icmp6_router *r;
 	const uint8_t *opts;
@@ -726,6 +742,7 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	if (r->pref == 0x2) /* If invalid, reset to medium */
 		r->pref = 0;
 
+	r->start_time = timestamp;
 	r->lifetime = L_BE16_TO_CPU(ra->nd_ra_router_lifetime);
 
 	opts = (uint8_t *) (ra + 1);
