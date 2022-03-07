@@ -962,13 +962,14 @@ static void dhcp6_client_address_add_cb(int error, uint16_t type,
 	}
 }
 
-static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
+static void dhcp6_client_setup_lease(struct l_dhcp6_client *client,
+					uint64_t timestamp)
 {
 	uint32_t t1 = _dhcp6_lease_get_t1(client->lease);
 	uint32_t t2 = _dhcp6_lease_get_t2(client->lease);
 	enum l_dhcp6_client_event event;
 
-	client->lease_start_t = l_time_now();
+	client->lease_start_t = timestamp;
 
 	/* TODO: Emit IP_CHANGED if any addresses were removed / added */
 	if (client->state == DHCP6_STATE_REQUESTING ||
@@ -1008,6 +1009,8 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client)
 		a = l_rtnl_address_new(ip, prefix_len);
 		l_rtnl_address_set_noprefixroute(a, true);
 		l_rtnl_address_set_lifetimes(a, p, v);
+		l_rtnl_address_set_expiry(a, timestamp + p * L_USEC_PER_SEC,
+						timestamp + v * L_USEC_PER_SEC);
 
 		client->rtnl_add_cmdid =
 			l_rtnl_ifaddr_add(client->rtnl, client->ifindex, a,
@@ -1353,7 +1356,7 @@ bad_lease:
 }
 
 static void dhcp6_client_rx_message(const void *data, size_t len,
-								void *userdata)
+					uint64_t timestamp, void *userdata)
 {
 	struct l_dhcp6_client *client = userdata;
 	const struct dhcp6_message *message = data;
@@ -1413,7 +1416,7 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	if (r == DHCP6_STATE_BOUND) {
 		l_timeout_remove(client->timeout_send);
 		client->timeout_send = NULL;
-		dhcp6_client_setup_lease(client);
+		dhcp6_client_setup_lease(client, timestamp);
 		return;
 	}
 
