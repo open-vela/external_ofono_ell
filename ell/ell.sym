@@ -240,6 +240,7 @@ global:
 	l_dhcp_lease_get_t1;
 	l_dhcp_lease_get_t2;
 	l_dhcp_lease_get_lifetime;
+	l_dhcp_lease_get_start_time;
 	l_dhcp_client_new;
 	l_dhcp_client_destroy;
 	l_dhcp_client_add_request_option;

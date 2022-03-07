@@ -122,6 +122,7 @@ const uint8_t *l_dhcp_lease_get_mac(const struct l_dhcp_lease *lease);
 uint32_t l_dhcp_lease_get_t1(const struct l_dhcp_lease *lease);
 uint32_t l_dhcp_lease_get_t2(const struct l_dhcp_lease *lease);
 uint32_t l_dhcp_lease_get_lifetime(const struct l_dhcp_lease *lease);
+uint64_t l_dhcp_lease_get_start_time(const struct l_dhcp_lease *lease);
 
 struct l_dhcp_server *l_dhcp_server_new(int ifindex);
 void l_dhcp_server_destroy(struct l_dhcp_server *server);
