@@ -69,6 +69,8 @@ bool l_icmp6_client_set_route_priority(struct l_icmp6_client *client,
 char *l_icmp6_router_get_address(const struct l_icmp6_router *r);
 bool l_icmp6_router_get_managed(const struct l_icmp6_router *r);
 bool l_icmp6_router_get_other(const struct l_icmp6_router *r);
+uint16_t l_icmp6_router_get_lifetime(const struct l_icmp6_router *r);
+uint64_t l_icmp6_router_get_start_time(const struct l_icmp6_router *r);
 
 #ifdef __cplusplus
 }
