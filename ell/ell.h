@@ -65,3 +65,4 @@
 #include <ell/path.h>
 #include <ell/acd.h>
 #include <ell/tester.h>
+#include <ell/netconfig.h>

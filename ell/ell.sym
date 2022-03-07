@@ -732,6 +732,13 @@ global:
 	l_tester_post_teardown_complete;
 	l_tester_post_teardown_failed;
 	l_tester_wait;
+	/* netconfig */
+	l_netconfig_new;
+	l_netconfig_destroy;
+	l_netconfig_start;
+	l_netconfig_stop;
+	l_netconfig_get_dhcp_client;
+	l_netconfig_set_event_handler;
 local:
 	*;
 };
