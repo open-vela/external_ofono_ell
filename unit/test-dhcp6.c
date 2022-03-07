@@ -235,7 +235,7 @@ static void event_handler_lease_obtained(struct l_dhcp6_client *client,
 	memcpy(transaction_id, client_packet + 1, sizeof(transaction_id)); \
 	memcpy(client_packet, packet, sizeof(packet)); \
 	memcpy(client_packet + 1, transaction_id, sizeof(transaction_id)); \
-	transport->rx_cb(client_packet, sizeof(packet), client) \
+	transport->rx_cb(client_packet, sizeof(packet), 0, client) \
 
 static void test_obtain_lease(const void *data)
 {
