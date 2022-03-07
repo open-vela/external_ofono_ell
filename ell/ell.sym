@@ -630,6 +630,8 @@ global:
 	l_rtnl_address_get_valid_lifetime;
 	l_rtnl_address_get_preferred_lifetime;
 	l_rtnl_address_set_lifetimes;
+	l_rtnl_address_get_expiry;
+	l_rtnl_address_set_expiry;
 	l_rtnl_address_set_scope;
 	l_rtnl_route_new_gateway;
 	l_rtnl_route_new_prefix;
@@ -639,6 +641,8 @@ global:
 	l_rtnl_route_get_dst;
 	l_rtnl_route_get_lifetime;
 	l_rtnl_route_set_lifetime;
+	l_rtnl_route_get_expiry;
+	l_rtnl_route_set_expiry;
 	l_rtnl_route_get_mtu;
 	l_rtnl_route_set_mtu;
 	l_rtnl_route_get_preference;
