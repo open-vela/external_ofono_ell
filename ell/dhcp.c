@@ -675,7 +675,7 @@ static void dhcp_client_address_add_cb(int error, uint16_t type,
 static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 					const uint8_t *saddr,
 					const struct dhcp_message *ack,
-					size_t len)
+					size_t len, uint64_t timestamp)
 {
 	struct dhcp_message_iter iter;
 	struct l_dhcp_lease *lease;
@@ -727,6 +727,7 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 		uint32_t l = l_dhcp_lease_get_lifetime(client->lease);
 		L_AUTO_FREE_VAR(char *, broadcast) =
 				l_dhcp_lease_get_broadcast(client->lease);
+		uint64_t et = timestamp + l * L_USEC_PER_SEC;
 
 		prefix_len = l_dhcp_lease_get_prefix_length(client->lease);
 		if (!prefix_len)
@@ -735,6 +736,7 @@ static int dhcp_client_receive_ack(struct l_dhcp_client *client,
 		a = l_rtnl_address_new(ip, prefix_len);
 		l_rtnl_address_set_noprefixroute(a, true);
 		l_rtnl_address_set_lifetimes(a, l, l);
+		l_rtnl_address_set_expiry(a, et, et);
 		l_rtnl_address_set_broadcast(a, broadcast);
 
 		client->rtnl_add_cmdid =
@@ -817,7 +819,8 @@ static bool dhcp_client_handle_offer(struct l_dhcp_client *client,
 }
 
 static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
-					const uint8_t *saddr)
+					const uint8_t *saddr,
+					uint64_t timestamp)
 {
 	struct l_dhcp_client *client = userdata;
 	const struct dhcp_message *message = data;
@@ -898,7 +901,8 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 		if (msg_type != DHCP_MESSAGE_TYPE_ACK)
 			return;
 
-		r = dhcp_client_receive_ack(client, saddr, message, len);
+		r = dhcp_client_receive_ack(client, saddr, message, len,
+						timestamp);
 		if (r < 0)
 			return;
 
@@ -917,7 +921,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 
 		dhcp_client_event_notify(client, r);
 
-		client->lease->bound_time = l_time_now();
+		client->lease->bound_time = timestamp;
 
 		/*
 		 * Start T1, once it expires we will start the T2 timer.  If

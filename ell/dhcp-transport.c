@@ -44,6 +44,7 @@
 #include "io.h"
 #include "util.h"
 #include "private.h"
+#include "time.h"
 #include "dhcp-private.h"
 
 struct dhcp_default_transport {
@@ -112,10 +113,20 @@ static bool _dhcp_default_transport_read_handler(struct l_io *io,
 	struct dhcp_packet *p;
 	uint16_t c;
 	struct sockaddr_ll saddr;
-	socklen_t saddr_len = sizeof(saddr);
+	uint64_t timestamp = 0;
+	struct cmsghdr *cmsg;
+	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
+	struct msghdr msg = {};
+	unsigned char control[32];
 
-	len = recvfrom(fd, buf, sizeof(buf), 0, (struct sockaddr *) &saddr,
-			&saddr_len);
+	msg.msg_name = &saddr;
+	msg.msg_namelen = sizeof(saddr);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = control;
+	msg.msg_controllen = sizeof(control);
+
+	len = recvmsg(fd, &msg, 0);
 	if (len < 0)
 		return false;
 
@@ -151,14 +162,28 @@ static bool _dhcp_default_transport_read_handler(struct l_io *io,
 
 	len -= sizeof(struct udphdr) - sizeof(struct iphdr);
 
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+					cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_SOCKET &&
+				cmsg->cmsg_type == SCM_TIMESTAMP) {
+			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
+
+			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
+		}
+	}
+
+	if (!timestamp)
+		timestamp = l_time_now();
+
 	if (transport->super.rx_cb) {
 		const uint8_t *src_mac = NULL;
 
-		if (saddr_len >= sizeof(saddr) && saddr.sll_halen == ETH_ALEN)
+		if (msg.msg_namelen >= sizeof(saddr) &&
+				saddr.sll_halen == ETH_ALEN)
 			src_mac = saddr.sll_addr;
 
 		transport->super.rx_cb(&p->dhcp, len, transport->super.rx_data,
-					src_mac);
+					src_mac, timestamp);
 	}
 
 	return true;
@@ -443,6 +468,7 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port, uint32_t xid)
 		.len = L_ARRAY_SIZE(filter),
 		.filter = filter
 	};
+	int one = 1;
 
 	s = socket(AF_PACKET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s < 0)
@@ -450,6 +476,9 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port, uint32_t xid)
 
 	if (setsockopt(s, SOL_SOCKET, SO_ATTACH_FILTER,
 						&fprog, sizeof(fprog)) < 0)
+		goto error;
+
+	if (setsockopt(s, SOL_SOCKET, SO_TIMESTAMP, &one, sizeof(one)) < 0)
 		goto error;
 
 	memset(&addr, 0, sizeof(addr));
