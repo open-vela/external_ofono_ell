@@ -108,7 +108,7 @@ uint16_t _dhcp_checksum(const void *buf, size_t len);
 uint16_t _dhcp_checksumv(const struct iovec *iov, size_t iov_cnt);
 
 typedef void (*dhcp_transport_rx_cb_t)(const void *, size_t, void *,
-					const uint8_t *);
+					const uint8_t *, uint64_t);
 
 struct dhcp_transport {
 	int (*open)(struct dhcp_transport *s, uint32_t xid);
