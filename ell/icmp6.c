@@ -815,3 +815,20 @@ LIB_EXPORT bool l_icmp6_router_get_other(const struct l_icmp6_router *r)
 
 	return r->other;
 }
+
+LIB_EXPORT uint16_t l_icmp6_router_get_lifetime(const struct l_icmp6_router *r)
+{
+	if (unlikely(!r))
+		return false;
+
+	return r->lifetime;
+}
+
+/* Get the reception timestamp, i.e. when lifetime is counted from */
+LIB_EXPORT uint64_t l_icmp6_router_get_start_time(const struct l_icmp6_router *r)
+{
+	if (unlikely(!r))
+		return false;
+
+	return r->start_time;
+}

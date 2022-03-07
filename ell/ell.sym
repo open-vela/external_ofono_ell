@@ -685,7 +685,7 @@ global:
 	l_rtnl_ifaddr_delete;
 	l_rtnl_neighbor_get_hwaddr;
 	l_rtnl_neighbor_set_hwaddr;
-/* icmp6 */
+	/* icmp6 */
 	l_icmp6_client_new;
 	l_icmp6_client_free;
 	l_icmp6_client_start;
@@ -700,6 +700,8 @@ global:
 	l_icmp6_router_get_address;
 	l_icmp6_router_get_managed;
 	l_icmp6_router_get_other;
+	l_icmp6_router_get_lifetime;
+	l_icmp6_router_get_start_time;
 	/* acd */
 	l_acd_new;
 	l_acd_start;
