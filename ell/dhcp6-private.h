@@ -80,7 +80,7 @@ struct dhcp6_option_iter {
 	uint16_t max;
 };
 
-typedef void (*dhcp6_transport_rx_cb_t)(const void *, size_t, void *);
+typedef void (*dhcp6_transport_rx_cb_t)(const void *, size_t, uint64_t, void *);
 
 struct dhcp6_transport {
 	int (*open)(struct dhcp6_transport *s);
