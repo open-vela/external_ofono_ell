@@ -33,6 +33,7 @@ struct l_icmp6_router {
 	bool managed : 1;
 	bool other : 1;
 	uint8_t pref;
+	uint64_t start_time;
 	uint16_t lifetime;
 	uint32_t mtu;
 	uint32_t n_prefixes;
@@ -43,4 +44,5 @@ struct l_icmp6_router *_icmp6_router_new();
 void _icmp6_router_free(struct l_icmp6_router *r);
 struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 						size_t len,
-						const uint8_t src[static 16]);
+						const uint8_t src[static 16],
+						uint64_t timestamp);
