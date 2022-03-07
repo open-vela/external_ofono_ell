@@ -60,7 +60,8 @@ pkginclude_HEADERS = ell/ell.h \
 			ell/icmp6.h \
 			ell/acd.h \
 			ell/tester.h \
-			ell/cleanup.h
+			ell/cleanup.h \
+			ell/netconfig.h
 
 lib_LTLIBRARIES = ell/libell.la
 
@@ -146,7 +147,8 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/icmp6.c \
 			ell/icmp6-private.h \
 			ell/acd.c \
-			ell/tester.c
+			ell/tester.c \
+			ell/netconfig.c
 
 ell_libell_la_LDFLAGS = -Wl,--no-undefined \
 			-Wl,--version-script=$(top_srcdir)/ell/ell.sym \
