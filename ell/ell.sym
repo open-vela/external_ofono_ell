@@ -296,6 +296,9 @@ global:
 	l_dhcp6_lease_get_dns;
 	l_dhcp6_lease_get_domains;
 	l_dhcp6_lease_get_prefix_length;
+	l_dhcp6_lease_get_valid_lifetime;
+	l_dhcp6_lease_get_preferred_lifetime;
+	l_dhcp6_lease_get_start_time;
 	/* dir */
 	l_dir_watch_new;
 	l_dir_watch_destroy;

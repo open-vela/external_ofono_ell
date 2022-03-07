@@ -394,7 +394,6 @@ struct l_dhcp6_client {
 	struct l_timeout *timeout_send;
 	struct l_dhcp6_lease *lease;
 	struct l_timeout *timeout_lease;
-	uint64_t lease_start_t;
 
 	struct l_icmp6_client *icmp6;
 
@@ -901,8 +900,8 @@ static void dhcp6_client_t2_expired(struct l_timeout *timeout, void *user_data)
 {
 	struct l_dhcp6_client *client = user_data;
 	uint32_t elapsed =
-		l_time_to_msecs(l_time_now() - client->lease_start_t);
-	uint32_t valid = _dhcp6_lease_get_valid_lifetime(client->lease) *
+		l_time_to_msecs(l_time_now() - client->lease->start_time);
+	uint32_t valid = l_dhcp6_lease_get_valid_lifetime(client->lease) *
 				L_MSEC_PER_SEC;
 
 	CLIENT_DEBUG("");
@@ -969,7 +968,7 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client,
 	uint32_t t2 = _dhcp6_lease_get_t2(client->lease);
 	enum l_dhcp6_client_event event;
 
-	client->lease_start_t = timestamp;
+	client->lease->start_time = timestamp;
 
 	/* TODO: Emit IP_CHANGED if any addresses were removed / added */
 	if (client->state == DHCP6_STATE_REQUESTING ||
@@ -1003,8 +1002,8 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client,
 			l_dhcp6_lease_get_address(client->lease);
 		uint8_t prefix_len =
 			l_dhcp6_lease_get_prefix_length(client->lease);
-		uint32_t p = _dhcp6_lease_get_preferred_lifetime(client->lease);
-		uint32_t v = _dhcp6_lease_get_valid_lifetime(client->lease);
+		uint32_t p = l_dhcp6_lease_get_preferred_lifetime(client->lease);
+		uint32_t v = l_dhcp6_lease_get_valid_lifetime(client->lease);
 
 		a = l_rtnl_address_new(ip, prefix_len);
 		l_rtnl_address_set_noprefixroute(a, true);

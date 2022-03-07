@@ -408,14 +408,35 @@ uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease)
 	return ia->info.valid_lifetime /  10 * 8;
 }
 
-uint32_t _dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease)
+LIB_EXPORT uint32_t l_dhcp6_lease_get_valid_lifetime(
+						struct l_dhcp6_lease *lease)
 {
-	PICK_IA();
-	return ia->info.valid_lifetime;
+	if (unlikely(!lease))
+		return 0;
+
+	{
+		PICK_IA();
+		return ia->info.valid_lifetime;
+	}
 }
 
-uint32_t _dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease)
+LIB_EXPORT uint32_t l_dhcp6_lease_get_preferred_lifetime(
+						struct l_dhcp6_lease *lease)
 {
-	PICK_IA();
-	return ia->info.preferred_lifetime;
+	if (unlikely(!lease))
+		return 0;
+
+	{
+		PICK_IA();
+		return ia->info.preferred_lifetime;
+	}
+}
+
+/* Get the reception timestamp, i.e. when lifetimes are counted from */
+LIB_EXPORT uint64_t l_dhcp6_lease_get_start_time(struct l_dhcp6_lease *lease)
+{
+	if (unlikely(!lease))
+		return 0;
+
+	return lease->start_time;
 }

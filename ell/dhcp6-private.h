@@ -130,6 +130,7 @@ struct l_dhcp6_lease {
 	uint8_t *server_id;
 	size_t server_id_len;
 	uint8_t preference;
+	uint64_t start_time;
 
 	struct dhcp6_ia ia_na;
 	struct dhcp6_ia ia_pd;
@@ -149,5 +150,6 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 					const uint8_t expected_iaid[static 4]);
 uint32_t _dhcp6_lease_get_t1(struct l_dhcp6_lease *lease);
 uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease);
-uint32_t _dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease);
-uint32_t _dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease);
+uint32_t dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease);
+uint32_t dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease);
+uint32_t dhcp6_lease_get_start_time(struct l_dhcp6_lease *lease);
