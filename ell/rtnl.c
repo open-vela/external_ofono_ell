@@ -54,8 +54,8 @@ struct l_rtnl_address {
 	char label[IFNAMSIZ];
 	uint32_t preferred_lifetime;
 	uint32_t valid_lifetime;
-	uint32_t preferred_expiry_time;
-	uint32_t valid_expiry_time;
+	uint64_t preferred_expiry_time;
+	uint64_t valid_expiry_time;
 	uint32_t flags;
 };
 
