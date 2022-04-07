@@ -1,5 +1,5 @@
-AC_PREREQ(2.60)
-AC_INIT(ell, 0.49)
+AC_PREREQ([2.69])
+AC_INIT([ell],[0.49])
 
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_AUX_DIR(build-aux)
@@ -16,7 +16,7 @@ AC_PREFIX_DEFAULT(/usr/local)
 
 COMPILER_FLAGS
 
-AC_LANG_C
+AC_LANG([C])
 
 AC_PROG_CC
 AC_PROG_CC_PIE
@@ -31,14 +31,14 @@ AC_C_BIGENDIAN(little_endian=no, little_endian=yes, little_endian=no)
 LT_PREREQ(2.2)
 LT_INIT([disable-static])
 
-AC_ARG_ENABLE(optimization, AC_HELP_STRING([--disable-optimization],
+AC_ARG_ENABLE(optimization, AS_HELP_STRING([--disable-optimization],
 			[disable code optimization through compiler]), [
 	if (test "${enableval}" = "no"); then
 		CFLAGS="$CFLAGS -U_FORTIFY_SOURCE -O0"
 	fi
 ])
 
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],
 			[enable compiling with debugging information]), [
 	if (test "${enableval}" = "yes" &&
 				test "${ac_cv_prog_cc_g}" = "yes"); then
@@ -46,7 +46,7 @@ AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],
 	fi
 ])
 
-AC_ARG_ENABLE(pie, AC_HELP_STRING([--enable-pie],
+AC_ARG_ENABLE(pie, AS_HELP_STRING([--enable-pie],
 			[enable position independent executables flag]), [
 	if (test "${enableval}" = "yes" &&
 				test "${ac_cv_prog_cc_pie}" = "yes"); then
@@ -59,7 +59,7 @@ save_LIBS=$LIBS
 AC_CHECK_LIB(asan, _init)
 LIBS=$save_LIBS
 
-AC_ARG_ENABLE(asan, AC_HELP_STRING([--enable-asan],
+AC_ARG_ENABLE(asan, AS_HELP_STRING([--enable-asan],
 			[enable linking with address sanitizer]), [
 	if (test "${enableval}" = "yes" &&
 				test "${ac_cv_lib_asan__init}" = "yes" &&
@@ -73,7 +73,7 @@ save_LIBS=$LIBS
 AC_CHECK_LIB(lsan, _init)
 LIBS=$save_LIBS
 
-AC_ARG_ENABLE(lsan, AC_HELP_STRING([--enable-lsan],
+AC_ARG_ENABLE(lsan, AS_HELP_STRING([--enable-lsan],
 			[enable linking with leak sanitizer]), [
 	if (test "${enableval}" = "yes" &&
 				test "${ac_cv_lib_lsan__init}" = "yes" &&
@@ -87,7 +87,7 @@ save_LIBS=$LIBS
 AC_CHECK_LIB(ubsan, _init)
 LIBS=$save_LIBS
 
-AC_ARG_ENABLE(ubsan, AC_HELP_STRING([--enable-ubsan],
+AC_ARG_ENABLE(ubsan, AS_HELP_STRING([--enable-ubsan],
 			[enable linking with undefined behavior sanitizer]), [
 	if (test "${enableval}" = "yes" &&
 				test "${ac_cv_lib_ubsan__init}" = "yes" &&
@@ -111,7 +111,7 @@ AC_CHECK_FUNC(epoll_create, dummy=yes,
 
 AC_CHECK_HEADERS(linux/types.h linux/if_alg.h)
 
-AC_ARG_ENABLE(glib, AC_HELP_STRING([--enable-glib],
+AC_ARG_ENABLE(glib, AS_HELP_STRING([--enable-glib],
 				[enable ell/glib main loop example]),
 					[enable_glib=${enableval}])
 
