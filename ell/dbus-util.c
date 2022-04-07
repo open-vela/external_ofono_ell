@@ -716,7 +716,7 @@ bool _dbus1_iter_get_fixed_array(struct l_dbus_message_iter *iter,
 	size = get_basic_size(type);
 
 	/* Fail if the array is not a fixed size or contains file descriptors */
-	if (!size || type == 'n')
+	if (!size || type == 'h')
 		return false;
 
 	/*
