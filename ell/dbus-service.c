@@ -1655,11 +1655,11 @@ bool _dbus_object_tree_remove_interface(struct _dbus_object_tree *tree,
 		if (interfaces_added_rec && l_queue_remove(
 						interfaces_added_rec->instances,
 						instance)) {
-			if (l_queue_isempty(interfaces_added_rec->instances))
+			if (l_queue_isempty(interfaces_added_rec->instances)) {
 				l_queue_remove(manager->announce_added,
 						interfaces_added_rec);
-
-			interface_add_record_free(interfaces_added_rec);
+				interface_add_record_free(interfaces_added_rec);
+			}
 
 			continue;
 		}
