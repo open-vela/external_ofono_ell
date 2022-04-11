@@ -225,28 +225,34 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 
 	switch (event) {
 	case L_DHCP_CLIENT_EVENT_IP_CHANGED:
-		L_WARN_ON(!nc->v4_configured);
+		if (L_WARN_ON(!nc->v4_configured))
+			break;
+
 		netconfig_remove_dhcp_address_routes(nc);
 		netconfig_add_dhcp_address_routes(nc);
 		netconfig_set_dhcp_lifetimes(nc, false);
 		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_UPDATE);
 		break;
 	case L_DHCP_CLIENT_EVENT_LEASE_OBTAINED:
-	{
-		L_WARN_ON(nc->v4_configured);
+		if (L_WARN_ON(nc->v4_configured))
+			break;
+
 		netconfig_add_dhcp_address_routes(nc);
 		netconfig_set_dhcp_lifetimes(nc, false);
 		nc->v4_configured = true;
 		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_CONFIGURE);
 		break;
-	}
 	case L_DHCP_CLIENT_EVENT_LEASE_RENEWED:
-		L_WARN_ON(!nc->v4_configured);
+		if (L_WARN_ON(!nc->v4_configured))
+			break;
+
 		netconfig_set_dhcp_lifetimes(nc, true);
 		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_UPDATE);
 		break;
 	case L_DHCP_CLIENT_EVENT_LEASE_EXPIRED:
-		L_WARN_ON(!nc->v4_configured);
+		if (L_WARN_ON(!nc->v4_configured))
+			break;
+
 		netconfig_remove_dhcp_address_routes(nc);
 		nc->v4_configured = false;
 
