@@ -1473,9 +1473,6 @@ static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
 {
 	struct l_dhcp6_client *client = user_data;
 
-	l_timeout_remove(client->timeout_send);
-	client->timeout_send = NULL;
-
 	switch (event) {
 	case L_ICMP6_CLIENT_EVENT_ROUTER_FOUND:
 	{
@@ -1487,6 +1484,13 @@ static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
 		CLIENT_DEBUG("Received RA, managed: %s, other: %s",
 				managed ? "yes" : "no",
 				other ? "yes" : "no");
+
+		/* We only process the first RA received for now */
+		if (!client->timeout_send)
+			return;
+
+		l_timeout_remove(client->timeout_send);
+		client->timeout_send = NULL;
 
 		if (!managed && !other) {
 			l_dhcp6_client_stop(client);
