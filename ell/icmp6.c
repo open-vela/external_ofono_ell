@@ -365,16 +365,16 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 	if (!r)
 		return -EBADMSG;
 
+	icmp6_client_event_notify(client,
+					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND,
+					r);
+
+	/* DHCP6 client may have stopped us */
+	if (!client->io)
+		return -ECANCELED;
+
 	if (!client->ra) {
 		client->ra = r;
-		icmp6_client_event_notify(client,
-					L_ICMP6_CLIENT_EVENT_ROUTER_FOUND,
-					NULL);
-
-		/* DHCP6 client may have stopped us */
-		if (!client->ra)
-			return -ECANCELED;
-
 		icmp6_client_setup_routes(client);
 		return 0;
 	}
@@ -383,8 +383,7 @@ static int icmp6_client_handle_message(struct l_icmp6_client *client,
 	 * TODO: Figure out if the RA has updated info and update routes
 	 * accordingly.
 	 */
-	_icmp6_router_free(client->ra);
-	client->ra = r;
+	_icmp6_router_free(r);
 	return 0;
 }
 
