@@ -469,6 +469,9 @@ LIB_EXPORT bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt,
 	if (unlikely(!rt))
 		return false;
 
+	if (address_is_null(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr))
+		return false;
+
 	return !address_to_string(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr,
 					out_buf);
 }
@@ -583,9 +586,8 @@ LIB_EXPORT bool l_rtnl_route_set_preference(struct l_rtnl_route *rt,
 	if (unlikely(!rt))
 		return false;
 
-	if (preference != ICMPV6_ROUTER_PREF_LOW &&
-			preference != ICMPV6_ROUTER_PREF_HIGH &&
-			preference != ICMPV6_ROUTER_PREF_MEDIUM)
+	if (!L_IN_SET(preference, ICMPV6_ROUTER_PREF_LOW,
+			ICMPV6_ROUTER_PREF_HIGH, ICMPV6_ROUTER_PREF_MEDIUM))
 		return false;
 
 	rt->preference = preference;
@@ -601,7 +603,6 @@ LIB_EXPORT bool l_rtnl_route_get_prefsrc(const struct l_rtnl_route *rt,
 	if (address_is_null(rt->family, &rt->prefsrc.in_addr,
 					&rt->prefsrc.in6_addr))
 		return false;
-
 
 	return !address_to_string(rt->family, &rt->prefsrc.in_addr,
 						&rt->prefsrc.in6_addr,
@@ -1079,7 +1080,6 @@ LIB_EXPORT void l_rtnl_ifaddr6_extract(const struct ifaddrmsg *ifa, int len,
 
 			if (!inet_ntop(AF_INET6, &in6_addr, address,
 							INET6_ADDRSTRLEN)) {
-
 				l_error("rtnl: Failed to extract IPv6 address");
 				break;
 			}
