@@ -419,6 +419,37 @@ LIB_EXPORT struct l_rtnl_route *l_rtnl_route_new_prefix(const char *ip,
 	return rt;
 }
 
+LIB_EXPORT struct l_rtnl_route *l_rtnl_route_new_static(const char *gw,
+							const char *ip,
+							uint8_t prefix_len)
+{
+	struct in_addr gw_addr4;
+	struct in6_addr gw_addr6;
+	struct in_addr dst_addr4;
+	struct in6_addr dst_addr6;
+	int family;
+	struct l_rtnl_route *rt;
+
+	if ((family = address_get(gw, &gw_addr4, &gw_addr6)) < 0)
+		return NULL;
+
+	if (address_get(ip, &dst_addr4, &dst_addr6) != family)
+		return NULL;
+
+	if (prefix_len == 0 || prefix_len > (family == AF_INET ? 32 : 128))
+		return NULL;
+
+	rt = l_rtnl_route_new_gateway(gw);
+	rt->dst_prefix_len = prefix_len;
+
+	if (family == AF_INET6)
+		memcpy(&rt->dst.in6_addr, &dst_addr6, sizeof(dst_addr6));
+	else
+		memcpy(&rt->dst.in_addr, &dst_addr4, sizeof(dst_addr4));
+
+	return rt;
+}
+
 LIB_EXPORT void l_rtnl_route_free(struct l_rtnl_route *rt)
 {
 	l_free(rt);
