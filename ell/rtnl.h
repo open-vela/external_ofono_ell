@@ -71,6 +71,8 @@ bool l_rtnl_address_set_scope(struct l_rtnl_address *addr, uint8_t scope);
 struct l_rtnl_route *l_rtnl_route_new_gateway(const char *gw);
 struct l_rtnl_route *l_rtnl_route_new_prefix(const char *ip,
 							uint8_t prefix_len);
+struct l_rtnl_route *l_rtnl_route_new_static(const char *gw, const char *ip,
+							uint8_t prefix_len);
 void l_rtnl_route_free(struct l_rtnl_route *rt);
 DEFINE_CLEANUP_FUNC(l_rtnl_route_free);
 uint8_t l_rtnl_route_get_family(const struct l_rtnl_route *rt);
