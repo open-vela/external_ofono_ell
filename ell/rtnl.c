@@ -473,6 +473,21 @@ LIB_EXPORT bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt,
 					out_buf);
 }
 
+LIB_EXPORT const void *l_rtnl_route_get_gateway_in_addr(
+						const struct l_rtnl_route *rt)
+{
+	if (unlikely(!rt))
+		return NULL;
+
+	if (address_is_null(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr))
+		return NULL;
+
+	if (rt->family == AF_INET)
+		return &rt->gw.in_addr;
+	else
+		return &rt->gw.in6_addr;
+}
+
 LIB_EXPORT bool l_rtnl_route_get_dst(const struct l_rtnl_route *rt,
 						char *out_buf,
 						uint8_t *out_prefix_len)
@@ -486,6 +501,21 @@ LIB_EXPORT bool l_rtnl_route_get_dst(const struct l_rtnl_route *rt,
 
 	*out_prefix_len = rt->dst_prefix_len;
 	return true;
+}
+
+LIB_EXPORT const void *l_rtnl_route_get_dst_in_addr(
+						const struct l_rtnl_route *rt,
+						uint8_t *out_prefix_len)
+{
+	if (unlikely(!rt))
+		return NULL;
+
+	*out_prefix_len = rt->dst_prefix_len;
+
+	if (rt->family == AF_INET)
+		return &rt->dst.in_addr;
+	else
+		return &rt->dst.in6_addr;
 }
 
 LIB_EXPORT uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt)

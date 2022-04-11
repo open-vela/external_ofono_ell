@@ -77,8 +77,11 @@ void l_rtnl_route_free(struct l_rtnl_route *rt);
 DEFINE_CLEANUP_FUNC(l_rtnl_route_free);
 uint8_t l_rtnl_route_get_family(const struct l_rtnl_route *rt);
 bool l_rtnl_route_get_gateway(const struct l_rtnl_route *rt, char *out_buf);
+const void *l_rtnl_route_get_gateway_in_addr(const struct l_rtnl_route *rt);
 bool l_rtnl_route_get_dst(const struct l_rtnl_route *rt, char *out_buf,
 				uint8_t *out_prefix_len);
+const void *l_rtnl_route_get_dst_in_addr(const struct l_rtnl_route *rt,
+						uint8_t *out_prefix_len);
 uint32_t l_rtnl_route_get_lifetime(const struct l_rtnl_route *rt);
 bool l_rtnl_route_set_lifetime(struct l_rtnl_route *rt, uint32_t lt);
 uint64_t l_rtnl_route_get_expiry(const struct l_rtnl_route *rt);
