@@ -49,7 +49,7 @@ _Pragma("GCC diagnostic pop")						\
 
 #define L_WARN_ON(condition) __extension__ ({				\
 		bool r = !!(condition);					\
-		if (r)							\
+		if (__builtin_expect(r, 0))				\
 			l_warn("WARNING: %s:%s() condition %s failed",	\
 				__FILE__, __func__,			\
 				#condition);				\
