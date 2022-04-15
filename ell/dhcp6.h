@@ -94,9 +94,10 @@ char *l_dhcp6_lease_get_address(const struct l_dhcp6_lease *lease);
 char **l_dhcp6_lease_get_dns(const struct l_dhcp6_lease *lease);
 char **l_dhcp6_lease_get_domains(const struct l_dhcp6_lease *lease);
 uint8_t l_dhcp6_lease_get_prefix_length(const struct l_dhcp6_lease *lease);
-uint32_t l_dhcp6_lease_get_valid_lifetime(struct l_dhcp6_lease *lease);
-uint32_t l_dhcp6_lease_get_preferred_lifetime(struct l_dhcp6_lease *lease);
-uint64_t l_dhcp6_lease_get_start_time(struct l_dhcp6_lease *lease);
+uint32_t l_dhcp6_lease_get_valid_lifetime(const struct l_dhcp6_lease *lease);
+uint32_t l_dhcp6_lease_get_preferred_lifetime(
+					const struct l_dhcp6_lease *lease);
+uint64_t l_dhcp6_lease_get_start_time(const struct l_dhcp6_lease *lease);
 
 #ifdef __cplusplus
 }
