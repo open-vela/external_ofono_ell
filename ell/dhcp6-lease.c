@@ -373,7 +373,7 @@ LIB_EXPORT uint8_t l_dhcp6_lease_get_prefix_length(
 }
 
 #define PICK_IA() \
-	struct dhcp6_ia *ia;		\
+	const struct dhcp6_ia *ia;	\
 					\
 	if (lease->have_na)		\
 		ia = &lease->ia_na;	\
@@ -382,7 +382,7 @@ LIB_EXPORT uint8_t l_dhcp6_lease_get_prefix_length(
 	else				\
 		return 0		\
 
-uint32_t _dhcp6_lease_get_t1(struct l_dhcp6_lease *lease)
+uint32_t _dhcp6_lease_get_t1(const struct l_dhcp6_lease *lease)
 {
 	PICK_IA();
 
@@ -395,7 +395,7 @@ uint32_t _dhcp6_lease_get_t1(struct l_dhcp6_lease *lease)
 	return ia->info.valid_lifetime / 2;
 }
 
-uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease)
+uint32_t _dhcp6_lease_get_t2(const struct l_dhcp6_lease *lease)
 {
 	PICK_IA();
 
@@ -409,7 +409,7 @@ uint32_t _dhcp6_lease_get_t2(struct l_dhcp6_lease *lease)
 }
 
 LIB_EXPORT uint32_t l_dhcp6_lease_get_valid_lifetime(
-						struct l_dhcp6_lease *lease)
+					const struct l_dhcp6_lease *lease)
 {
 	if (unlikely(!lease))
 		return 0;
@@ -421,7 +421,7 @@ LIB_EXPORT uint32_t l_dhcp6_lease_get_valid_lifetime(
 }
 
 LIB_EXPORT uint32_t l_dhcp6_lease_get_preferred_lifetime(
-						struct l_dhcp6_lease *lease)
+					const struct l_dhcp6_lease *lease)
 {
 	if (unlikely(!lease))
 		return 0;
@@ -433,7 +433,8 @@ LIB_EXPORT uint32_t l_dhcp6_lease_get_preferred_lifetime(
 }
 
 /* Get the reception timestamp, i.e. when lifetimes are counted from */
-LIB_EXPORT uint64_t l_dhcp6_lease_get_start_time(struct l_dhcp6_lease *lease)
+LIB_EXPORT uint64_t l_dhcp6_lease_get_start_time(
+					const struct l_dhcp6_lease *lease)
 {
 	if (unlikely(!lease))
 		return 0;
