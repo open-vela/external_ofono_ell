@@ -80,6 +80,7 @@ examples/dhcp-client
 examples/dhcp6-client
 examples/dhcp-server
 examples/acd-client
+examples/netconfig-test
 test-suite.log
 tools/certchain-verify
 tools/genl-discover
