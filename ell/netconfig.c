@@ -37,16 +37,32 @@
 #include "rtnl.h"
 #include "queue.h"
 #include "time.h"
+#include "idle.h"
+#include "strv.h"
+#include "net.h"
 #include "netconfig.h"
 
 struct l_netconfig {
 	uint32_t ifindex;
-	bool v4_enabled;
-	bool started;
 	uint32_t route_priority;
 
+	bool v4_enabled;
+	struct l_rtnl_address *v4_static_addr;
+	char *v4_gateway_override;
+	char **v4_dns_override;
+	char **v4_domain_names_override;
+
+	bool v6_enabled;
+	struct l_rtnl_address *v6_static_addr;
+	char *v6_gateway_override;
+	char **v6_dns_override;
+	char **v6_domain_names_override;
+
+	bool started;
+	struct l_idle *do_static_work;
 	bool v4_configured;
 	struct l_dhcp_client *dhcp_client;
+
 	/* These objects, if not NULL, are owned by @addresses and @routes */
 	struct l_rtnl_address *v4_address;
 	struct l_rtnl_route *v4_subnet_route;
@@ -127,6 +143,11 @@ static void netconfig_add_v4_routes(struct l_netconfig *nc, const char *ip,
 	l_queue_push_tail(nc->routes.added, nc->v4_subnet_route);
 
 	/* Gateway route */
+
+	if (nc->v4_gateway_override) {
+		gateway = nc->v4_gateway_override;
+		rtm_protocol = RTPROT_STATIC;
+	}
 
 	if (!gateway)
 		return;
@@ -316,6 +337,15 @@ LIB_EXPORT void l_netconfig_destroy(struct l_netconfig *netconfig)
 
 	l_netconfig_stop(netconfig);
 
+	l_netconfig_set_static_addr(netconfig, AF_INET, NULL);
+	l_netconfig_set_gateway_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_dns_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_domain_names_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_static_addr(netconfig, AF_INET6, NULL);
+	l_netconfig_set_gateway_override(netconfig, AF_INET6, NULL);
+	l_netconfig_set_dns_override(netconfig, AF_INET6, NULL);
+	l_netconfig_set_domain_names_override(netconfig, AF_INET6, NULL);
+
 	l_dhcp_client_destroy(netconfig->dhcp_client);
 	l_netconfig_set_event_handler(netconfig, NULL, NULL, NULL);
 	l_queue_destroy(netconfig->addresses.current, NULL);
@@ -329,17 +359,296 @@ LIB_EXPORT void l_netconfig_destroy(struct l_netconfig *netconfig)
 	l_free(netconfig);
 }
 
+/*
+ * The following l_netconfig_set_* functions configure the l_netconfig's
+ * client settings.  The setters can be called independently, without
+ * following a specific order.  Most of the setters will not validate the
+ * values passed, l_netconfig_start() will fail if settings are incorrect
+ * or inconsistent between themselves, e.g. if the static local IP and
+ * gateway IP are not in the same subnet.  Alternatively
+ * l_netconfig_check_config() can be called at any point to validate the
+ * current configuration.  The configuration can only be changed while
+ * the l_netconfig state machine is stopped, i.e. before
+ * l_netconfig_start() and after l_netconfig_stop().
+ *
+ * l_netconfig_set_hostname, l_netconfig_set_static_addr,
+ * l_netconfig_set_gateway_override, l_netconfig_set_dns_override and
+ * l_netconfig_set_domain_names_override can be passed NULL to unset a
+ * value that had been set before (revert to auto).  This is why the
+ * family parameter is needed even when it could otherwise be derived
+ * from the new value that is passed.
+ */
+LIB_EXPORT bool l_netconfig_set_family_enabled(struct l_netconfig *netconfig,
+						uint8_t family, bool enabled)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	switch (family) {
+	case AF_INET:
+		netconfig->v4_enabled = enabled;
+		return true;
+	}
+
+	return false;
+}
+
+LIB_EXPORT bool l_netconfig_set_hostname(struct l_netconfig *netconfig,
+						const char *hostname)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	return l_dhcp_client_set_hostname(netconfig->dhcp_client, hostname);
+}
+
+LIB_EXPORT bool l_netconfig_set_route_priority(struct l_netconfig *netconfig,
+						uint32_t priority)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	netconfig->route_priority = priority;
+	return true;
+}
+
+LIB_EXPORT bool l_netconfig_set_static_addr(struct l_netconfig *netconfig,
+					uint8_t family,
+					const struct l_rtnl_address *addr)
+{
+	struct l_rtnl_address **ptr;
+
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	if (addr && l_rtnl_address_get_family(addr) != family)
+		return false;
+
+	switch (family) {
+	case AF_INET:
+		ptr = &netconfig->v4_static_addr;
+		break;
+	case AF_INET6:
+		ptr = &netconfig->v6_static_addr;
+		break;
+	default:
+		return false;
+	}
+
+	l_rtnl_address_free(*ptr);
+	*ptr = NULL;
+
+	if (!addr)
+		return true;
+
+	*ptr = l_rtnl_address_clone(addr);
+	l_rtnl_address_set_lifetimes(*ptr, 0, 0);
+	l_rtnl_address_set_noprefixroute(*ptr, true);
+	return true;
+}
+
+LIB_EXPORT bool l_netconfig_set_gateway_override(struct l_netconfig *netconfig,
+							uint8_t family,
+							const char *gateway_str)
+{
+	char **ptr;
+
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	switch (family) {
+	case AF_INET:
+		ptr = &netconfig->v4_gateway_override;
+		break;
+	case AF_INET6:
+		ptr = &netconfig->v6_gateway_override;
+		break;
+	default:
+		return false;
+	}
+
+	l_free(*ptr);
+	*ptr = NULL;
+
+	if (!gateway_str)
+		return true;
+
+	*ptr = l_strdup(gateway_str);
+	return true;
+}
+
+LIB_EXPORT bool l_netconfig_set_dns_override(struct l_netconfig *netconfig,
+						uint8_t family, char **dns_list)
+{
+	char ***ptr;
+
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	switch (family) {
+	case AF_INET:
+		ptr = &netconfig->v4_dns_override;
+		break;
+	case AF_INET6:
+		ptr = &netconfig->v6_dns_override;
+		break;
+	default:
+		return false;
+	}
+
+	l_strv_free(*ptr);
+	*ptr = NULL;
+
+	if (!dns_list)
+		return true;
+
+	*ptr = l_strv_copy(dns_list);
+	return true;
+}
+
+LIB_EXPORT bool l_netconfig_set_domain_names_override(
+						struct l_netconfig *netconfig,
+						uint8_t family, char **names)
+{
+	char ***ptr;
+
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	switch (family) {
+	case AF_INET:
+		ptr = &netconfig->v4_domain_names_override;
+		break;
+	case AF_INET6:
+		ptr = &netconfig->v6_domain_names_override;
+		break;
+	default:
+		return false;
+	}
+
+	l_strv_free(*ptr);
+	*ptr = NULL;
+
+	if (!names)
+		return true;
+
+	*ptr = l_strv_copy(names);
+	return true;
+}
+
+static bool netconfig_check_v4_config(struct l_netconfig *netconfig)
+{
+	struct in_addr local;
+	struct in_addr gateway;
+	uint8_t prefix_len = 0;
+	unsigned int dns_num = 0;
+	_auto_(l_free) struct in_addr *dns_list = NULL;
+
+	if (!netconfig->v4_enabled)
+		return true;
+
+	if (netconfig->v4_static_addr) {
+		char str[INET_ADDRSTRLEN];
+
+		prefix_len = l_rtnl_address_get_prefix_length(
+						netconfig->v4_static_addr);
+		if (prefix_len > 30)
+			return false;
+
+		l_rtnl_address_get_address(netconfig->v4_static_addr, str);
+		inet_pton(AF_INET, str, &local);
+	}
+
+	if (netconfig->v4_gateway_override) {
+		if (inet_pton(AF_INET, netconfig->v4_gateway_override,
+				&gateway) != 1)
+			return false;
+	}
+
+	if (netconfig->v4_dns_override &&
+			(dns_num = l_strv_length(netconfig->v4_dns_override))) {
+		unsigned int i;
+
+		dns_list = l_new(struct in_addr, dns_num);
+
+		for (i = 0; i < dns_num; i++)
+			if (inet_pton(AF_INET, netconfig->v4_dns_override[i],
+					&dns_list[i]) != 1)
+				return false;
+	}
+
+	return true;
+}
+
+static bool netconfig_check_config(struct l_netconfig *netconfig)
+{
+	/* TODO: error reporting through a debug log handler or otherwise */
+
+	return netconfig_check_v4_config(netconfig);
+}
+
+LIB_EXPORT bool l_netconfig_check_config(struct l_netconfig *netconfig)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	return netconfig_check_config(netconfig);
+}
+
+static void netconfig_add_static_address_routes(struct l_netconfig *nc)
+{
+	char ip[INET_ADDRSTRLEN];
+	uint32_t prefix_len;
+
+	nc->v4_address = l_rtnl_address_clone(nc->v4_static_addr);
+	l_queue_push_tail(nc->addresses.current, nc->v4_address);
+	l_queue_push_tail(nc->addresses.added, nc->v4_address);
+
+	l_rtnl_address_get_address(nc->v4_static_addr, ip);
+	prefix_len = l_rtnl_address_get_prefix_length(nc->v4_static_addr);
+	netconfig_add_v4_routes(nc, ip, prefix_len, NULL, RTPROT_STATIC);
+}
+
+static void netconfig_do_static_config(struct l_idle *idle, void *user_data)
+{
+	struct l_netconfig *nc = user_data;
+
+	l_idle_remove(l_steal_ptr(nc->do_static_work));
+
+	if (nc->v4_static_addr && !nc->v4_configured) {
+		netconfig_add_static_address_routes(nc);
+		nc->v4_configured = true;
+		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_CONFIGURE);
+	}
+}
+
 LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 {
 	if (unlikely(!netconfig || netconfig->started))
 		return false;
 
-	if (netconfig->v4_enabled &&
-			!l_dhcp_client_start(netconfig->dhcp_client))
+	if (!netconfig_check_config(netconfig))
 		return false;
 
-	netconfig->started = true;
+	if (!netconfig->v4_enabled)
+		goto done;
 
+	if (netconfig->v4_static_addr) {
+		/*
+		 * We're basically ready to configure the interface
+		 * but do this in an idle callback.
+		 */
+		netconfig->do_static_work = l_idle_create(
+						netconfig_do_static_config,
+						netconfig, NULL);
+		goto done;
+	}
+
+	if (!l_dhcp_client_start(netconfig->dhcp_client))
+		return false;
+
+done:
+	netconfig->started = true;
 	return true;
 }
 
@@ -349,6 +658,9 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 		return;
 
 	netconfig->started = false;
+
+	if (netconfig->do_static_work)
+		l_idle_remove(l_steal_ptr(netconfig->do_static_work));
 
 	netconfig_update_cleanup(netconfig);
 	l_queue_clear(netconfig->routes.current,
