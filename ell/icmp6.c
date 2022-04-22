@@ -51,6 +51,11 @@
 #include "icmp6.h"
 #include "icmp6-private.h"
 
+/* RFC4191 */
+#ifndef ND_OPT_ROUTE_INFORMATION
+#define ND_OPT_ROUTE_INFORMATION	24
+#endif
+
 #define CLIENT_DEBUG(fmt, args...)					\
 	l_util_debug(client->debug_handler, client->debug_data,		\
 			"%s:%i " fmt, __func__, __LINE__, ## args)
@@ -331,16 +336,24 @@ static void icmp6_client_setup_routes(struct l_icmp6_client *client)
 		l_rtnl_route_add(client->rtnl, client->ifindex, rt,
 					NULL, NULL, NULL);
 
-	for (i = 0; i < ra->n_prefixes; i++) {
-		struct route_info *info = &ra->prefixes[i];
+	for (i = 0; i < ra->n_routes; i++) {
+		char prefix_buf[INET6_ADDRSTRLEN];
+		struct route_info *info = &ra->routes[i];
 
 		if (info->valid_lifetime == 0)
 			continue;
 
-		if (!inet_ntop(AF_INET6, info->address, buf, sizeof(buf)))
+		if (!inet_ntop(AF_INET6, info->address, prefix_buf,
+				sizeof(prefix_buf)))
 			continue;
 
-		rt = l_rtnl_route_new_prefix(buf, info->prefix_len);
+		if (info->onlink)
+			rt = l_rtnl_route_new_prefix(prefix_buf,
+							info->prefix_len);
+		else
+			rt = l_rtnl_route_new_static(buf, prefix_buf,
+							info->prefix_len);
+
 		if (!rt)
 			continue;
 
@@ -672,7 +685,7 @@ struct l_icmp6_router *_icmp6_router_new()
 
 void _icmp6_router_free(struct l_icmp6_router *r)
 {
-	l_free(r->prefixes);
+	l_free(r->routes);
 	l_free(r);
 }
 
@@ -684,7 +697,7 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	struct l_icmp6_router *r;
 	const uint8_t *opts;
 	uint32_t opts_len;
-	uint32_t n_prefixes = 0;
+	uint32_t n_routes = 0;
 
 	if (ra->nd_ra_type != ND_ROUTER_ADVERT)
 		return NULL;
@@ -721,7 +734,35 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 				return NULL;
 
 			if (opts[3] & ND_OPT_PI_FLAG_ONLINK)
-				n_prefixes += 1;
+				n_routes += 1;
+			break;
+		case ND_OPT_ROUTE_INFORMATION:
+			if (l < 8)
+				return NULL;
+
+			if (opts[2] > 128 || opts[2] > (l - 8) * 8)
+				return NULL;
+
+			/*
+			 * RFC 4191 Section 2.3:
+			 * "If the Reserved (10) value is received, the Route
+			 * Information Option MUST be ignored."
+			 */
+			if (bit_field(opts[3], 3, 2) == 2)
+				break;
+
+			/*
+			 * RFC 4191 Section 3.1:
+			 * "The Router Preference and Lifetime values in a ::/0
+			 * Route Information Option override the preference and
+			 * lifetime values in the Router Advertisement header."
+			 *
+			 * Don't count ::/0 routes.
+			 */
+			if (opts[2] == 0)
+				break;
+
+			n_routes += 1;
 			break;
 		}
 
@@ -731,8 +772,8 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 
 	r = _icmp6_router_new();
 	memcpy(r->address, src, sizeof(r->address));
-	r->prefixes = l_new(struct route_info, n_prefixes);
-	r->n_prefixes = n_prefixes;
+	r->routes = l_new(struct route_info, n_routes);
+	r->n_routes = n_routes;
 
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
 		r->managed = true;
@@ -749,7 +790,7 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 
 	opts = (uint8_t *) (ra + 1);
 	opts_len = len - sizeof(struct nd_router_advert);
-	n_prefixes = 0;
+	n_routes = 0;
 
 	while (opts_len) {
 		uint8_t t = opts[0];
@@ -767,17 +808,70 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 			break;
 		case ND_OPT_PREFIX_INFORMATION:
 		{
-			struct route_info *i = &r->prefixes[n_prefixes];
+			struct route_info *i = &r->routes[n_routes];
 
 			if (!(opts[3] & ND_OPT_PI_FLAG_ONLINK))
 				break;
 
 			i->prefix_len = opts[2];
+			i->onlink = true;
 			i->valid_lifetime = l_get_be32(opts + 4);
 			i->preferred_lifetime = l_get_be32(opts + 8);
 			memcpy(i->address, opts + 16, 16);
 
-			n_prefixes += 1;
+			n_routes += 1;
+			break;
+		}
+		case ND_OPT_RTR_ADV_INTERVAL:
+			if (l < 8)
+				break;
+
+			r->max_rtr_adv_interval_ms = l_get_be32(opts + 4);
+			break;
+		case ND_OPT_ROUTE_INFORMATION:
+		{
+			struct route_info *i = &r->routes[n_routes];
+			uint8_t preference = bit_field(opts[3], 3, 2);
+
+			if (preference == 2)
+				break;
+
+			/*
+			 * RFC 4191 Section 3.1:
+			 * "The Router Preference and Lifetime values in a ::/0
+			 * Route Information Option override the preference and
+			 * lifetime values in the Router Advertisement header."
+			 */
+			if (opts[2] == 0) {
+				if (r->lifetime == 0 && l_get_be32(opts + 4)) {
+					/*
+					 * A ::/0 route received from a
+					 * non-default router?  Should issue
+					 * a warning?
+					 */
+					break;
+				}
+
+				r->pref = preference;
+				r->lifetime = l_get_be16(opts + 4) ? 0xffff :
+					l_get_be16(opts + 6);
+				break;
+			}
+
+			/*
+			 * Don't check or warn if the route lifetime is longer
+			 * than the router lifetime because that refers to its
+			 * time as the default router.  It may be configured to
+			 * route packets for us for specific prefixes without
+			 * being a default router.
+			 */
+			i->prefix_len = opts[2];
+			i->onlink = false;
+			i->preference = preference;
+			i->valid_lifetime = l_get_be32(opts + 4);
+			memcpy(i->address, opts + 8, (i->prefix_len + 7) / 8);
+
+			n_routes += 1;
 			break;
 		}
 		}
