@@ -651,7 +651,7 @@ LIB_EXPORT uint8_t l_rtnl_route_get_protocol(const struct l_rtnl_route *rt)
 	if (unlikely(!rt))
 		return RTPROT_UNSPEC;
 
-	return rt->scope;
+	return rt->protocol;
 }
 
 LIB_EXPORT bool l_rtnl_route_set_protocol(struct l_rtnl_route *rt,
