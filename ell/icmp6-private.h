@@ -22,6 +22,7 @@
 
 struct route_info {
 	uint8_t address[16];
+	bool onlink : 1;
 	uint8_t prefix_len;
 	uint8_t preference;
 	uint32_t preferred_lifetime;
@@ -36,8 +37,9 @@ struct l_icmp6_router {
 	uint64_t start_time;
 	uint16_t lifetime;
 	uint32_t mtu;
-	uint32_t n_prefixes;
-	struct route_info *prefixes;
+	uint32_t max_rtr_adv_interval_ms;
+	uint32_t n_routes;
+	struct route_info *routes;
 };
 
 struct l_icmp6_router *_icmp6_router_new();
