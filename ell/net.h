@@ -41,7 +41,7 @@ bool l_net_hostname_is_localhost(const char *hostname);
 bool l_net_get_address(int ifindex, struct in_addr *out);
 bool l_net_get_link_local_address(int ifindex, struct in6_addr *out);
 
-static inline bool l_net_subnet_matches(const void *a, const void *b,
+static inline bool l_net_prefix_matches(const void *a, const void *b,
 					uint8_t prefix_len)
 {
 	uint8_t bytes = prefix_len / 8;
