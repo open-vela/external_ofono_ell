@@ -53,6 +53,22 @@ typedef void (*l_netconfig_destroy_cb_t)(void *user_data);
 
 struct l_netconfig *l_netconfig_new(uint32_t ifindex);
 void l_netconfig_destroy(struct l_netconfig *netconfig);
+bool l_netconfig_set_family_enabled(struct l_netconfig *netconfig,
+					uint8_t family, bool enabled);
+bool l_netconfig_set_hostname(struct l_netconfig *netconfig,
+				const char *hostname);
+bool l_netconfig_set_route_priority(struct l_netconfig *netconfig,
+					uint32_t priority);
+bool l_netconfig_set_static_addr(struct l_netconfig *netconfig, uint8_t family,
+					const struct l_rtnl_address *addr);
+bool l_netconfig_set_gateway_override(struct l_netconfig *netconfig,
+					uint8_t family,
+					const char *gateway_str);
+bool l_netconfig_set_dns_override(struct l_netconfig *netconfig, uint8_t family,
+					char **dns_list);
+bool l_netconfig_set_domain_names_override(struct l_netconfig *netconfig,
+						uint8_t family, char **names);
+bool l_netconfig_check_config(struct l_netconfig *netconfig);
 
 bool l_netconfig_start(struct l_netconfig *netconfig);
 void l_netconfig_stop(struct l_netconfig *netconfig);
