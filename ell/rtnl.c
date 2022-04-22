@@ -440,6 +440,9 @@ LIB_EXPORT struct l_rtnl_route *l_rtnl_route_new_static(const char *gw,
 		return NULL;
 
 	rt = l_rtnl_route_new_gateway(gw);
+	if (!rt)
+		return rt;
+
 	rt->dst_prefix_len = prefix_len;
 
 	if (family == AF_INET6)
