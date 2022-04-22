@@ -61,7 +61,7 @@ static bool _dhcp6_default_transport_read_handler(struct l_io *io,
 	struct cmsghdr *cmsg;
 	struct iovec iov = { .iov_base = buf, .iov_len = sizeof(buf) };
 	struct msghdr msg = {};
-	unsigned char control[32];
+	unsigned char control[32 + CMSG_SPACE(sizeof(struct timeval))];
 
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
@@ -78,8 +78,10 @@ static bool _dhcp6_default_transport_read_handler(struct l_io *io,
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 					cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 		if (cmsg->cmsg_level == SOL_SOCKET &&
-				cmsg->cmsg_type == SCM_TIMESTAMP) {
-			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
+				cmsg->cmsg_type == SCM_TIMESTAMP &&
+				cmsg->cmsg_len ==
+				CMSG_LEN(sizeof(struct timeval))) {
+		const struct timeval *tv = (void *) CMSG_DATA(cmsg);
 
 			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
 		}

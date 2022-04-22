@@ -198,7 +198,8 @@ static int icmp6_send_router_solicitation(int s, const uint8_t mac[static 6])
 static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src,
 				uint64_t *out_timestamp)
 {
-	char c_msg_buf[CMSG_SPACE(sizeof(int))];
+	char c_msg_buf[CMSG_SPACE(sizeof(int)) +
+			CMSG_SPACE(sizeof(struct timeval))];
 	struct iovec iov = {
 		.iov_base = buf,
 		.iov_len = buf_len,
@@ -237,7 +238,9 @@ static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src,
 			if (hops != 255)
 				return -EMULTIHOP;
 		} else if (cmsg->cmsg_level == SOL_SOCKET &&
-				cmsg->cmsg_type == SCM_TIMESTAMP) {
+				cmsg->cmsg_type == SCM_TIMESTAMP &&
+				cmsg->cmsg_len ==
+				CMSG_LEN(sizeof(struct timeval))) {
 			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
 
 			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
