@@ -61,7 +61,7 @@
 
 #define WATCHDOG_TRIGGER_FREQ	2
 
-static int epoll_fd;
+static int epoll_fd = -1;
 static bool epoll_running;
 static bool epoll_terminate;
 static int idle_id;
@@ -99,10 +99,8 @@ static inline bool __attribute__ ((always_inline)) create_epoll(void)
 	unsigned int i;
 
 	epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-	if (epoll_fd < 0) {
-		epoll_fd = 0;
+	if (epoll_fd < 0)
 		return false;
-	}
 
 	watch_list = malloc(DEFAULT_WATCH_ENTRIES * sizeof(void *));
 	if (!watch_list)
@@ -121,7 +119,7 @@ static inline bool __attribute__ ((always_inline)) create_epoll(void)
 
 close_epoll:
 	close(epoll_fd);
-	epoll_fd = 0;
+	epoll_fd = -1;
 
 	return false;
 }
@@ -136,7 +134,7 @@ int watch_add(int fd, uint32_t events, watch_event_cb_t callback,
 	if (unlikely(fd < 0 || !callback))
 		return -EINVAL;
 
-	if (!epoll_fd)
+	if (epoll_fd < 0)
 		return -EIO;
 
 	if (L_WARN_ON((unsigned int) fd > watch_entries - 1))
@@ -284,7 +282,7 @@ int idle_add(idle_event_cb_t callback, void *user_data, uint32_t flags,
 	if (unlikely(!callback))
 		return -EINVAL;
 
-	if (!epoll_fd)
+	if (epoll_fd < 0)
 		return -EIO;
 
 	data = l_new(struct idle_data, 1);
@@ -509,7 +507,7 @@ LIB_EXPORT int l_main_run(void)
 	int timeout;
 
 	/* Has l_main_init() been called? */
-	if (unlikely(!epoll_fd))
+	if (unlikely(epoll_fd < 0))
 		return EXIT_FAILURE;
 
 	if (unlikely(epoll_running))
@@ -577,7 +575,7 @@ LIB_EXPORT bool l_main_exit(void)
 	idle_list = NULL;
 
 	close(epoll_fd);
-	epoll_fd = 0;
+	epoll_fd = -1;
 
 	return true;
 }
