@@ -46,7 +46,6 @@
 struct dhcp6_default_transport {
 	struct dhcp6_transport super;
 	struct l_io *io;
-	int udp_fd;
 	uint16_t port;
 	struct in6_addr local;
 };
@@ -222,11 +221,6 @@ static void _dhcp6_default_transport_close(struct dhcp6_transport *s)
 
 	l_io_destroy(transport->io);
 	transport->io = NULL;
-
-	if (transport->udp_fd >= 0) {
-		L_TFR(close(transport->udp_fd));
-		transport->udp_fd = -1;
-	}
 }
 
 void _dhcp6_transport_set_rx_callback(struct dhcp6_transport *transport,
