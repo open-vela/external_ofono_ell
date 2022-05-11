@@ -529,6 +529,7 @@ static void dhcp_client_timeout_resend(struct l_timeout *timeout,
 								void *user_data)
 {
 	struct l_dhcp_client *client = user_data;
+	struct l_dhcp_lease *lease = client->lease;
 	unsigned int next_timeout = 0;
 	int r;
 
@@ -564,12 +565,12 @@ static void dhcp_client_timeout_resend(struct l_timeout *timeout,
 
 	switch (client->state) {
 	case DHCP_STATE_RENEWING:
-		next_timeout = dhcp_rebind_renew_retry_time(client->start_t,
-							client->lease->t2);
+		next_timeout = dhcp_rebind_renew_retry_time(lease->bound_time,
+								lease->t2);
 		break;
 	case DHCP_STATE_REBINDING:
-		next_timeout = dhcp_rebind_renew_retry_time(client->start_t,
-						client->lease->lifetime);
+		next_timeout = dhcp_rebind_renew_retry_time(lease->bound_time,
+							lease->lifetime);
 		break;
 	case DHCP_STATE_REQUESTING:
 	case DHCP_STATE_SELECTING:
@@ -651,7 +652,7 @@ static void dhcp_client_t1_expired(struct l_timeout *timeout, void *user_data)
 	l_timeout_set_callback(client->timeout_lease, dhcp_client_t2_expired,
 				client, NULL);
 
-	next_timeout = dhcp_rebind_renew_retry_time(client->start_t,
+	next_timeout = dhcp_rebind_renew_retry_time(client->lease->bound_time,
 							client->lease->t2);
 	client->timeout_resend =
 		l_timeout_create_ms(dhcp_fuzz_secs(next_timeout),
