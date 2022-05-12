@@ -181,10 +181,13 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 	}
 
 	if (acd->retries != ANNOUNCE_NUM) {
+		int err = acd_send_packet(acd, acd->ip);
+
 		acd->retries++;
 
-		if (acd_send_packet(acd, acd->ip) < 0) {
-			ACD_DEBUG("Failed to send ACD announcement");
+		if (err < 0) {
+			ACD_DEBUG("Failed to send ACD announcement: %s",
+					strerror(-err));
 			return;
 		}
 
@@ -202,12 +205,13 @@ static void announce_wait_timeout(struct l_timeout *timeout, void *user_data)
 static void probe_wait_timeout(struct l_timeout *timeout, void *user_data)
 {
 	struct l_acd *acd = user_data;
+	int err;
 	uint32_t delay;
 
 	ACD_DEBUG("Sending ACD Probe");
 
-	if (acd_send_packet(acd, 0) < 0) {
-		ACD_DEBUG("Failed to send ACD probe");
+	if ((err = acd_send_packet(acd, 0)) < 0) {
+		ACD_DEBUG("Failed to send ACD probe: %s", strerror(-err));
 		return;
 	}
 
@@ -260,6 +264,7 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 	int source_conflict;
 	int target_conflict;
 	bool probe;
+	int err;
 
 	memset(&arp, 0, sizeof(arp));
 	len = read(l_io_get_fd(acd->io), &arp, sizeof(arp));
@@ -340,7 +345,10 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		if (acd->timeout)
 			l_timeout_remove(acd->timeout);
 
-		acd_send_packet(acd, acd->ip);
+		err = acd_send_packet(acd, acd->ip);
+		if (err < 0)
+			ACD_DEBUG("Failed to send initial announcement: %s",
+					strerror(-err));
 
 		ACD_DEBUG("Defending address");
 
