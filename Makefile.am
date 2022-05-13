@@ -90,6 +90,7 @@ ell_libell_la_SOURCES = $(linux_headers) \
 			ell/netlink-private.h \
 			ell/netlink.c \
 			ell/genl.c \
+			ell/rtnl-private.h \
 			ell/rtnl.c \
 			ell/dbus-private.h \
 			ell/dbus.c \
