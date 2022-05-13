@@ -39,6 +39,7 @@
 #include "log.h"
 #include "util.h"
 #include "time.h"
+#include "rtnl-private.h"
 #include "rtnl.h"
 #include "private.h"
 
@@ -332,30 +333,6 @@ LIB_EXPORT bool l_rtnl_address_set_scope(struct l_rtnl_address *addr,
 	addr->scope = scope;
 	return true;
 }
-
-struct l_rtnl_route {
-	uint8_t family;
-	uint8_t scope;
-	uint8_t protocol;
-	union {
-		struct in6_addr in6_addr;
-		struct in_addr in_addr;
-	} gw;
-	union {
-		struct in6_addr in6_addr;
-		struct in_addr in_addr;
-	} dst;
-	uint8_t dst_prefix_len;
-	union {
-		struct in6_addr in6_addr;
-		struct in_addr in_addr;
-	} prefsrc;
-	uint32_t lifetime;
-	uint64_t expiry_time;
-	uint32_t mtu;
-	uint32_t priority;
-	uint8_t preference;
-};
 
 LIB_EXPORT struct l_rtnl_route *l_rtnl_route_new_gateway(const char *gw)
 {
