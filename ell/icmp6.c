@@ -45,6 +45,7 @@
 #include "time-private.h"
 #include "queue.h"
 #include "net.h"
+#include "net-private.h"
 #include "netlink.h"
 #include "rtnl.h"
 #include "missing.h"
@@ -822,7 +823,27 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 			i->onlink = true;
 			i->valid_lifetime = l_get_be32(opts + 4);
 			i->preferred_lifetime = l_get_be32(opts + 8);
-			memcpy(i->address, opts + 16, 16);
+
+			/*
+			 * Only the initial Prefix Length bits of the prefix
+			 * are valid.  The remaining bits "MUST" be ignored
+			 * by the receiver.
+			 */
+			memcpy(i->address, net_prefix_from_ipv6(opts + 16,
+							i->prefix_len), 16);
+
+			/*
+			 * For SLAAC (RFC4862) we need to "silently ignore"
+			 * routes with a preferred lifetime longer than valid
+			 * lifetime, and those with the link-local prefix.
+			 * Since it makes sense, do it regardless of SLAAC.
+			 */
+			if (i->preferred_lifetime > i->valid_lifetime)
+				break;
+
+			if (i->prefix_len >= 10 &&
+					IN6_IS_ADDR_LINKLOCAL(i->address))
+				break;
 
 			n_routes += 1;
 			break;
@@ -874,7 +895,14 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 			i->onlink = false;
 			i->preference = preference;
 			i->valid_lifetime = l_get_be32(opts + 4);
-			memcpy(i->address, opts + 8, (i->prefix_len + 7) / 8);
+
+			/*
+			 * Only the initial Prefix Length bits of the prefix
+			 * are valid.  The remaining bits "MUST" be ignored
+			 * by the receiver.
+			 */
+			memcpy(i->address, net_prefix_from_ipv6(opts + 8,
+							i->prefix_len), 16);
 
 			n_routes += 1;
 			break;
