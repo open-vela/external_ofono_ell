@@ -362,6 +362,9 @@ static int _dhcp_default_transport_bind(struct dhcp_transport *s,
 	if (!transport->io)
 		return -EIO;
 
+	if (transport->udp_fd >= 0)
+		return 0;
+
 	fd = kernel_udp_socket_open(transport->ifname, saddr, transport->port);
 	if (fd < 0)
 		return fd;
@@ -558,6 +561,7 @@ struct dhcp_transport *_dhcp_default_transport_new(uint32_t ifindex,
 	transport->super.ifindex = ifindex;
 	l_strlcpy(transport->ifname, ifname, IFNAMSIZ);
 	transport->port = port;
+	transport->udp_fd = -1;
 
 	return &transport->super;
 }
