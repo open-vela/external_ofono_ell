@@ -1115,6 +1115,7 @@ static struct l_genl_family_info *build_nlctrl_info()
 LIB_EXPORT struct l_genl *l_genl_new(void)
 {
 	struct l_genl *genl;
+	struct l_io *io;
 	struct sockaddr_nl addr;
 	socklen_t addrlen = sizeof(addr);
 	int fd;
@@ -1144,11 +1145,15 @@ LIB_EXPORT struct l_genl *l_genl_new(void)
 	setsockopt(fd, SOL_NETLINK, NETLINK_EXT_ACK,
 					&ext_ack, sizeof(ext_ack));
 
+	io = l_io_new(fd);
+	if (!io)
+		goto err;
+
 	genl = l_new(struct l_genl, 1);
 	genl->pid = addr.nl_pid;
 	genl->ref_count = 1;
 	genl->fd = fd;
-	genl->io = l_io_new(genl->fd);
+	genl->io = io;
 	l_io_set_read_handler(genl->io, received_data, genl,
 						read_watch_destroy);
 
