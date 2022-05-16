@@ -332,28 +332,28 @@ LIB_EXPORT struct l_netlink *l_netlink_new(int protocol)
 {
 	struct l_netlink *netlink;
 	int sk;
+	struct l_io *io;
+	uint32_t pid;
+
+	sk = create_netlink_socket(protocol, &pid);
+	if (sk < 0)
+		return NULL;
+
+	io = l_io_new(sk);
+	if (!io) {
+		close(sk);
+		return NULL;
+	}
 
 	netlink = l_new(struct l_netlink, 1);
 
+	netlink->pid = pid;
 	netlink->next_seq = 1;
 	netlink->next_command_id = 1;
 	netlink->next_notify_id = 1;
 
-	sk = create_netlink_socket(protocol, &netlink->pid);
-	if (sk < 0) {
-		l_free(netlink);
-		return NULL;
-	}
-
-	netlink->io = l_io_new(sk);
-	if (!netlink->io) {
-		close(sk);
-		l_free(netlink);
-		return NULL;
-	}
-
+	netlink->io = io;
 	l_io_set_close_on_destroy(netlink->io, true);
-
 	l_io_set_read_handler(netlink->io, can_read_data, netlink, NULL);
 
 	netlink->command_queue = l_queue_new();
