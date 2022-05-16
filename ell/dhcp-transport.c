@@ -514,6 +514,11 @@ static int _dhcp_default_transport_open(struct dhcp_transport *s, uint32_t xid)
 		return fd;
 
 	transport->io = l_io_new(fd);
+	if (!transport->io) {
+		close(fd);
+		return -EMFILE;
+	}
+
 	l_io_set_close_on_destroy(transport->io, true);
 	l_io_set_read_handler(transport->io,
 					_dhcp_default_transport_read_handler,
