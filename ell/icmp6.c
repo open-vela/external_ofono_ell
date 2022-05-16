@@ -527,15 +527,16 @@ LIB_EXPORT bool l_icmp6_client_start(struct l_icmp6_client *client)
 		return false;
 
 	if (!client->have_mac) {
-		if (!l_net_get_mac_address(client->ifindex, client->mac)) {
-			close(s);
-			return false;
-		}
+		if (!l_net_get_mac_address(client->ifindex, client->mac))
+			goto err;
 
 		client->have_mac = true;
 	}
 
 	client->io = l_io_new(s);
+	if (!client->io)
+		goto err;
+
 	l_io_set_close_on_destroy(client->io, true);
 	l_io_set_read_handler(client->io, icmp6_client_read_handler,
 					client, NULL);
@@ -551,6 +552,10 @@ LIB_EXPORT bool l_icmp6_client_start(struct l_icmp6_client *client)
 		icmp6_client_timeout_send(client->timeout_send, client);
 
 	return true;
+
+err:
+	close(s);
+	return false;
 }
 
 LIB_EXPORT bool l_icmp6_client_stop(struct l_icmp6_client *client)
