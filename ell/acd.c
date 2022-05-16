@@ -433,12 +433,13 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 		return false;
 
 	if (l_memeqzero(acd->mac, ETH_ALEN) &&
-			!l_net_get_mac_address(acd->ifindex, acd->mac)) {
-		close(fd);
-		return false;
-	}
+			!l_net_get_mac_address(acd->ifindex, acd->mac))
+		goto err;
 
 	acd->io = l_io_new(fd);
+	if (!acd->io)
+		goto err;
+
 	l_io_set_close_on_destroy(acd->io, true);
 	l_io_set_read_handler(acd->io, acd_read_handler, acd, NULL);
 
@@ -476,6 +477,10 @@ LIB_EXPORT bool l_acd_start(struct l_acd *acd, const char *ip)
 							acd, NULL);
 
 	return true;
+
+err:
+	close(fd);
+	return false;
 }
 
 LIB_EXPORT bool l_acd_set_event_handler(struct l_acd *acd,
