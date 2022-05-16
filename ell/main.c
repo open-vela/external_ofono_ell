@@ -139,7 +139,7 @@ int watch_add(int fd, uint32_t events, watch_event_cb_t callback,
 	if (!epoll_fd)
 		return -EIO;
 
-	if ((unsigned int) fd > watch_entries - 1)
+	if (L_WARN_ON((unsigned int) fd > watch_entries - 1))
 		return -ERANGE;
 
 	data = l_new(struct watch_data, 1);
