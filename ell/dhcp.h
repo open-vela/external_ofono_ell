@@ -102,7 +102,8 @@ bool l_dhcp_client_set_event_handler(struct l_dhcp_client *client,
 
 bool l_dhcp_client_set_debug(struct l_dhcp_client *client,
 				l_dhcp_debug_cb_t function,
-				void *user_data, l_dhcp_destroy_cb_t destroy);
+				void *user_data, l_dhcp_destroy_cb_t destroy,
+				int priority);
 
 
 char *l_dhcp_lease_get_address(const struct l_dhcp_lease *lease);
