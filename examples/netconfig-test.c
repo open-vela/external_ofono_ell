@@ -195,7 +195,7 @@ int main(int argc, char *argv[])
 	netconfig = l_netconfig_new(ifindex);
 	l_netconfig_set_event_handler(netconfig, event_handler, NULL, NULL);
 	l_dhcp_client_set_debug(l_netconfig_get_dhcp_client(netconfig),
-				do_debug, "[DHCPv4] ", NULL);
+				do_debug, "[DHCPv4] ", NULL, L_LOG_DEBUG);
 	l_netconfig_start(netconfig);
 
 	l_main_run_with_signal(signal_handler, NULL);
