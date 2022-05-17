@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 	client = l_dhcp_client_new(ifindex);
 	l_dhcp_client_set_address(client, ARPHRD_ETHER, mac, 6);
 	l_dhcp_client_set_event_handler(client, event_handler, NULL, NULL);
-	l_dhcp_client_set_debug(client, do_debug, "[DHCP] ", NULL);
+	l_dhcp_client_set_debug(client, do_debug, "[DHCP] ", NULL, L_LOG_DEBUG);
 	l_dhcp_client_start(client);
 
 	l_main_run_with_signal(signal_handler, NULL);
