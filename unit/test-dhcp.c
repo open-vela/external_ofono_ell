@@ -811,7 +811,8 @@ static struct l_dhcp_client *client_init(const uint8_t *mac)
 				event_handler_lease_obtained, NULL, NULL));
 
 	if (verbose)
-		l_dhcp_client_set_debug(client, do_debug, "[DHCP1] ", NULL);
+		l_dhcp_client_set_debug(client, do_debug, "[DHCP1] ", NULL,
+					L_LOG_DEBUG);
 
 	transport->send = fake_transport_send;
 	transport->l2_send = fake_transport_l2_send;
