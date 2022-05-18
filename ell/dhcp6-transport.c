@@ -40,6 +40,7 @@
 #include "missing.h"
 #include "io.h"
 #include "time.h"
+#include "time-private.h"
 #include "dhcp6-private.h"
 
 struct dhcp6_default_transport {
@@ -81,9 +82,9 @@ static bool _dhcp6_default_transport_read_handler(struct l_io *io,
 				cmsg->cmsg_type == SCM_TIMESTAMP &&
 				cmsg->cmsg_len ==
 				CMSG_LEN(sizeof(struct timeval))) {
-		const struct timeval *tv = (void *) CMSG_DATA(cmsg);
+			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
 
-			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
+			timestamp = _time_realtime_to_boottime(tv);
 		}
 	}
 
