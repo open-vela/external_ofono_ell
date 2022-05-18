@@ -32,6 +32,16 @@
 #include "random.h"
 #include "private.h"
 
+static uint64_t _time_from_timespec(const struct timespec *ts)
+{
+	return ts->tv_sec * L_USEC_PER_SEC + ts->tv_nsec / L_NSEC_PER_USEC;
+}
+
+static uint64_t _time_from_timeval(const struct timeval *tv)
+{
+	return tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
+}
+
 /**
  * l_time_now:
  *
@@ -44,8 +54,7 @@ LIB_EXPORT uint64_t l_time_now(void)
 	struct timespec now;
 
 	clock_gettime(CLOCK_BOOTTIME, &now);
-
-	return (uint64_t) now.tv_sec * 1000000 + now.tv_nsec / 1000;
+	return _time_from_timespec(&now);
 }
 
 /**
@@ -122,11 +131,8 @@ uint64_t _time_realtime_to_boottime(const struct timeval *ts)
 	uint64_t offset;
 
 	clock_gettime(CLOCK_REALTIME, &timespec);
-	now_realtime = (uint64_t) timespec.tv_sec * L_USEC_PER_SEC +
-		timespec.tv_nsec / L_NSEC_PER_USEC;
-
-	ts_realtime = ts->tv_sec * L_USEC_PER_SEC + ts->tv_usec;
-
+	now_realtime = _time_from_timespec(&timespec);
+	ts_realtime = _time_from_timeval(ts);
 	offset = l_time_diff(ts_realtime, now_realtime);
 
 	/* Most likely case, timestamp in the past */
