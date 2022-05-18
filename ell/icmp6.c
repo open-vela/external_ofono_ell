@@ -248,7 +248,7 @@ static int icmp6_receive(int s, void *buf, size_t buf_len, struct in6_addr *src,
 				CMSG_LEN(sizeof(struct timeval))) {
 			const struct timeval *tv = (void *) CMSG_DATA(cmsg);
 
-			timestamp = tv->tv_sec * L_USEC_PER_SEC + tv->tv_usec;
+			timestamp = _time_realtime_to_boottime(tv);
 		}
 	}
 
