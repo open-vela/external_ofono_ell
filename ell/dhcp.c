@@ -56,9 +56,7 @@
 #define CLIENT_WARN(fmt, args...)					\
 	CLIENT_LOG(L_LOG_WARNING, fmt, ## args)
 #define CLIENT_ENTER_STATE(s)						\
-	l_util_debug(client->debug_handler, client->debug_data,		\
-			"%s:%i Entering state: " #s,			\
-			__func__, __LINE__);				\
+	CLIENT_INFO("Entering state: " #s);				\
 	client->state = (s)
 
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)
