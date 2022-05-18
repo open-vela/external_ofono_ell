@@ -76,8 +76,8 @@ LIB_EXPORT uint64_t l_time_now(void)
 /* Compute ms + RAND*ms where RAND is in range -0.1 .. 0.1 */
 uint64_t _time_fuzz_msecs(uint64_t ms)
 {
-	 /* We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2] */
-        return ms - ms / 10 +
+	/* We do this by subtracting 0.1ms and adding 0.1ms * rand[0 .. 2] */
+	return ms - ms / 10 +
 			(l_getrandom_uint32() % (2 * L_MSEC_PER_SEC)) *
 						ms / 10 / L_MSEC_PER_SEC;
 }
