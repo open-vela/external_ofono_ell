@@ -105,3 +105,37 @@ uint64_t _time_fuzz_secs(uint32_t secs, uint32_t max_offset)
 
 	return ms;
 }
+
+/*
+ * Convert a *recent* CLOCK_REALTIME-based timestamp to a
+ * CLOCK_BOOTTIME-based usec count consistent with l_time functions.
+ * The longer the time since the input timestamp the higher the
+ * probability of the two clocks having diverged and the higher the
+ * expected error magnitude.
+ */
+uint64_t _time_realtime_to_boottime(const struct timeval *ts)
+{
+	uint64_t now_realtime;
+	uint64_t now_boottime = l_time_now();
+	struct timespec timespec;
+	uint64_t ts_realtime;
+	uint64_t offset;
+
+	clock_gettime(CLOCK_REALTIME, &timespec);
+	now_realtime = (uint64_t) timespec.tv_sec * L_USEC_PER_SEC +
+		timespec.tv_nsec / L_NSEC_PER_USEC;
+
+	ts_realtime = ts->tv_sec * L_USEC_PER_SEC + ts->tv_usec;
+
+	offset = l_time_diff(ts_realtime, now_realtime);
+
+	/* Most likely case, timestamp in the past */
+	if (l_time_before(ts_realtime, now_realtime)) {
+		if (offset > now_boottime)
+			return 0;
+
+		return now_boottime - offset;
+	}
+
+	return l_time_offset(now_boottime, offset);
+}
