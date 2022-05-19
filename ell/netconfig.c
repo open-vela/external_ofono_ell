@@ -167,7 +167,6 @@ static void netconfig_add_v4_routes(struct l_netconfig *nc, const char *ip,
 					uint8_t rtm_protocol)
 {
 	struct in_addr in_addr;
-	char network[INET_ADDRSTRLEN];
 
 	/* Subnet route */
 
@@ -175,7 +174,7 @@ static void netconfig_add_v4_routes(struct l_netconfig *nc, const char *ip,
 		return;
 
 	in_addr.s_addr &= htonl(0xfffffffflu << (32 - prefix_len));
-	nc->v4_subnet_route = netconfig_route_new(nc, AF_INET, network,
+	nc->v4_subnet_route = netconfig_route_new(nc, AF_INET, &in_addr,
 							prefix_len, NULL,
 							rtm_protocol);
 	l_queue_push_tail(nc->routes.current, nc->v4_subnet_route);
