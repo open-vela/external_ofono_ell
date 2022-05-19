@@ -131,6 +131,9 @@ fi
 
 AM_CONDITIONAL(DBUS_TESTS, test "${little_endian}" = "yes")
 AM_CONDITIONAL(CERT_TESTS, test "${have_openssl}" = "yes")
+AM_CONDITIONAL(OPENSSL_PROVIDER, test "${have_openssl}" = "yes" &&
+				openssl list -providers > /dev/null 2>&1 )
+AC_SUBST(OPENSSL_PROVIDER)
 
 AC_CONFIG_FILES(Makefile ell/ell.pc)
 
