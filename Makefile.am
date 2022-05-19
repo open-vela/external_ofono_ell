@@ -405,6 +405,12 @@ DISTCLEANFILES = $(unit_tests) $(dbus_tests) $(cert_tests)
 
 MAINTAINERCLEANFILES = Makefile.in configure config.h.in aclocal.m4
 
+if OPENSSL_PROVIDER
+openssl_legacy = -provider legacy -provider default
+else
+openssl_legacy =
+endif
+
 true_redirect_openssl = 2>&1
 false_redirect_openssl = 2>/dev/null
 
@@ -444,7 +450,8 @@ unit/cert-client-key-pkcs1.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
 
 unit/cert-client-key-pkcs1-des.pem: unit/cert-client-key-pkcs1.pem
-	$(AM_V_GEN)openssl rsa -in $< -out $@ -des -passout pass:abc
+	$(AM_V_GEN)openssl rsa -in $< -out $@ -des -passout pass:abc \
+			$(openssl_legacy)
 
 unit/cert-client-key-pkcs1-des3.pem: unit/cert-client-key-pkcs1.pem
 	$(AM_V_GEN)openssl rsa -in $< -out $@ -des3 -passout pass:abc
@@ -463,15 +470,18 @@ unit/cert-client-key-pkcs8.pem: unit/cert-client-key-pkcs1.pem
 
 unit/cert-client-key-pkcs8-md5-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
-			-topk8 -v1 PBE-MD5-DES -passout pass:abc
+			-topk8 -v1 PBE-MD5-DES -passout pass:abc \
+			$(openssl_legacy)
 
 unit/cert-client-key-pkcs8-sha1-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
-			-topk8 -v1 PBE-SHA1-DES -passout pass:abc
+			-topk8 -v1 PBE-SHA1-DES -passout pass:abc \
+			$(openssl_legacy)
 
 unit/cert-client-key-pkcs8-v2-des.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
-			-topk8 -v2 des-cbc -v2prf hmacWithSHA1 -passout pass:abc
+			-topk8 -v2 des-cbc -v2prf hmacWithSHA1 -passout pass:abc \
+			$(openssl_legacy)
 
 unit/cert-client-key-pkcs8-v2-des-ede3.pem: unit/cert-client-key-pkcs8.pem
 	$(AM_V_GEN)openssl pkcs8 -in $< -out $@ \
@@ -575,19 +585,19 @@ unit/cert-entity-pkcs12-nomac.p12: unit/cert-entity-int-key.pem unit/cert-entity
 	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -out $@ -export -passout pass:abc -nomac # defaut ciphers
 
 unit/cert-entity-pkcs12-rc2-sha1.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
-	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC2-40 -keypbe PBE-SHA1-RC2-128 -macalg sha1
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC2-40 -keypbe PBE-SHA1-RC2-128 -macalg sha1 $(openssl_legacy)
 
 unit/cert-entity-pkcs12-des-sha256.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
 	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-2DES -macalg sha256
 
 unit/cert-entity-pkcs12-rc4-sha384.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
-	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC4-128 -keypbe PBE-SHA1-RC2-40 -macalg sha384
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe PBE-SHA1-RC4-128 -keypbe PBE-SHA1-RC2-40 -macalg sha384 $(openssl_legacy)
 
 unit/cert-entity-pkcs12-pkcs5-sha512.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem unit/cert-chain.pem
-	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe des-cbc -keypbe des-cbc -macalg sha512
+	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -certfile $(builddir)/unit/cert-chain.pem -out $@ -export -passout pass:abc -certpbe des-cbc -keypbe des-cbc -macalg sha512 $(openssl_legacy)
 
 unit/cert-entity-combined.pem: unit/cert-entity-pkcs12-rc2-sha1.p12
-	$(AM_V_GEN)openssl pkcs12 -in $< -out $@ -passin pass:abc -passout pass:abc
+	$(AM_V_GEN)openssl pkcs12 -in $< -out $@ -passin pass:abc -passout pass:abc $(openssl_legacy)
 
 unit/key-plaintext.h: unit/plaintext.txt
 	$(AM_V_GEN)xxd -i < $< > $@
