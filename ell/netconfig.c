@@ -573,8 +573,9 @@ static struct l_rtnl_route *netconfig_add_icmp6_route(struct l_netconfig *nc,
 {
 	struct l_rtnl_route *rt;
 
-	rt = netconfig_route_new(nc, AF_INET6, dst->address, dst->prefix_len,
-					gateway, RTPROT_RA);
+	rt = netconfig_route_new(nc, AF_INET6, dst ? dst->address : NULL,
+					dst ? dst->prefix_len : 0, gateway,
+					RTPROT_RA);
 	if (L_WARN_ON(!rt))
 		return NULL;
 
