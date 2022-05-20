@@ -1249,37 +1249,38 @@ LIB_EXPORT void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
 					NULL, NULL, NULL);
 }
 
-LIB_EXPORT struct l_queue *l_netconfig_get_addresses(
-						struct l_netconfig *netconfig,
-						struct l_queue **out_added,
-						struct l_queue **out_updated,
-						struct l_queue **out_removed)
+LIB_EXPORT const struct l_queue_entry *l_netconfig_get_addresses(
+					struct l_netconfig *netconfig,
+					const struct l_queue_entry **out_added,
+					const struct l_queue_entry **out_updated,
+					const struct l_queue_entry **out_removed)
 {
 	if (out_added)
-		*out_added = netconfig->addresses.added;
+		*out_added = l_queue_get_entries(netconfig->addresses.added);
 
 	if (out_updated)
-		*out_updated = netconfig->addresses.updated;
+		*out_updated = l_queue_get_entries(netconfig->addresses.updated);
 
 	if (out_removed)
-		*out_removed = netconfig->addresses.removed;
+		*out_removed = l_queue_get_entries(netconfig->addresses.removed);
 
-	return netconfig->addresses.current;
+	return l_queue_get_entries(netconfig->addresses.current);
 }
 
-LIB_EXPORT struct l_queue *l_netconfig_get_routes(struct l_netconfig *netconfig,
-						struct l_queue **out_added,
-						struct l_queue **out_updated,
-						struct l_queue **out_removed)
+LIB_EXPORT const struct l_queue_entry *l_netconfig_get_routes(
+					struct l_netconfig *netconfig,
+					const struct l_queue_entry **out_added,
+					const struct l_queue_entry **out_updated,
+					const struct l_queue_entry **out_removed)
 {
 	if (out_added)
-		*out_added = netconfig->routes.added;
+		*out_added = l_queue_get_entries(netconfig->routes.added);
 
 	if (out_updated)
-		*out_updated = netconfig->routes.updated;
+		*out_updated = l_queue_get_entries(netconfig->routes.updated);
 
 	if (out_removed)
-		*out_removed = netconfig->routes.removed;
+		*out_removed = l_queue_get_entries(netconfig->routes.removed);
 
-	return netconfig->routes.current;
+	return l_queue_get_entries(netconfig->routes.current);
 }

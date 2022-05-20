@@ -33,7 +33,7 @@ struct l_dhcp_client;
 struct l_dhcp6_client;
 struct l_icmp6_client;
 struct l_netlink;
-struct l_queue;
+struct l_queue_entry;
 struct l_netconfig;
 struct l_rtnl_address;
 struct l_rtnl_route;
@@ -87,14 +87,16 @@ void l_netconfig_set_event_handler(struct l_netconfig *netconfig,
 
 void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
 				struct l_netlink *rtnl);
-struct l_queue *l_netconfig_get_addresses(struct l_netconfig *netconfig,
-					struct l_queue **out_added,
-					struct l_queue **out_updated,
-					struct l_queue **out_removed);
-struct l_queue *l_netconfig_get_routes(struct l_netconfig *netconfig,
-					struct l_queue **out_added,
-					struct l_queue **out_updated,
-					struct l_queue **out_removed);
+const struct l_queue_entry *l_netconfig_get_addresses(
+				struct l_netconfig *netconfig,
+				const struct l_queue_entry **out_added,
+				const struct l_queue_entry **out_updated,
+				const struct l_queue_entry **out_removed);
+const struct l_queue_entry *l_netconfig_get_routes(
+				struct l_netconfig *netconfig,
+				const struct l_queue_entry **out_added,
+				const struct l_queue_entry **out_updated,
+				const struct l_queue_entry **out_removed);
 
 #ifdef __cplusplus
 }
