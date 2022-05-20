@@ -61,16 +61,14 @@ static void signal_handler(uint32_t signo, void *user_data)
 }
 
 static void log_addresses(const char *af_str, const char *action,
-				struct l_queue *list)
+				const struct l_queue_entry *entry)
 {
-	const struct l_queue_entry *entry;
-
-	if (l_queue_isempty(list))
+	if (!entry)
 		return;
 
 	l_info("[netconfig%s] Addresses %s:", af_str, action);
 
-	for (entry = l_queue_get_entries(list); entry; entry = entry->next) {
+	for (; entry; entry = entry->next) {
 		struct l_rtnl_address *addr = entry->data;
 		char ip_str[INET6_ADDRSTRLEN];
 
@@ -83,25 +81,26 @@ static void log_addresses(const char *af_str, const char *action,
 }
 
 static void log_routes(const char *af_str, const char *action,
-			struct l_queue *list)
+			const struct l_queue_entry *entry)
 {
-	const struct l_queue_entry *entry;
-
-	if (l_queue_isempty(list))
+	if (!entry)
 		return;
 
 	l_info("[netconfig%s] Routes %s:", af_str, action);
 
-	for (entry = l_queue_get_entries(list); entry; entry = entry->next) {
+	for (; entry; entry = entry->next) {
 		struct l_rtnl_route *rt = entry->data;
-		char subnet_str[INET6_ADDRSTRLEN];
+		char subnet_str[INET6_ADDRSTRLEN] = "unknown";
 		char gateway_str[INET6_ADDRSTRLEN];
 		uint8_t prefix_len;
+		bool onlink;
 
 		l_rtnl_route_get_dst(rt, subnet_str, &prefix_len);
-		l_rtnl_route_get_gateway(rt, gateway_str);
-		l_info("[netconfig%s] \t%s/%i, gateway %s, orig lifetime %i s",
-			af_str, subnet_str, prefix_len, gateway_str,
+		onlink = !l_rtnl_route_get_gateway(rt, gateway_str);
+		l_info("[netconfig%s] \t%s/%i, %s%s, orig lifetime %i s",
+			af_str, subnet_str, prefix_len,
+			onlink ? "onlink" : "next-hop ",
+			onlink ? "" : gateway_str,
 			l_rtnl_route_get_lifetime(rt));
 	}
 }
@@ -110,7 +109,7 @@ static void event_handler(struct l_netconfig *netconfig, uint8_t family,
 				enum l_netconfig_event event, void *user_data)
 {
 	const char *af_str = family == AF_INET ? "v4" : "v6";
-	struct l_queue *added, *updated, *removed;
+	const struct l_queue_entry *added, *updated, *removed;
 
 	switch (event) {
 	case L_NETCONFIG_EVENT_CONFIGURE:
