@@ -513,6 +513,7 @@ global:
 	l_tls_write;
 	l_tls_start;
 	l_tls_close;
+	l_tls_reset;
 	l_tls_set_cacert;
 	l_tls_set_auth_data;
 	l_tls_set_version_range;
