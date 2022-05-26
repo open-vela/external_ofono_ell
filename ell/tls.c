@@ -2740,7 +2740,7 @@ bool tls_handle_message(struct l_tls *tls, const uint8_t *message,
 		/* Start hashing the handshake contents on first message */
 		if (tls->server && message[0] == TLS_CLIENT_HELLO &&
 				(tls->state == TLS_HANDSHAKE_WAIT_HELLO ||
-				 tls->state != TLS_HANDSHAKE_DONE))
+				 tls->state == TLS_HANDSHAKE_DONE))
 			if (!tls_init_handshake_hash(tls))
 				return false;
 
