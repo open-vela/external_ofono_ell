@@ -2852,6 +2852,9 @@ LIB_EXPORT bool l_tls_start(struct l_tls *tls)
 
 LIB_EXPORT void l_tls_close(struct l_tls *tls)
 {
+	tls->record_buf_len = 0;
+	tls->message_buf_len = 0;
+
 	TLS_DISCONNECT(TLS_ALERT_CLOSE_NOTIFY, 0, "Closing session");
 }
 
