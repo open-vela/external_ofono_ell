@@ -92,6 +92,9 @@ bool l_tls_start(struct l_tls *tls);
 /* Properly disconnect a connected session */
 void l_tls_close(struct l_tls *tls);
 
+/* Reset to initial state without a graceful disconnect or callback */
+void l_tls_reset(struct l_tls *tls);
+
 /* Submit plaintext data to be encrypted and transmitted */
 void l_tls_write(struct l_tls *tls, const uint8_t *data, size_t len);
 
