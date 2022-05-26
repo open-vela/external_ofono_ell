@@ -2858,6 +2858,26 @@ LIB_EXPORT void l_tls_close(struct l_tls *tls)
 	TLS_DISCONNECT(TLS_ALERT_CLOSE_NOTIFY, 0, "Closing session");
 }
 
+LIB_EXPORT void l_tls_reset(struct l_tls *tls)
+{
+	/*
+	 * Similar to l_tls_close but without sending the alert or a
+	 * disconnect callback.
+	 */
+
+	tls_reset_handshake(tls);
+	tls_cleanup_handshake(tls);
+
+	tls_reset_cipher_spec(tls, 0);
+	tls_reset_cipher_spec(tls, 1);
+
+	tls->negotiated_version = 0;
+	tls->ready = false;
+	tls->record_flush = true;
+	tls->record_buf_len = 0;
+	tls->message_buf_len = 0;
+}
+
 LIB_EXPORT bool l_tls_set_cacert(struct l_tls *tls, struct l_queue *ca_certs)
 {
 	if (tls->ca_certs) {
