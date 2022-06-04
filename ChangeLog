@@ -1,3 +1,8 @@
+ver 0.51:
+	Fix issue with handling bad prefixes per RFC4862.
+	Fix issue with handling DHCP retransmission timers.
+	Add support for DHCP override and static IP API.
+
 ver 0.50:
 	Fix issue with D-Bus use-after-free crash when removing objects.
 	Fix issue with DHCP lease expiry based on frame reception times.
