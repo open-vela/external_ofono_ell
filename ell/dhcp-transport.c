@@ -40,6 +40,7 @@
 #include <linux/filter.h>
 #include <net/if_arp.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "io.h"
 #include "util.h"
