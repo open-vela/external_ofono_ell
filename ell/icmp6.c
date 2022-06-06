@@ -36,6 +36,7 @@
 #include <net/if.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "private.h"
 #include "useful.h"
