@@ -323,7 +323,7 @@ const char *l_util_get_debugfs_path(void);
 	_L_IN_SET_CMP((val), __auto_type, __v == __elems[__i], ##__VA_ARGS__)
 
 #define L_IN_STRSET(val, ...)						\
-	_L_IN_SET_CMP((val), const char *, __v == __elems[__i] ||	\
+	_L_IN_SET_CMP((val), char *, __v == __elems[__i] ||		\
 				(__v && __elems[__i] &&			\
 				 !strcmp(__v, __elems[__i])), ##__VA_ARGS__)
 
