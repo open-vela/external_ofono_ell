@@ -73,7 +73,7 @@ static inline void *rawmemchr(const void *s, int c)
 {
 _Pragma("GCC diagnostic push")
 _Pragma("GCC diagnostic ignored \"-Wstringop-overflow=\"")
-	return memchr(s, c, (size_t) -1);
+	return memchr(s, c, PTRDIFF_MAX);
 _Pragma("GCC diagnostic pop")
 }
 #endif
