@@ -155,25 +155,6 @@ static void dhcp_message_set_address_type(struct dhcp_message *message,
 	}
 }
 
-static inline int dhcp_message_optimize(struct dhcp_message *message,
-					const uint8_t *end)
-{
-	/*
-	 * Don't bother sending a full sized dhcp_message as it is most likely
-	 * mostly zeros.  Instead truncate it at DHCP_OPTION_END and align to
-	 * the nearest 4 byte boundary.  Many implementations expect a packet
-	 * of a certain size or it is filtered, so we cap the length in
-	 * accordance to RFC 1542:
-	 * "The IP Total Length and UDP Length must be large enough to contain
-	 * the minimal BOOTP header of 300 octets"
-	 */
-	size_t len = align_len(end - (uint8_t *) message, 4);
-	if (len < 300)
-		len = 300;
-
-	return len;
-}
-
 struct l_dhcp_client {
 	enum dhcp_state state;
 	unsigned long request_options[256 / BITS_PER_LONG];
