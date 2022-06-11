@@ -33,9 +33,9 @@
 #include "log.h"
 #include "queue.h"
 #include "io.h"
+#include "private.h"
 #include "netlink-private.h"
 #include "genl.h"
-#include "private.h"
 
 #define MAX_NESTING_LEVEL 4
 #define GENL_DEBUG(fmt, args...)	\
@@ -722,17 +722,6 @@ static bool match_request_hid(const void *a, const void *b)
 	return request->handle_id == id;
 }
 
-#define NLA_OK(nla,len)         ((len) >= (int) sizeof(struct nlattr) && \
-				(nla)->nla_len >= sizeof(struct nlattr) && \
-				(nla)->nla_len <= (len))
-#define NLA_NEXT(nla,attrlen)	((attrlen) -= NLMSG_ALIGN((nla)->nla_len), \
-				(struct nlattr*)(((char*)(nla)) + \
-				NLMSG_ALIGN((nla)->nla_len)))
-
-#define NLA_LENGTH(len)		(NLMSG_ALIGN(sizeof(struct nlattr)) + (len))
-#define NLA_DATA(nla)		((void*)(((char*)(nla)) + NLA_LENGTH(0)))
-#define NLA_PAYLOAD(nla)	((int)((nla)->nla_len) - NLA_LENGTH(0))
-
 static struct l_genl_msg *msg_alloc(uint8_t cmd, uint8_t version, uint32_t size)
 {
 	struct l_genl_msg *msg;
@@ -774,52 +763,13 @@ static bool msg_grow(struct l_genl_msg *msg, uint32_t needed)
 static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 {
 	struct l_genl_msg *msg;
+	const char *error_msg = NULL;
 
 	msg = l_new(struct l_genl_msg, 1);
 
-	if (nlmsg->nlmsg_type == NLMSG_ERROR) {
-		struct nlmsgerr *err = NLMSG_DATA(nlmsg);
-		unsigned int offset = 0;
-		struct nlattr *nla;
-		int len;
-
-		msg->error = err->error;
-
-		if (!(nlmsg->nlmsg_flags & NLM_F_ACK_TLVS))
-			goto done;
-
-		/*
-		 * If the message is capped, then err->msg.nlmsg_len contains
-		 * the length of the original message and thus can't be used
-		 * to calculate the offset
-		 */
-		if (!(nlmsg->nlmsg_flags & NLM_F_CAPPED))
-			offset = err->msg.nlmsg_len - sizeof(struct nlmsghdr);
-
-		/*
-		 * Attributes start past struct nlmsgerr.  The offset is 0
-		 * for NLM_F_CAPPED messages.  Otherwise the original message
-		 * is included, and thus the offset takes err->msg.nlmsg_len
-		 * into account
-		 */
-		nla = (void *)(err + 1) + offset;
-
-		/* Calculate bytes taken up by header + nlmsgerr contents */
-		offset += sizeof(struct nlmsghdr) + sizeof(struct nlmsgerr);
-		if (nlmsg->nlmsg_len <= offset)
-			goto done;
-
-		len = nlmsg->nlmsg_len - offset;
-
-		for (; NLA_OK(nla, len); nla = NLA_NEXT(nla, len)) {
-			if ((nla->nla_type & NLA_TYPE_MASK) !=
-					NLMSGERR_ATTR_MSG)
-				continue;
-
-			msg->error_msg = l_strdup(NLA_DATA(nla));
-			goto done;
-		}
-	}
+	if (netlink_parse_ext_ack(nlmsg, &error_msg, NULL) &&
+			error_msg)
+		msg->error_msg = l_strdup(error_msg);
 
 	msg->data = l_memdup(nlmsg, nlmsg->nlmsg_len);
 
@@ -833,7 +783,6 @@ static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 		msg->version = genlmsg->version;
 	}
 
-done:
 	return l_genl_msg_ref(msg);
 }
 
