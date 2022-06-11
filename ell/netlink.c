@@ -32,9 +32,9 @@
 #include "hashmap.h"
 #include "queue.h"
 #include "io.h"
+#include "private.h"
 #include "netlink-private.h"
 #include "netlink.h"
-#include "private.h"
 
 struct command {
 	unsigned int id;
@@ -608,6 +608,60 @@ LIB_EXPORT bool l_netlink_set_debug(struct l_netlink *netlink,
 	netlink->debug_data = user_data;
 
 	/* l_io_set_debug(netlink->io, function, user_data, NULL); */
+
+	return true;
+}
+
+bool netlink_parse_ext_ack(const struct nlmsghdr *nlmsg,
+				const char **out_error_msg,
+				uint32_t *out_error_offset)
+{
+	const struct nlmsgerr *err;
+	unsigned int offset = 0;
+	struct nlattr *nla;
+	int len;
+
+	if (nlmsg->nlmsg_type != NLMSG_ERROR ||
+			!(nlmsg->nlmsg_flags & NLM_F_ACK_TLVS))
+		return false;
+
+	err = NLMSG_DATA(nlmsg);
+
+	/*
+	 * If the message is capped, then err->msg.nlmsg_len contains the
+	 * length of the original message and thus can't be used to
+	 * calculate the offset.
+	 */
+	if (!(nlmsg->nlmsg_flags & NLM_F_CAPPED))
+		offset = err->msg.nlmsg_len - sizeof(struct nlmsghdr);
+
+	/*
+	 * Attributes start past struct nlmsgerr.  The offset is 0 for
+	 * NLM_F_CAPPED messages.  Otherwise the original message is
+	 * included, and thus the offset takes err->msg.nlmsg_len into
+	 * account.
+	 */
+	nla = (void *)(err + 1) + offset;
+
+	/* Calculate bytes taken up by header + nlmsgerr contents */
+	offset += sizeof(struct nlmsghdr) + sizeof(struct nlmsgerr);
+	if (nlmsg->nlmsg_len <= offset)
+		return false;
+
+	len = nlmsg->nlmsg_len - offset;
+
+	for (; NLA_OK(nla, len); nla = NLA_NEXT(nla, len)) {
+		switch (nla->nla_type & NLA_TYPE_MASK) {
+		case NLMSGERR_ATTR_MSG:
+			if (out_error_msg)
+				*out_error_msg = NLA_DATA(nla);
+			break;
+		case NLMSGERR_ATTR_OFFS:
+			if (out_error_offset)
+				*out_error_offset = l_get_u32(NLA_DATA(nla));
+			break;
+		}
+	}
 
 	return true;
 }
