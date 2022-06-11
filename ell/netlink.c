@@ -158,6 +158,31 @@ static void process_broadcast(struct l_netlink *netlink, uint32_t group,
 	l_hashmap_foreach(notify_list, do_notify, nlmsg);
 }
 
+static void process_ext_ack(struct l_netlink *netlink,
+				const struct nlmsghdr *nlmsg)
+{
+	const char *err_str = NULL;
+	uint32_t err_offset = -1U;
+	_auto_(l_free) char *dbg_str = NULL;
+
+	if (!netlink->debug_handler ||
+			!netlink_parse_ext_ack(nlmsg, &err_str, &err_offset) ||
+			(!err_str && err_offset == -1U))
+		return;
+
+	if (err_str && err_offset != -1U)
+		dbg_str = l_strdup_printf("Extended error: '%s', offset of "
+					" offending element within request: "
+					"%i bytes", err_str, (int) err_offset);
+	else if (err_str)
+		dbg_str = l_strdup_printf("Extended error: '%s'", err_str);
+	else
+		dbg_str = l_strdup_printf("Offset of offending element within "
+					"request: %i bytes", (int) err_offset);
+
+	netlink->debug_handler(dbg_str, netlink->debug_data);
+}
+
 static void process_message(struct l_netlink *netlink, struct nlmsghdr *nlmsg)
 {
 	const void *data = nlmsg;
@@ -176,10 +201,12 @@ static void process_message(struct l_netlink *netlink, struct nlmsghdr *nlmsg)
 
 		switch (nlmsg->nlmsg_type) {
 		case NLMSG_ERROR:
-			err = data + NLMSG_HDRLEN;
+			err = NLMSG_DATA(nlmsg);
 
 			command->handler(err->error, 0, NULL, 0,
 							command->user_data);
+
+			process_ext_ack(netlink, nlmsg);
 			break;
 		}
 	} else {
@@ -597,6 +624,8 @@ LIB_EXPORT bool l_netlink_set_debug(struct l_netlink *netlink,
 			l_netlink_debug_func_t function,
 			void *user_data, l_netlink_destroy_func_t destroy)
 {
+	int ext_ack;
+
 	if (unlikely(!netlink))
 		return false;
 
@@ -608,6 +637,11 @@ LIB_EXPORT bool l_netlink_set_debug(struct l_netlink *netlink,
 	netlink->debug_data = user_data;
 
 	/* l_io_set_debug(netlink->io, function, user_data, NULL); */
+
+	ext_ack = function != NULL;
+	if (setsockopt(l_io_get_fd(netlink->io), SOL_NETLINK, NETLINK_EXT_ACK,
+			&ext_ack, sizeof(ext_ack)) < 0 && function)
+		function("Failed to set NETLINK_EXT_ACK", user_data);
 
 	return true;
 }
