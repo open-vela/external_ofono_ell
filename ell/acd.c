@@ -317,11 +317,11 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		if (acd->policy == L_ACD_DEFEND_POLICY_NONE) {
 			ACD_DEBUG("Conflict detected, giving up address");
 
+			l_acd_stop(acd);
+
 			if (acd->event_func)
 				acd->event_func(L_ACD_EVENT_LOST,
 							acd->user_data);
-
-			l_acd_stop(acd);
 
 			break;
 		}
@@ -387,6 +387,8 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		acd->timeout = NULL;
 
 		ACD_DEBUG("Lost address");
+		l_acd_stop(acd);
+
 		/*
 		* RFC 5227 Section 2.4(b)
 		* "if this is not the first conflicting ARP packet the host has seen,
@@ -397,8 +399,6 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		*/
 		if (acd->event_func)
 			acd->event_func(L_ACD_EVENT_LOST, acd->user_data);
-
-		l_acd_stop(acd);
 
 		break;
 	}
