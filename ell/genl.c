@@ -763,13 +763,21 @@ static bool msg_grow(struct l_genl_msg *msg, uint32_t needed)
 static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 {
 	struct l_genl_msg *msg;
-	const char *error_msg = NULL;
 
 	msg = l_new(struct l_genl_msg, 1);
 
-	if (netlink_parse_ext_ack(nlmsg, &error_msg, NULL) &&
-			error_msg)
-		msg->error_msg = l_strdup(error_msg);
+	if (nlmsg->nlmsg_type == NLMSG_ERROR) {
+		struct nlmsgerr *err = NLMSG_DATA(nlmsg);
+		const char *error_msg = NULL;
+
+		msg->error = err->error;
+
+		if (netlink_parse_ext_ack_error(nlmsg, &error_msg, NULL) &&
+						error_msg)
+			msg->error_msg = l_strdup(error_msg);
+
+		goto done;
+	}
 
 	msg->data = l_memdup(nlmsg, nlmsg->nlmsg_len);
 
@@ -783,6 +791,7 @@ static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 		msg->version = genlmsg->version;
 	}
 
+done:
 	return l_genl_msg_ref(msg);
 }
 

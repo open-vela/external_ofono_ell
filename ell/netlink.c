@@ -165,8 +165,10 @@ static void process_ext_ack(struct l_netlink *netlink,
 	uint32_t err_offset = -1U;
 	_auto_(l_free) char *dbg_str = NULL;
 
-	if (!netlink->debug_handler ||
-			!netlink_parse_ext_ack(nlmsg, &err_str, &err_offset) ||
+	if (!netlink->debug_handler)
+		return;
+
+	if (!netlink_parse_ext_ack_error(nlmsg, &err_str, &err_offset) ||
 			(!err_str && err_offset == -1U))
 		return;
 
@@ -646,20 +648,21 @@ LIB_EXPORT bool l_netlink_set_debug(struct l_netlink *netlink,
 	return true;
 }
 
-bool netlink_parse_ext_ack(const struct nlmsghdr *nlmsg,
-				const char **out_error_msg,
-				uint32_t *out_error_offset)
+/*
+ * Parses extended error info from the extended ack.  It is assumed that the
+ * caller has already checked the type of @nlmsg and it is of type NLMSG_ERROR.
+ */
+bool netlink_parse_ext_ack_error(const struct nlmsghdr *nlmsg,
+					const char **out_error_msg,
+					uint32_t *out_error_offset)
 {
-	const struct nlmsgerr *err;
+	const struct nlmsgerr *err = NLMSG_DATA(nlmsg);
 	unsigned int offset = 0;
 	struct nlattr *nla;
 	int len;
 
-	if (nlmsg->nlmsg_type != NLMSG_ERROR ||
-			!(nlmsg->nlmsg_flags & NLM_F_ACK_TLVS))
+	if (!(nlmsg->nlmsg_flags & NLM_F_ACK_TLVS))
 		return false;
-
-	err = NLMSG_DATA(nlmsg);
 
 	/*
 	 * If the message is capped, then err->msg.nlmsg_len contains the
