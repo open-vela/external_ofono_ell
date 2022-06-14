@@ -43,6 +43,8 @@
 #include "rtnl.h"
 #include "private.h"
 
+static struct l_netlink *rtnl;
+
 struct l_rtnl_address {
 	uint8_t family;
 	uint8_t prefix_len;
@@ -1555,4 +1557,17 @@ LIB_EXPORT uint32_t l_rtnl_neighbor_set_hwaddr(struct l_netlink *rtnl,
 	return l_netlink_send(rtnl, RTM_NEWNEIGH, NLM_F_CREATE | NLM_F_REPLACE,
 				ndmsg, rta_buf - (void *) ndmsg,
 				cb, user_data, destroy);
+}
+
+__attribute__((destructor(32000))) static void free_rtnl()
+{
+	l_netlink_destroy(rtnl);
+}
+
+LIB_EXPORT struct l_netlink *l_rtnl_get()
+{
+	if (!rtnl)
+		rtnl = l_netlink_new(NETLINK_ROUTE);
+
+	return rtnl;
 }
