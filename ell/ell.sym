@@ -689,6 +689,7 @@ global:
 	l_rtnl_ifaddr_delete;
 	l_rtnl_neighbor_get_hwaddr;
 	l_rtnl_neighbor_set_hwaddr;
+	l_rtnl_get;
 	/* icmp6 */
 	l_icmp6_client_new;
 	l_icmp6_client_free;
