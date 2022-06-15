@@ -40,7 +40,6 @@
 #include <ell/ell.h>
 
 static bool apply;
-static struct l_netlink *rtnl;
 
 static void do_debug(const char *str, void *user_data)
 {
@@ -138,7 +137,7 @@ static void event_handler(struct l_netconfig *netconfig, uint8_t family,
 	log_routes(af_str, "removed", removed);
 
 	if (apply)
-		l_netconfig_apply_rtnl(netconfig, rtnl);
+		l_netconfig_apply_rtnl(netconfig);
 }
 
 static const struct option main_options[] = {
@@ -180,14 +179,6 @@ int main(int argc, char *argv[])
 	if (!l_main_init())
 		return EXIT_FAILURE;
 
-	if (apply) {
-		rtnl = l_netlink_new(NETLINK_ROUTE);
-		if (!rtnl) {
-			fprintf(stderr, "l_netlink_new(NETLINK_ROUTE) error\n");
-			return EXIT_FAILURE;
-		}
-	}
-
 	l_log_set_stderr();
 	l_debug_enable("*");
 
@@ -201,8 +192,6 @@ int main(int argc, char *argv[])
 
 	l_netconfig_destroy(netconfig);
 	l_main_exit();
-
-	l_netlink_destroy(rtnl);
 
 	return EXIT_SUCCESS;
 }
