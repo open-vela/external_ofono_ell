@@ -108,7 +108,7 @@ static void event_handler(struct l_netconfig *netconfig, uint8_t family,
 				enum l_netconfig_event event, void *user_data)
 {
 	const char *af_str = family == AF_INET ? "v4" : "v6";
-	const struct l_queue_entry *added, *updated, *removed;
+	const struct l_queue_entry *added, *updated, *removed, *expired;
 
 	switch (event) {
 	case L_NETCONFIG_EVENT_CONFIGURE:
@@ -126,15 +126,18 @@ static void event_handler(struct l_netconfig *netconfig, uint8_t family,
 		return;
 	}
 
-	l_netconfig_get_addresses(netconfig, &added, &updated, &removed);
+	l_netconfig_get_addresses(netconfig, &added, &updated,
+					&removed, &expired);
 	log_addresses(af_str, "added", added);
 	log_addresses(af_str, "updated", updated);
 	log_addresses(af_str, "removed", removed);
+	log_addresses(af_str, "expired", expired);
 
-	l_netconfig_get_routes(netconfig, &added, &updated, &removed);
+	l_netconfig_get_routes(netconfig, &added, &updated, &removed, &expired);
 	log_routes(af_str, "added", added);
 	log_routes(af_str, "updated", updated);
 	log_routes(af_str, "removed", removed);
+	log_routes(af_str, "expired", expired);
 
 	if (apply)
 		l_netconfig_apply_rtnl(netconfig);
