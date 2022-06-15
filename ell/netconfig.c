@@ -235,7 +235,17 @@ static void netconfig_add_v6_static_routes(struct l_netconfig *nc,
 
 	v6_default_route = l_rtnl_route_new_gateway(nc->v6_gateway_override);
 	l_rtnl_route_set_protocol(v6_default_route, RTPROT_STATIC);
-	L_WARN_ON(!l_rtnl_route_set_prefsrc(v6_default_route, ip));
+	/*
+	 * TODO: Optimally we'd set the prefsrc on the route with:
+	 * L_WARN_ON(!l_rtnl_route_set_prefsrc(v6_default_route, ip));
+	 *
+	 * but that means that we can only commit the route to the kernel
+	 * with an RTM_NEWROUTE command after the corresponding RTM_NEWADDR
+	 * has returned and the kernel has finished DAD for the address and
+	 * cleared IFA_F_TENTATIVE.  That will complicate
+	 * l_netconfig_apply_rtnl() significantly but may be inevitable.
+	 */
+
 	l_queue_push_tail(nc->routes.current, v6_default_route);
 	l_queue_push_tail(nc->routes.added, v6_default_route);
 }
