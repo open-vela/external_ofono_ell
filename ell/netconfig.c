@@ -1163,6 +1163,8 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 	netconfig->v4_subnet_route = NULL;
 	netconfig->v4_default_route = NULL;
 	netconfig->v6_address = NULL;
+	netconfig->v4_configured = false;
+	netconfig->v6_configured = false;
 
 	l_dhcp_client_stop(netconfig->dhcp_client);
 	l_dhcp6_client_stop(netconfig->dhcp6_client);
