@@ -53,6 +53,7 @@
 #include "strv.h"
 #include "net.h"
 #include "net-private.h"
+#include "acd.h"
 #include "netconfig.h"
 
 struct l_netconfig {
@@ -81,6 +82,7 @@ struct l_netconfig {
 	struct l_idle *signal_expired_work;
 	unsigned int ifaddr6_dump_cmd_id;
 	struct l_queue *icmp_route_data;
+	struct l_acd *acd;
 
 	/* These objects, if not NULL, are owned by @addresses and @routes */
 	struct l_rtnl_address *v4_address;
@@ -389,8 +391,8 @@ static void netconfig_set_dhcp_lifetimes(struct l_netconfig *nc, bool updated)
 		l_queue_push_tail(nc->routes.updated, nc->v4_default_route);
 }
 
-static void netconfig_remove_dhcp_address_routes(struct l_netconfig *nc,
-							bool expired)
+static void netconfig_remove_v4_address_routes(struct l_netconfig *nc,
+						bool expired)
 {
 	struct l_queue *routes =
 		expired ? nc->routes.expired : nc->routes.removed;
@@ -466,7 +468,7 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 		if (L_WARN_ON(!nc->v4_configured))
 			break;
 
-		netconfig_remove_dhcp_address_routes(nc, false);
+		netconfig_remove_v4_address_routes(nc, false);
 		netconfig_add_dhcp_address_routes(nc);
 		netconfig_set_dhcp_lifetimes(nc, false);
 		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_UPDATE);
@@ -492,7 +494,7 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 		if (L_WARN_ON(!nc->v4_configured))
 			break;
 
-		netconfig_remove_dhcp_address_routes(nc, true);
+		netconfig_remove_v4_address_routes(nc, true);
 		nc->v4_configured = false;
 
 		if (l_dhcp_client_start(nc->dhcp_client))
@@ -1327,6 +1329,45 @@ static void netconfig_add_v6_static_address_routes(struct l_netconfig *nc)
 	netconfig_add_v6_static_routes(nc, ip, prefix_len);
 }
 
+static void netconfig_ipv4_acd_event(enum l_acd_event event, void *user_data)
+{
+	struct l_netconfig *nc = user_data;
+
+	switch (event) {
+	case L_ACD_EVENT_AVAILABLE:
+		if (L_WARN_ON(nc->v4_configured))
+			break;
+
+		netconfig_add_v4_static_address_routes(nc);
+		nc->v4_configured = true;
+		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_CONFIGURE);
+		break;
+	case L_ACD_EVENT_CONFLICT:
+		if (L_WARN_ON(nc->v4_configured))
+			break;
+
+		/*
+		 * Conflict found, no IP was actually set or routes added so
+		 * just emit the event.
+		 */
+		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_FAILED);
+		break;
+	case L_ACD_EVENT_LOST:
+		if (L_WARN_ON(!nc->v4_configured))
+			break;
+
+		/*
+		 * Set IP but lost it some time later.  Reset IPv4 in this
+		 * case and emit the FAILED event since we have no way to
+		 * recover from here.
+		 */
+		netconfig_remove_v4_address_routes(nc, false);
+		nc->v4_configured = false;
+		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_FAILED);
+		break;
+	}
+}
+
 static void netconfig_do_static_config(struct l_idle *idle, void *user_data)
 {
 	struct l_netconfig *nc = user_data;
@@ -1334,9 +1375,23 @@ static void netconfig_do_static_config(struct l_idle *idle, void *user_data)
 	l_idle_remove(l_steal_ptr(nc->do_static_work));
 
 	if (nc->v4_static_addr && !nc->v4_configured) {
-		netconfig_add_v4_static_address_routes(nc);
-		nc->v4_configured = true;
-		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_CONFIGURE);
+		char ip[INET_ADDRSTRLEN];
+
+		l_rtnl_address_get_address(nc->v4_static_addr, ip);
+
+		nc->acd = l_acd_new(nc->ifindex);
+                l_acd_set_event_handler(nc->acd, netconfig_ipv4_acd_event, nc,
+					NULL);
+
+		if (!l_acd_start(nc->acd, ip)) {
+			l_acd_destroy(l_steal_ptr(nc->acd));
+
+			/* Configure right now as a fallback */
+			netconfig_add_v4_static_address_routes(nc);
+			nc->v4_configured = true;
+			netconfig_emit_event(nc, AF_INET,
+						L_NETCONFIG_EVENT_CONFIGURE);
+		}
 	}
 
 	if (nc->v6_static_addr && !nc->v6_configured) {
@@ -1604,6 +1659,8 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 
 	l_dhcp_client_stop(netconfig->dhcp_client);
 	l_dhcp6_client_stop(netconfig->dhcp6_client);
+
+	l_acd_destroy(l_steal_ptr(netconfig->acd));
 }
 
 LIB_EXPORT struct l_dhcp_client *l_netconfig_get_dhcp_client(
