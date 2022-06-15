@@ -90,12 +90,14 @@ const struct l_queue_entry *l_netconfig_get_addresses(
 				struct l_netconfig *netconfig,
 				const struct l_queue_entry **out_added,
 				const struct l_queue_entry **out_updated,
-				const struct l_queue_entry **out_removed);
+				const struct l_queue_entry **out_removed,
+				const struct l_queue_entry **out_expired);
 const struct l_queue_entry *l_netconfig_get_routes(
 				struct l_netconfig *netconfig,
 				const struct l_queue_entry **out_added,
 				const struct l_queue_entry **out_updated,
-				const struct l_queue_entry **out_removed);
+				const struct l_queue_entry **out_removed,
+				const struct l_queue_entry **out_expired);
 
 #ifdef __cplusplus
 }
