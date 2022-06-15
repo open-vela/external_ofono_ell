@@ -133,6 +133,8 @@ union netconfig_addr {
 static struct l_queue *addr_wait_list;
 static unsigned int rtnl_id;
 
+static const unsigned int max_icmp6_routes = 100;
+
 static void netconfig_update_cleanup(struct l_netconfig *nc)
 {
 	l_queue_clear(nc->addresses.added, NULL);
@@ -742,6 +744,9 @@ static struct netconfig_route_data *netconfig_add_icmp6_route(
 {
 	struct netconfig_route_data *rd;
 	struct l_rtnl_route *rt;
+
+	if (l_queue_length(nc->icmp_route_data) >= max_icmp6_routes)
+		return NULL;	/* TODO: log a warning the first time */
 
 	rt = netconfig_route_new(nc, AF_INET6, dst ? dst->address : NULL,
 					dst ? dst->prefix_len : 0, gateway,
