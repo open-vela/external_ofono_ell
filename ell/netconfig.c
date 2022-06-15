@@ -1223,42 +1223,41 @@ LIB_EXPORT void l_netconfig_set_event_handler(struct l_netconfig *netconfig,
 	netconfig->handler.destroy = destroy;
 }
 
-LIB_EXPORT void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
-					struct l_netlink *rtnl)
+LIB_EXPORT void l_netconfig_apply_rtnl(struct l_netconfig *netconfig)
 {
 	const struct l_queue_entry *entry;
 
 	for (entry = l_queue_get_entries(netconfig->addresses.removed); entry;
 			entry = entry->next)
-		l_rtnl_ifaddr_delete(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_ifaddr_delete(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 
 	for (entry = l_queue_get_entries(netconfig->addresses.added); entry;
 			entry = entry->next)
-		l_rtnl_ifaddr_add(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_ifaddr_add(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 
 	/* We can use l_rtnl_ifaddr_add here since that uses NLM_F_REPLACE */
 	for (entry = l_queue_get_entries(netconfig->addresses.updated); entry;
 			entry = entry->next)
-		l_rtnl_ifaddr_add(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_ifaddr_add(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 
 	for (entry = l_queue_get_entries(netconfig->routes.removed); entry;
 			entry = entry->next)
-		l_rtnl_route_delete(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_route_delete(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 
 	for (entry = l_queue_get_entries(netconfig->routes.added); entry;
 			entry = entry->next)
-		l_rtnl_route_add(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_route_add(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 
 	/* We can use l_rtnl_route_add here since that uses NLM_F_REPLACE */
 	for (entry = l_queue_get_entries(netconfig->routes.updated); entry;
 			entry = entry->next)
-		l_rtnl_route_add(rtnl, netconfig->ifindex, entry->data,
-					NULL, NULL, NULL);
+		l_rtnl_route_add(l_rtnl_get(), netconfig->ifindex,
+					entry->data, NULL, NULL, NULL);
 }
 
 LIB_EXPORT const struct l_queue_entry *l_netconfig_get_addresses(

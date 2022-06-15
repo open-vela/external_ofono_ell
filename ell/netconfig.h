@@ -85,8 +85,7 @@ void l_netconfig_set_event_handler(struct l_netconfig *netconfig,
 					void *user_data,
 					l_netconfig_destroy_cb_t destroy);
 
-void l_netconfig_apply_rtnl(struct l_netconfig *netconfig,
-				struct l_netlink *rtnl);
+void l_netconfig_apply_rtnl(struct l_netconfig *netconfig);
 const struct l_queue_entry *l_netconfig_get_addresses(
 				struct l_netconfig *netconfig,
 				const struct l_queue_entry **out_added,
