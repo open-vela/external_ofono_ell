@@ -28,6 +28,12 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <netinet/icmp6.h>
+#include <net/if.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "private.h"
 #include "useful.h"
@@ -858,6 +864,30 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 }
 
+static int netconfig_proc_write_ipv6_setting(struct l_netconfig *nc,
+						const char *setting,
+						const char *value)
+{
+	char ifname[IF_NAMESIZE];
+	_auto_(l_free) char *filename = NULL;
+	int fd;
+	int r;
+
+	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
+		return -errno;
+
+	filename = l_strdup_printf("/proc/sys/net/ipv6/conf/%s/%s",
+					ifname, setting);
+
+	fd = L_TFR(open(filename, O_WRONLY));
+	if (unlikely(fd < 0))
+		return -errno;
+
+	r = L_TFR(write(fd, value, strlen(value)));
+	L_TFR(close(fd));
+	return r;
+}
+
 LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 {
 	struct l_netconfig *nc;
@@ -889,6 +919,9 @@ LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 	l_icmp6_client_add_event_handler(nc->icmp6_client,
 					netconfig_icmp6_event_handler,
 					nc, NULL);
+
+	/* Disable in-kernel autoconfiguration for the interface */
+	netconfig_proc_write_ipv6_setting(nc, "accept_ra", "0");
 
 	return nc;
 }
@@ -1330,6 +1363,34 @@ static void netconfig_ifaddr_ipv6_dump_cb(int error, uint16_t type,
 	netconfig_ifaddr_ipv6_notify(type, data, len, user_data);
 }
 
+static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
+{
+	struct l_netconfig *nc = user_data;
+
+	/*
+	 * Handle the case of no link-local address having been found during
+	 * the dump.  If nc->ifaddr6_dump_cmd_id is 0, we have found one or
+	 * the dump is being cancelled.  Otherwise try disabing the
+	 * "disable_ipv6" setting for the interface since it may have been
+	 * enabled.  Also write "addr_gen_mode" which triggers regerating
+	 * the link-local addresss on the interface in the kernel if it
+	 * was previously removed.
+	 */
+	if (!nc->ifaddr6_dump_cmd_id || !nc->started)
+		return;
+
+	nc->ifaddr6_dump_cmd_id = 0;
+
+	/* "do not generate a link-local address" */
+	netconfig_proc_write_ipv6_setting(nc, "addr_gen_mode", "1");
+	/* "generate address based on EUI64 (default)" */
+	netconfig_proc_write_ipv6_setting(nc, "addr_gen_mode", "0");
+	/* "enable IPv6 operation" */
+	netconfig_proc_write_ipv6_setting(nc, "disable_ipv6", "0");
+
+	/* TODO: save original values and reset in l_netconfig_stop() */
+}
+
 LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 {
 	if (unlikely(!netconfig || netconfig->started))
@@ -1390,8 +1451,9 @@ configure_ipv6:
 	}
 
 	netconfig->ifaddr6_dump_cmd_id = l_rtnl_ifaddr6_dump(l_rtnl_get(),
-						netconfig_ifaddr_ipv6_dump_cb,
-						netconfig, NULL);
+					netconfig_ifaddr_ipv6_dump_cb,
+					netconfig,
+					netconfig_ifaddr_ipv6_dump_done_cb);
 	if (!netconfig->ifaddr6_dump_cmd_id)
 		goto unregister;
 
