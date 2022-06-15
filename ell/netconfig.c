@@ -1292,6 +1292,26 @@ LIB_EXPORT bool l_netconfig_check_config(struct l_netconfig *netconfig)
 	return netconfig_check_config(netconfig);
 }
 
+LIB_EXPORT bool l_netconfig_reset_config(struct l_netconfig *netconfig)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	l_netconfig_set_hostname(netconfig, NULL);
+	l_netconfig_set_route_priority(netconfig, 0);
+	l_netconfig_set_family_enabled(netconfig, AF_INET, true);
+	l_netconfig_set_static_addr(netconfig, AF_INET, NULL);
+	l_netconfig_set_gateway_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_dns_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_domain_names_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_family_enabled(netconfig, AF_INET6, false);
+	l_netconfig_set_static_addr(netconfig, AF_INET6, NULL);
+	l_netconfig_set_gateway_override(netconfig, AF_INET6, NULL);
+	l_netconfig_set_dns_override(netconfig, AF_INET6, NULL);
+	l_netconfig_set_domain_names_override(netconfig, AF_INET6, NULL);
+	return true;
+}
+
 static void netconfig_add_v4_static_address_routes(struct l_netconfig *nc)
 {
 	char ip[INET_ADDRSTRLEN];
