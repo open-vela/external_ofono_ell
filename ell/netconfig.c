@@ -1808,3 +1808,76 @@ LIB_EXPORT const struct l_queue_entry *l_netconfig_get_routes(
 
 	return l_queue_get_entries(netconfig->routes.current);
 }
+
+static void netconfig_strv_cat(char ***dest, char **src, bool free)
+{
+	unsigned int dest_len;
+	unsigned int src_len;
+
+	if (!src)
+		return;
+
+	if (!free)
+		src = l_strv_copy(src);
+
+	if (!*dest) {
+		*dest = src;
+		return;
+	}
+
+	dest_len = l_strv_length(*dest);
+	src_len = l_strv_length(src);
+	*dest = l_realloc(*dest, sizeof(char *) * (dest_len + src_len + 1));
+	memcpy(*dest + dest_len, src, sizeof(char *) * (src_len + 1));
+	l_free(src);
+}
+
+/* Returns a new strv array to be freed by the caller */
+LIB_EXPORT char **l_netconfig_get_dns_list(struct l_netconfig *netconfig)
+{
+	char **ret = NULL;
+	const struct l_dhcp_lease *v4_lease;
+	const struct l_dhcp6_lease *v6_lease;
+
+	if (netconfig->v4_dns_override)
+		netconfig_strv_cat(&ret, netconfig->v4_dns_override, false);
+	else if ((v4_lease =
+			l_dhcp_client_get_lease(netconfig->dhcp_client)))
+		netconfig_strv_cat(&ret, l_dhcp_lease_get_dns(v4_lease), true);
+
+	if (netconfig->v6_dns_override)
+		netconfig_strv_cat(&ret, netconfig->v6_dns_override, false);
+	else if ((v6_lease =
+			l_dhcp6_client_get_lease(netconfig->dhcp6_client)))
+		netconfig_strv_cat(&ret, l_dhcp6_lease_get_dns(v6_lease), true);
+
+	return ret;
+}
+
+/* Returns a new strv array to be freed by the caller */
+LIB_EXPORT char **l_netconfig_get_domain_names(struct l_netconfig *netconfig)
+{
+	char **ret = NULL;
+	const struct l_dhcp_lease *v4_lease;
+	const struct l_dhcp6_lease *v6_lease;
+
+	if (netconfig->v4_domain_names_override)
+		netconfig_strv_cat(&ret, netconfig->v4_domain_names_override,
+					false);
+	else if ((v4_lease =
+			l_dhcp_client_get_lease(netconfig->dhcp_client)) &&
+			l_dhcp_lease_get_domain_name(v4_lease)) {
+		ret = l_new(char *, 2);
+		ret[0] = l_dhcp_lease_get_domain_name(v4_lease);
+	}
+
+	if (netconfig->v6_dns_override)
+		netconfig_strv_cat(&ret, netconfig->v6_domain_names_override,
+					false);
+	else if ((v6_lease =
+			l_dhcp6_client_get_lease(netconfig->dhcp6_client)))
+		netconfig_strv_cat(&ret, l_dhcp6_lease_get_domains(v6_lease),
+					true);
+
+	return ret;
+}
