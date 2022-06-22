@@ -99,6 +99,8 @@ const struct l_queue_entry *l_netconfig_get_routes(
 				const struct l_queue_entry **out_updated,
 				const struct l_queue_entry **out_removed,
 				const struct l_queue_entry **out_expired);
+char **l_netconfig_get_dns_list(struct l_netconfig *netconfig);
+char **l_netconfig_get_domain_names(struct l_netconfig *netconfig);
 
 #ifdef __cplusplus
 }

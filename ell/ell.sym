@@ -758,6 +758,8 @@ global:
 	l_netconfig_apply_rtnl;
 	l_netconfig_get_addresses;
 	l_netconfig_get_routes;
+	l_netconfig_get_dns_list;
+	l_netconfig_get_domain_names;
 local:
 	*;
 };
