@@ -968,7 +968,7 @@ static int netconfig_proc_write_ipv6_setting(struct l_netconfig *nc,
 {
 	char ifname[IF_NAMESIZE];
 	_auto_(l_free) char *filename = NULL;
-	int fd;
+	_auto_(close) int fd = -1;
 	int r;
 
 	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
@@ -982,8 +982,7 @@ static int netconfig_proc_write_ipv6_setting(struct l_netconfig *nc,
 		return -errno;
 
 	r = L_TFR(write(fd, value, strlen(value)));
-	L_TFR(close(fd));
-	return r;
+	return r > 0 ? 0 : -errno;
 }
 
 LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
