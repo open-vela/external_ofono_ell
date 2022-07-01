@@ -898,6 +898,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 		CLIENT_ENTER_STATE(DHCP_STATE_BOUND);
 		l_timeout_remove(client->timeout_resend);
 		client->timeout_resend = NULL;
+		client->lease->bound_time = timestamp;
 
 		if (client->transport->bind) {
 			e = client->transport->bind(client->transport,
@@ -909,8 +910,6 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 		}
 
 		dhcp_client_event_notify(client, r);
-
-		client->lease->bound_time = timestamp;
 
 		/*
 		 * Start T1, once it expires we will start the T2 timer.  If
