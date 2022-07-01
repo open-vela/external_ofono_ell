@@ -35,6 +35,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "private.h"
 #include "useful.h"
@@ -83,6 +85,7 @@ struct l_netconfig {
 	unsigned int ifaddr6_dump_cmd_id;
 	struct l_queue *icmp_route_data;
 	struct l_acd *acd;
+	unsigned int orig_disable_ipv6;
 
 	/* These objects, if not NULL, are owned by @addresses and @routes */
 	struct l_rtnl_address *v4_address;
@@ -962,14 +965,15 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 }
 
-static int netconfig_proc_write_ipv6_setting(struct l_netconfig *nc,
-						const char *setting,
-						const char *value)
+static int netconfig_proc_write_ipv6_uint_setting(struct l_netconfig *nc,
+							const char *setting,
+							unsigned int value)
 {
 	char ifname[IF_NAMESIZE];
 	_auto_(l_free) char *filename = NULL;
 	_auto_(close) int fd = -1;
 	int r;
+	char valuestr[20];
 
 	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
 		return -errno;
@@ -981,8 +985,44 @@ static int netconfig_proc_write_ipv6_setting(struct l_netconfig *nc,
 	if (unlikely(fd < 0))
 		return -errno;
 
-	r = L_TFR(write(fd, value, strlen(value)));
+	snprintf(valuestr, sizeof(valuestr), "%u", value);
+	r = L_TFR(write(fd, valuestr, strlen(valuestr)));
 	return r > 0 ? 0 : -errno;
+}
+
+static long netconfig_proc_read_ipv6_uint_setting(struct l_netconfig *nc,
+							const char *setting)
+{
+	char ifname[IF_NAMESIZE];
+	_auto_(l_free) char *filename = NULL;
+	_auto_(close) int fd = -1;
+	int r;
+	char valuestr[20];
+	long value;
+	char *endp;
+
+	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
+		return -errno;
+
+	filename = l_strdup_printf("/proc/sys/net/ipv6/conf/%s/%s",
+					ifname, setting);
+
+	fd = L_TFR(open(filename, O_RDONLY));
+	if (unlikely(fd < 0))
+		return -errno;
+
+	r = L_TFR(read(fd, valuestr, sizeof(valuestr) - 1));
+	if (unlikely(r < 1))
+		return r == 0 ? -EINVAL : -errno;
+
+	valuestr[r - 1] = '\0';
+	errno = 0;
+	value = strtoul(valuestr, &endp, 10);
+
+	if (unlikely(errno || !L_IN_SET(*endp, '\n', '\0')))
+		return -EINVAL;
+
+	return value;
 }
 
 LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
@@ -1019,7 +1059,7 @@ LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 					nc, NULL);
 
 	/* Disable in-kernel autoconfiguration for the interface */
-	netconfig_proc_write_ipv6_setting(nc, "accept_ra", "0");
+	netconfig_proc_write_ipv6_uint_setting(nc, "accept_ra", 0);
 
 	return nc;
 }
@@ -1554,13 +1594,15 @@ static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
 	nc->ifaddr6_dump_cmd_id = 0;
 
 	/* "do not generate a link-local address" */
-	netconfig_proc_write_ipv6_setting(nc, "addr_gen_mode", "1");
+	netconfig_proc_write_ipv6_uint_setting(nc, "addr_gen_mode", 1);
 	/* "generate address based on EUI64 (default)" */
-	netconfig_proc_write_ipv6_setting(nc, "addr_gen_mode", "0");
-	/* "enable IPv6 operation" */
-	netconfig_proc_write_ipv6_setting(nc, "disable_ipv6", "0");
+	netconfig_proc_write_ipv6_uint_setting(nc, "addr_gen_mode", 0);
 
-	/* TODO: save original values and reset in l_netconfig_stop() */
+	/* "enable IPv6 operation" */
+	nc->orig_disable_ipv6 =
+		netconfig_proc_read_ipv6_uint_setting(nc, "disable_ipv6");
+	if (nc->orig_disable_ipv6)
+		netconfig_proc_write_ipv6_uint_setting(nc, "disable_ipv6", 0);
 }
 
 LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
@@ -1680,6 +1722,13 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 	l_dhcp6_client_stop(netconfig->dhcp6_client);
 
 	l_acd_destroy(l_steal_ptr(netconfig->acd));
+
+	if (netconfig->orig_disable_ipv6) {
+		netconfig_proc_write_ipv6_uint_setting(netconfig,
+						"disable_ipv6",
+						netconfig->orig_disable_ipv6);
+		netconfig->orig_disable_ipv6 = 0;
+	}
 }
 
 LIB_EXPORT struct l_dhcp_client *l_netconfig_get_dhcp_client(
