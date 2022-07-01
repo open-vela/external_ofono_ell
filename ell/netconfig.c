@@ -1908,15 +1908,16 @@ LIB_EXPORT char **l_netconfig_get_domain_names(struct l_netconfig *netconfig)
 	char **ret = NULL;
 	const struct l_dhcp_lease *v4_lease;
 	const struct l_dhcp6_lease *v6_lease;
+	char *dn;
 
 	if (netconfig->v4_domain_names_override)
 		netconfig_strv_cat(&ret, netconfig->v4_domain_names_override,
 					false);
 	else if ((v4_lease =
 			l_dhcp_client_get_lease(netconfig->dhcp_client)) &&
-			l_dhcp_lease_get_domain_name(v4_lease)) {
+			(dn = l_dhcp_lease_get_domain_name(v4_lease))) {
 		ret = l_new(char *, 2);
-		ret[0] = l_dhcp_lease_get_domain_name(v4_lease);
+		ret[0] = dn;
 	}
 
 	if (netconfig->v6_dns_override)
