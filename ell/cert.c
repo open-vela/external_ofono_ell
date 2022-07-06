@@ -77,7 +77,15 @@ static const struct pkcs1_encryption_oid {
 } pkcs1_encryption_oids[] = {
 	{ /* rsaEncryption */
 		L_CERT_KEY_RSA,
-		{ 9, { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01 } },
+		{ .asn1_len = 9, .asn1 = {
+			0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01 }
+		},
+	},
+	{ /* ecPublicKey */
+		L_CERT_KEY_ECC,
+		{ .asn1_len = 7, .asn1 = {
+			0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01 }
+		},
 	},
 };
 
@@ -261,8 +269,14 @@ LIB_EXPORT struct l_key *l_cert_get_pubkey(struct l_cert *cert)
 		return NULL;
 
 	/* Use kernel's ASN.1 certificate parser to find the key data for us */
-	if (cert->pubkey_type == L_CERT_KEY_RSA)
+	switch (cert->pubkey_type) {
+	case L_CERT_KEY_RSA:
 		return l_key_new(L_KEY_RSA, cert->asn1, cert->asn1_len);
+	case L_CERT_KEY_ECC:
+		return l_key_new(L_KEY_ECC, cert->asn1, cert->asn1_len);
+	case L_CERT_KEY_UNKNOWN:
+		break;
+	}
 
 	return NULL;
 }

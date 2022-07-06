@@ -36,6 +36,7 @@ struct l_certchain;
 
 enum l_cert_key_type {
 	L_CERT_KEY_RSA,
+	L_CERT_KEY_ECC,
 	L_CERT_KEY_UNKNOWN,
 };
 
