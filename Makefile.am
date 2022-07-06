@@ -219,6 +219,7 @@ cert_tests = unit/test-pem \
 cert_files = unit/cert-chain.pem \
 			unit/cert-entity-int.pem \
 			unit/cert-server.pem \
+			unit/ec-cert-server.pem \
 			unit/cert-server-key-pkcs8.pem \
 			unit/cert-client.pem \
 			unit/cert-client.crt \
@@ -246,6 +247,7 @@ cert_files = unit/cert-chain.pem \
 cert_checks = unit/cert-intca \
 			unit/cert-entity-int \
 			unit/cert-server \
+			unit/ec-cert-server \
 			unit/cert-client \
 			unit/cert-no-keyid
 
@@ -417,7 +419,18 @@ false_redirect_openssl = 2>/dev/null
 unit/cert-ca-key.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ 2048 $($(AM_V_P)_redirect_openssl)
 
+unit/ec-cert-ca-key.pem:
+	$(AM_V_GEN)openssl ecparam -out $@ -name secp384r1 \
+				-genkey $($(AM_V_P)_redirect_openssl)
+
+
 unit/cert-ca.pem: unit/cert-ca-key.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl req -x509 -new -nodes -extensions ca_ext \
+			-config $(srcdir)/unit/gencerts.cnf \
+			-subj '/O=International Union of Example Organizations/CN=Certificate issuer guy/emailAddress=ca@mail.example' \
+			-key $< -sha256 -days 10000 -out $@
+
+unit/ec-cert-ca.pem: unit/ec-cert-ca-key.pem unit/gencerts.cnf
 	$(AM_V_GEN)openssl req -x509 -new -nodes -extensions ca_ext \
 			-config $(srcdir)/unit/gencerts.cnf \
 			-subj '/O=International Union of Example Organizations/CN=Certificate issuer guy/emailAddress=ca@mail.example' \
@@ -426,10 +439,20 @@ unit/cert-ca.pem: unit/cert-ca-key.pem unit/gencerts.cnf
 unit/cert-server-key.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
 
+unit/ec-cert-server-key.pem:
+	$(AM_V_GEN)openssl ecparam -out $@ -name secp384r1 \
+				-genkey $($(AM_V_P)_redirect_openssl)
+
 unit/cert-server-key-pkcs8.pem: unit/cert-server-key.pem
 	$(AM_V_GEN)openssl pkcs8 -topk8 -nocrypt -in $< -out $@
 
 unit/cert-server.csr: unit/cert-server-key.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl req -new -extensions cert_ext \
+			-config $(srcdir)/unit/gencerts.cnf \
+			-subj '/O=Foo Example Organization/CN=Foo Example Organization/emailAddress=foo@mail.example' \
+			-key $< -out $@
+
+unit/ec-cert-server.csr: unit/ec-cert-server-key.pem unit/gencerts.cnf
 	$(AM_V_GEN)openssl req -new -extensions cert_ext \
 			-config $(srcdir)/unit/gencerts.cnf \
 			-subj '/O=Foo Example Organization/CN=Foo Example Organization/emailAddress=foo@mail.example' \
@@ -443,8 +466,21 @@ unit/cert-server.pem: unit/cert-server.csr unit/cert-ca.pem unit/gencerts.cnf
 			-CAserial $(builddir)/unit/cert-ca.srl \
 			-CAcreateserial -sha256 -days 10000 -out $@ $($(AM_V_P)_redirect_openssl)
 
+unit/ec-cert-server.pem: unit/ec-cert-server.csr unit/ec-cert-ca.pem \
+				unit/gencerts.cnf
+	$(AM_V_GEN)openssl x509 -req -extensions server_ext \
+			-extfile $(srcdir)/unit/gencerts.cnf \
+			-in $< -CA $(builddir)/unit/ec-cert-ca.pem \
+			-CAkey $(builddir)/unit/ec-cert-ca-key.pem \
+			-CAserial $(builddir)/unit/cert-ca.srl \
+			-CAcreateserial -sha256 -days 10000 \
+			-out $@ $($(AM_V_P)_redirect_openssl)
+
 unit/cert-server: unit/cert-server.pem unit/cert-ca.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca.pem $<
+
+unit/ec-cert-server: unit/ec-cert-server.pem unit/ec-cert-ca.pem
+	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/ec-cert-ca.pem $<
 
 unit/cert-client-key-pkcs1.pem:
 	$(AM_V_GEN)openssl genrsa -out $@ $($(AM_V_P)_redirect_openssl)
@@ -623,7 +659,8 @@ check-local: $(cert_checks)
 endif
 
 clean-local:
-	-rm -f unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/key-*.dat
+	-rm -f unit/ec-cert*.pem unit/ec-cert-*.csr \
+		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/key-*.dat
 
 maintainer-clean-local:
 	-rm -rf build-aux
