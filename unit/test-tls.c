@@ -325,6 +325,24 @@ static void test_certificates(const void *data)
 	l_queue_destroy(twocas, (l_queue_destroy_func_t) l_cert_free);
 }
 
+static void test_ec_certificates(const void *data)
+{
+	struct l_queue *cacert;
+	struct l_certchain *chain;
+
+	cacert = l_pem_load_certificate_list(CERTDIR "ec-cert-ca.pem");
+	assert(cacert && !l_queue_isempty(cacert));
+
+	chain = l_pem_load_certificate_chain(CERTDIR "ec-cert-server.pem");
+	assert(chain);
+
+	assert(l_certchain_verify(chain, cacert, NULL));
+	assert(l_certchain_verify(chain, NULL, NULL));
+
+	l_certchain_free(chain);
+	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
+}
+
 struct tls_conn_test {
 	const char *server_cert_path;
 	const char *server_key_path;
@@ -948,8 +966,10 @@ int main(int argc, char *argv[])
 	l_test_add("TLS 1.2 PRF with SHA512", test_tls12_prf,
 			&tls12_prf_sha512_0);
 
-	if (l_key_is_supported(L_KEY_FEATURE_RESTRICT))
+	if (l_key_is_supported(L_KEY_FEATURE_RESTRICT)) {
 		l_test_add("Certificate chains", test_certificates, NULL);
+		l_test_add("ECDSA Certificates", test_ec_certificates, NULL);
+	}
 
 	if (!l_getrandom_is_supported()) {
 		printf("getrandom missing, skipping TLS connection tests...\n");
