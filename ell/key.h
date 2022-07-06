@@ -45,6 +45,7 @@ enum l_key_feature {
 enum l_key_type {
 	L_KEY_RAW = 0,
 	L_KEY_RSA,
+	L_KEY_ECC,
 };
 
 enum l_keyring_restriction {

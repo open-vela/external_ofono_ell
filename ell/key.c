@@ -108,6 +108,7 @@ struct l_keyring {
 static const char * const key_type_names[] = {
 	[L_KEY_RAW] = "user",
 	[L_KEY_RSA] = "asymmetric",
+	[L_KEY_ECC] = "asymmetric",
 };
 
 static long kernel_add_key(const char *type, const char *description,
