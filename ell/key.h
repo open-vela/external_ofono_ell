@@ -56,6 +56,7 @@ enum l_keyring_restriction {
 enum l_key_cipher_type {
 	L_KEY_RSA_PKCS1_V1_5,
 	L_KEY_RSA_RAW,
+	L_KEY_ECDSA_X962,
 };
 
 struct l_key *l_key_new(enum l_key_type type, const void *payload,

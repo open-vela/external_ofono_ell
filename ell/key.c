@@ -383,18 +383,16 @@ LIB_EXPORT ssize_t l_key_get_payload_size(struct l_key *key)
 
 static const char *lookup_cipher(enum l_key_cipher_type cipher)
 {
-	const char* ret = NULL;
-
 	switch (cipher) {
 	case L_KEY_RSA_PKCS1_V1_5:
-		ret = "pkcs1";
-		break;
+		return "pkcs1";
 	case L_KEY_RSA_RAW:
-		ret = "raw";
-		break;
+		return "raw";
+	case L_KEY_ECDSA_X962:
+		return "x962";
 	}
 
-	return ret;
+	return NULL;
 }
 
 static const char *lookup_checksum(enum l_checksum_type checksum)
