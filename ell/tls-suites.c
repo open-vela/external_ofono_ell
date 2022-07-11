@@ -40,6 +40,57 @@
 #include "ecdh.h"
 #include "missing.h"
 
+enum signature_algorithm {
+	SIGNATURE_ALGORITHM_ANONYMOUS = 0,
+	SIGNATURE_ALGORITHM_RSA = 1,
+	SIGNATURE_ALGORITHM_DSA = 2,
+	SIGNATURE_ALGORITHM_ECDSA = 3,
+};
+
+/*
+ * Sanitize DigitallySigned struct input, making sure the lengths
+ * are valid and correspond to what we expect.
+ *
+ * Returns: start of the opaque portion
+ */
+static const uint8_t *validate_digitally_signed(struct l_tls *tls,
+					const uint8_t *in, size_t in_len,
+					enum signature_algorithm expected_alg,
+					uint16_t *opaque_len)
+{
+	size_t offset = 2;
+	uint16_t len;
+
+	if (tls->negotiated_version < L_TLS_V12)
+		offset = 0;
+
+	if (in_len < offset + 2)
+		goto size_error;
+
+	len = l_get_be16(in + offset);
+	if (len != in_len - offset - 2)
+		goto size_error;
+
+	if (tls->negotiated_version >= L_TLS_V12) {
+		if (in[1] != expected_alg) {
+			TLS_DISCONNECT(TLS_ALERT_DECRYPT_ERROR, 0,
+					"Unknown signature algorithm %i",
+					in[1]);
+
+			return NULL;
+		}
+	}
+
+	*opaque_len = len;
+	return in + offset + 2;
+
+size_error:
+	TLS_DISCONNECT(TLS_ALERT_DECODE_ERROR, 0, "Signature msg too "
+			"short (%zi) or signature length doesn't match",
+			in_len);
+	return NULL;
+}
+
 static bool tls_rsa_validate_cert_key(struct l_cert *cert)
 {
 	return l_cert_get_pubkey_type(cert) == L_CERT_KEY_RSA;
@@ -112,44 +163,26 @@ static bool tls_rsa_verify(struct l_tls *tls, const uint8_t *in, size_t in_len,
 	enum l_checksum_type sign_checksum_type;
 	uint8_t expected[HANDSHAKE_HASH_MAX_SIZE + 36];
 	size_t expected_len;
-	unsigned int offset;
+	const uint8_t *opaque;
+	uint16_t opaque_len;
 	bool success;
 
-	/* 2 bytes for SignatureAndHashAlgorithm if version >= 1.2 */
-	offset = 2;
-	if (tls->negotiated_version < L_TLS_V12)
-		offset = 0;
-
-	if (in_len < offset + 2 ||
-			(size_t) l_get_be16(in + offset) + offset + 2 !=
-			in_len) {
-		TLS_DISCONNECT(TLS_ALERT_DECODE_ERROR, 0, "Signature msg too "
-				"short (%zi) or signature length doesn't match",
-				in_len);
-
+	opaque = validate_digitally_signed(tls, in, in_len,
+				SIGNATURE_ALGORITHM_RSA, &opaque_len);
+	if (!opaque)
 		return false;
-	}
 
 	/* Only the default hash type supported */
-	if (in_len != offset + 2 + tls->peer_pubkey_size) {
+	if (opaque_len != tls->peer_pubkey_size) {
 		TLS_DISCONNECT(TLS_ALERT_DECODE_ERROR, 0,
-				"Signature length %zi not equal %zi", in_len,
-				offset + 2 + tls->peer_pubkey_size);
+				"Signature length %hu not equal %zi",
+				opaque_len, tls->peer_pubkey_size);
 
 		return false;
 	}
 
 	if (tls->negotiated_version >= L_TLS_V12) {
 		enum handshake_hash_type hash;
-
-		/* Only RSA supported */
-		if (in[1] != 1 /* RSA_sign */) {
-			TLS_DISCONNECT(TLS_ALERT_DECRYPT_ERROR, 0,
-					"Unknown signature algorithm %i",
-					in[1]);
-
-			return false;
-		}
 
 		for (hash = 0; hash < __HANDSHAKE_HASH_COUNT; hash++)
 			if (tls_handshake_hash_data[hash].tls_id == in[0])
@@ -203,7 +236,7 @@ static bool tls_rsa_verify(struct l_tls *tls, const uint8_t *in, size_t in_len,
 	}
 
 	success = l_key_verify(tls->peer_pubkey, L_KEY_RSA_PKCS1_V1_5,
-				sign_checksum_type, expected, in + offset + 2,
+				sign_checksum_type, expected, opaque,
 				expected_len, tls->peer_pubkey_size);
 
 	if (!success)
