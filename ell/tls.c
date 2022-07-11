@@ -2028,12 +2028,22 @@ static void tls_handle_certificate(struct l_tls *tls,
 		return;
 	}
 
-	if (!l_key_get_info(tls->peer_pubkey, L_KEY_RSA_PKCS1_V1_5,
-					L_CHECKSUM_NONE, &tls->peer_pubkey_size,
-					&dummy)) {
+	switch (l_cert_get_pubkey_type(tls->peer_cert)) {
+	case L_CERT_KEY_RSA:
+		if (!l_key_get_info(tls->peer_pubkey, L_KEY_RSA_PKCS1_V1_5,
+				L_CHECKSUM_NONE,
+				&tls->peer_pubkey_size, &dummy))
+			goto pubkey_unsupported;
+		break;
+	case L_CERT_KEY_ECC:
+		if (!l_key_get_info(tls->peer_pubkey, L_KEY_ECDSA_X962,
+				L_CHECKSUM_SHA1,
+				&tls->peer_pubkey_size, &dummy))
+			goto pubkey_unsupported;
+		break;
+	case L_CERT_KEY_UNKNOWN:
 		TLS_DISCONNECT(TLS_ALERT_INTERNAL_ERROR, 0,
-				"Can't l_key_get_info for peer public key");
-
+				"Unknown public key type");
 		return;
 	}
 
@@ -2047,6 +2057,10 @@ static void tls_handle_certificate(struct l_tls *tls,
 
 	return;
 
+pubkey_unsupported:
+	TLS_DISCONNECT(TLS_ALERT_INTERNAL_ERROR, 0,
+				"Can't l_key_get_info for peer public key");
+	return;
 decode_error:
 	TLS_DISCONNECT(TLS_ALERT_DECODE_ERROR, 0,
 			"TLS_CERTIFICATE decode error");
