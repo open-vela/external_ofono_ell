@@ -112,7 +112,7 @@ struct tls_mac_algorithm {
 struct tls_cipher_suite {
 	uint8_t id[2];
 	const char *name;
-	int verify_data_length;
+	size_t verify_data_length;
 
 	struct tls_bulk_encryption_algorithm *encryption;
 	struct tls_signature_algorithm *signature;
