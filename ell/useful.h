@@ -38,6 +38,14 @@ static inline size_t minsize(size_t a, size_t b)
 	return b;
 }
 
+static inline size_t maxsize(size_t a, size_t b)
+{
+	if (a >= b)
+		return a;
+
+	return b;
+}
+
 static inline void set_bit(void *addr, unsigned int bit)
 {
 	unsigned char *field = addr;
