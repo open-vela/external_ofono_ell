@@ -47,6 +47,17 @@ enum signature_algorithm {
 	SIGNATURE_ALGORITHM_ECDSA = 3,
 };
 
+static enum handshake_hash_type find_hash_by_id(uint8_t id)
+{
+	enum handshake_hash_type hash;
+
+	for (hash = 0; hash < __HANDSHAKE_HASH_COUNT; hash++)
+		if (tls_handshake_hash_data[hash].tls_id == id)
+			break;
+
+	return hash;
+}
+
 /*
  * Sanitize DigitallySigned struct input, making sure the lengths
  * are valid and correspond to what we expect.
@@ -182,11 +193,7 @@ static bool tls_rsa_verify(struct l_tls *tls, const uint8_t *in, size_t in_len,
 	}
 
 	if (tls->negotiated_version >= L_TLS_V12) {
-		enum handshake_hash_type hash;
-
-		for (hash = 0; hash < __HANDSHAKE_HASH_COUNT; hash++)
-			if (tls_handshake_hash_data[hash].tls_id == in[0])
-				break;
+		enum handshake_hash_type hash = find_hash_by_id(in[0]);
 
 		if (hash == __HANDSHAKE_HASH_COUNT) {
 			TLS_DISCONNECT(TLS_ALERT_DECRYPT_ERROR, 0,
