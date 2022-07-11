@@ -1370,11 +1370,25 @@ static void tls_send_change_cipher_spec(struct l_tls *tls)
 	tls_tx_record(tls, TLS_CT_CHANGE_CIPHER_SPEC, &buf, 1);
 }
 
+static size_t tls_verify_data_length(struct l_tls *tls, unsigned int index)
+{
+	/*
+	 * RFC 5246, Section 7.4.9:
+	 *
+	 * In previous versions of TLS, the verify_data was always 12 octets
+	 * long.  In the current version of TLS, it depends on the cipher
+	 * suite.  Any cipher suite which does not explicitly specify
+	 * verify_data_length has a verify_data_length equal to 12.
+	 */
+	return maxsize(tls->cipher_suite[index]->verify_data_length, 12);
+}
+
 static void tls_send_finished(struct l_tls *tls)
 {
 	uint8_t buf[512];
 	uint8_t *ptr = buf + TLS_HANDSHAKE_HEADER_SIZE;
 	uint8_t seed[HANDSHAKE_HASH_MAX_SIZE * 2];
+	size_t vdl = tls_verify_data_length(tls, 1);
 	size_t seed_len;
 
 	if (tls->negotiated_version >= L_TLS_V12) {
@@ -1391,8 +1405,8 @@ static void tls_send_finished(struct l_tls *tls)
 				tls->server ? "server finished" :
 				"client finished",
 				seed, seed_len,
-				ptr, tls->cipher_suite[1]->verify_data_length);
-	ptr += tls->cipher_suite[1]->verify_data_length;
+				ptr, vdl);
+	ptr += vdl;
 
 	tls_tx_handshake(tls, TLS_FINISHED, buf, ptr - buf);
 }
@@ -1400,14 +1414,14 @@ static void tls_send_finished(struct l_tls *tls)
 static bool tls_verify_finished(struct l_tls *tls, const uint8_t *received,
 				size_t len)
 {
-	uint8_t expected[tls->cipher_suite[0]->verify_data_length];
+	size_t vdl = tls_verify_data_length(tls, 0);
+	uint8_t expected[vdl];
 	uint8_t *seed;
 	size_t seed_len;
 
-	if (len != (size_t) tls->cipher_suite[0]->verify_data_length) {
+	if (len != vdl) {
 		TLS_DISCONNECT(TLS_ALERT_DECODE_ERROR, 0,
-				"TLS_FINISHED length not %i",
-				tls->cipher_suite[0]->verify_data_length);
+				"TLS_FINISHED length not %zu", vdl);
 
 		return false;
 	}
@@ -1428,8 +1442,7 @@ static bool tls_verify_finished(struct l_tls *tls, const uint8_t *received,
 				tls->server ? "client finished" :
 				"server finished",
 				seed, seed_len,
-				expected,
-				tls->cipher_suite[0]->verify_data_length);
+				expected, vdl);
 
 	if (memcmp(received, expected, len)) {
 		TLS_DISCONNECT(TLS_ALERT_DECRYPT_ERROR, 0,
