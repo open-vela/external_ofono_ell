@@ -1,3 +1,10 @@
+ver 0.52:
+	Fix issue with using PTRDIFF_MAX constant.
+	Fix issue with accepting FD 0 as epoll_fd.
+	Fix issue with setting bound time before emitting event.
+	Fix issue with starting ACD before committing static IPv4.
+	Fix issue with waiting for link-local address before DHCPv6.
+
 ver 0.51:
 	Fix issue with handling bad prefixes per RFC4862.
 	Fix issue with handling DHCP retransmission timers.
