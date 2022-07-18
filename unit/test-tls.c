@@ -1050,6 +1050,9 @@ int main(int argc, char *argv[])
 		struct tls_bulk_encryption_algorithm *alg = suite->encryption;
 		bool supported;
 
+		if (l_str_has_prefix(suite->name, "TLS_ECDHE_ECDSA"))
+			continue;
+
 		if (alg->cipher_type == TLS_CIPHER_AEAD)
 			supported = l_aead_cipher_is_supported(alg->l_aead_id);
 		else
