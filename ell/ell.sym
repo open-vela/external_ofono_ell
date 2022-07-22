@@ -537,6 +537,7 @@ global:
 	l_uintset_foreach;
 	l_uintset_clone;
 	l_uintset_intersect;
+	l_uintset_subtract;
 	l_uintset_isempty;
 	l_uintset_size;
 	/* uuid */
