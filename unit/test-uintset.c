@@ -388,6 +388,59 @@ static void test_uintset_size(const void *user_data)
 	l_uintset_free(set);
 }
 
+static void test_uintset_subtract(const void *data)
+{
+	struct l_uintset *set_a = l_uintset_new_from_range(0, 10);
+	struct l_uintset *set_b = l_uintset_new_from_range(1, 11);
+	struct l_uintset *sub;
+
+	/* Some sanity checks */
+	assert(l_uintset_subtract(NULL, NULL) == NULL);
+	assert(l_uintset_subtract(set_a, set_b) == NULL);
+
+	l_uintset_free(set_a);
+	l_uintset_free(set_b);
+
+	set_a = l_uintset_new_from_range(0, 128);
+	set_b = l_uintset_new_from_range(0, 128);
+
+	/* (<empty>) - (<empty>) = (<empty>) */
+	sub = l_uintset_subtract(set_a, set_b);
+	assert(l_uintset_isempty(sub));
+	l_uintset_free(sub);
+
+	/* Sanity check this works across word boundaries */
+	l_uintset_put(set_b, 65);
+	l_uintset_put(set_b, 64);
+	l_uintset_put(set_b, 63);
+
+	/* (<empty>) - (65, 64, 63) = (<empty>) */
+	sub = l_uintset_subtract(set_a, set_b);
+	assert(!l_uintset_contains(sub, 64));
+	l_uintset_free(sub);
+
+	l_uintset_put(set_a, 64);
+
+	/* (64) - (65, 64, 63) = (<empty>) */
+	sub = l_uintset_subtract(set_a, set_b);
+	assert(!l_uintset_contains(sub, 64));
+	l_uintset_free(sub);
+
+	l_uintset_take(set_b, 64);
+
+	/* (64) - (65, 63) = (64) */
+	sub = l_uintset_subtract(set_a, set_b);
+	assert(l_uintset_contains(sub, 64));
+	l_uintset_free(sub);
+
+	/* (65, 63) - (64) = (65, 63) */
+	sub = l_uintset_subtract(set_b, set_a);
+	assert(l_uintset_contains(sub, 65));
+	assert(!l_uintset_contains(sub, 64));
+	assert(l_uintset_contains(sub, 63));
+	l_uintset_free(sub);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -407,6 +460,7 @@ int main(int argc, char *argv[])
 							&intersect_data_2);
 	l_test_add("l_uintset isempty", test_uintset_isempty, NULL);
 	l_test_add("l_uintset size", test_uintset_size, NULL);
+	l_test_add("l_uintset_subtract", test_uintset_subtract, NULL);
 
 	return l_test_run();
 }
