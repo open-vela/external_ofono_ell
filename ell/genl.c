@@ -1720,7 +1720,6 @@ LIB_EXPORT bool l_genl_attr_init(struct l_genl_attr *attr,
 	if (!NLA_OK(nla, len))
 		return false;
 
-	attr->msg = msg;
 	attr->data = NULL;
 	attr->len = 0;
 	attr->next_data = nla;
@@ -1773,7 +1772,6 @@ LIB_EXPORT bool l_genl_attr_recurse(const struct l_genl_attr *attr,
 	if (!nla)
 		return false;
 
-	nested->msg = attr->msg;
 	nested->data = NULL;
 	nested->len = 0;
 	nested->next_data = NLA_DATA(nla);
