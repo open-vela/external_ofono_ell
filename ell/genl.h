@@ -76,7 +76,6 @@ bool l_genl_request_family(struct l_genl *genl, const char *name,
 					l_genl_destroy_func_t destroy);
 
 struct l_genl_attr {
-	struct l_genl_msg *msg;
 	const void *data;
 	uint32_t len;
 	const void *next_data;
