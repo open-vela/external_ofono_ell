@@ -1761,7 +1761,7 @@ LIB_EXPORT bool l_genl_attr_next(struct l_genl_attr *attr,
 	return true;
 }
 
-LIB_EXPORT bool l_genl_attr_recurse(struct l_genl_attr *attr,
+LIB_EXPORT bool l_genl_attr_recurse(const struct l_genl_attr *attr,
 						struct l_genl_attr *nested)
 {
 	const struct nlattr *nla;

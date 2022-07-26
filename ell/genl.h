@@ -109,7 +109,8 @@ bool l_genl_msg_leave_nested(struct l_genl_msg *msg);
 bool l_genl_attr_init(struct l_genl_attr *attr, struct l_genl_msg *msg);
 bool l_genl_attr_next(struct l_genl_attr *attr, uint16_t *type,
 					uint16_t *len, const void **data);
-bool l_genl_attr_recurse(struct l_genl_attr *attr, struct l_genl_attr *nested);
+bool l_genl_attr_recurse(const struct l_genl_attr *attr,
+				struct l_genl_attr *nested);
 
 bool l_genl_family_info_has_group(const struct l_genl_family_info *info,
 					const char *group);
