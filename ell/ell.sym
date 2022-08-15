@@ -753,6 +753,7 @@ global:
 	l_netconfig_reset_config;
 	l_netconfig_start;
 	l_netconfig_stop;
+	l_netconfig_unconfigure;
 	l_netconfig_get_dhcp_client;
 	l_netconfig_get_dhcp6_client;
 	l_netconfig_get_icmp6_client;
