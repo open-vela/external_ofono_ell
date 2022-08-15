@@ -74,6 +74,7 @@ bool l_netconfig_reset_config(struct l_netconfig *netconfig);
 
 bool l_netconfig_start(struct l_netconfig *netconfig);
 void l_netconfig_stop(struct l_netconfig *netconfig);
+void l_netconfig_unconfigure(struct l_netconfig *netconfig);
 
 struct l_dhcp_client *l_netconfig_get_dhcp_client(
 						struct l_netconfig *netconfig);
