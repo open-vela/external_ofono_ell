@@ -1747,6 +1747,55 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 	}
 }
 
+/*
+ * Undo any configuration already applied to the interface by previous
+ * calls to the event handler, by synchronously emitting
+ * L_NETCONFIG_EVENT_UNCONFIGURE events.  This can be called before
+ * l_netconfig_stop() which won't emit any events.  It mainly makes
+ * sense if the interface isn't being removed or brought DOWN, which
+ * would otherwise implicitly remove routes and addresses.
+ */
+LIB_EXPORT void l_netconfig_unconfigure(struct l_netconfig *netconfig)
+{
+	const struct l_queue_entry *entry;
+
+	if (netconfig->v4_configured) {
+		netconfig_remove_v4_address_routes(netconfig, false);
+		netconfig->v4_configured = false;
+
+		netconfig_emit_event(netconfig, AF_INET,
+					L_NETCONFIG_EVENT_UNCONFIGURE);
+	}
+
+	if (netconfig->v6_configured) {
+		netconfig_remove_dhcp6_address(netconfig, false);
+		netconfig->v6_configured = false;
+	}
+
+	/* Bulk remove any other routes or addresses */
+	for (entry = l_queue_get_entries(netconfig->addresses.current); entry;
+			entry = entry->next)
+		l_queue_push_tail(netconfig->addresses.removed, entry->data);
+
+	l_queue_clear(netconfig->addresses.added, NULL);
+	l_queue_clear(netconfig->addresses.updated, NULL);
+	l_queue_clear(netconfig->addresses.current, NULL);
+
+	for (entry = l_queue_get_entries(netconfig->routes.current); entry;
+			entry = entry->next)
+		l_queue_push_tail(netconfig->routes.removed, entry->data);
+
+	l_queue_clear(netconfig->routes.added, NULL);
+	l_queue_clear(netconfig->routes.updated, NULL);
+	l_queue_clear(netconfig->routes.current, NULL);
+	l_queue_clear(netconfig->icmp_route_data, l_free);
+
+	if (!l_queue_isempty(netconfig->addresses.removed) ||
+			!l_queue_isempty(netconfig->routes.removed))
+		netconfig_emit_event(netconfig, AF_INET6,
+					L_NETCONFIG_EVENT_UNCONFIGURE);
+}
+
 LIB_EXPORT struct l_dhcp_client *l_netconfig_get_dhcp_client(
 						struct l_netconfig *netconfig)
 {
@@ -1903,11 +1952,18 @@ LIB_EXPORT char **l_netconfig_get_dns_list(struct l_netconfig *netconfig)
 	const struct l_dhcp_lease *v4_lease;
 	const struct l_dhcp6_lease *v6_lease;
 
+	if (!netconfig->v4_configured)
+		goto append_v6;
+
 	if (netconfig->v4_dns_override)
 		netconfig_strv_cat(&ret, netconfig->v4_dns_override, false);
 	else if ((v4_lease =
 			l_dhcp_client_get_lease(netconfig->dhcp_client)))
 		netconfig_strv_cat(&ret, l_dhcp_lease_get_dns(v4_lease), true);
+
+append_v6:
+	if (!netconfig->v6_configured)
+		goto done;
 
 	if (netconfig->v6_dns_override)
 		netconfig_strv_cat(&ret, netconfig->v6_dns_override, false);
@@ -1915,6 +1971,7 @@ LIB_EXPORT char **l_netconfig_get_dns_list(struct l_netconfig *netconfig)
 			l_dhcp6_client_get_lease(netconfig->dhcp6_client)))
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_dns(v6_lease), true);
 
+done:
 	return ret;
 }
 
@@ -1926,6 +1983,9 @@ LIB_EXPORT char **l_netconfig_get_domain_names(struct l_netconfig *netconfig)
 	const struct l_dhcp6_lease *v6_lease;
 	char *dn;
 
+	if (!netconfig->v4_configured)
+		goto append_v6;
+
 	if (netconfig->v4_domain_names_override)
 		netconfig_strv_cat(&ret, netconfig->v4_domain_names_override,
 					false);
@@ -1936,6 +1996,10 @@ LIB_EXPORT char **l_netconfig_get_domain_names(struct l_netconfig *netconfig)
 		ret[0] = dn;
 	}
 
+append_v6:
+	if (!netconfig->v6_configured)
+		goto done;
+
 	if (netconfig->v6_dns_override)
 		netconfig_strv_cat(&ret, netconfig->v6_domain_names_override,
 					false);
@@ -1944,5 +2008,6 @@ LIB_EXPORT char **l_netconfig_get_domain_names(struct l_netconfig *netconfig)
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_domains(v6_lease),
 					true);
 
+done:
 	return ret;
 }
