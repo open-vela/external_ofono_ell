@@ -68,6 +68,7 @@ bool l_netconfig_set_dns_override(struct l_netconfig *netconfig, uint8_t family,
 					char **dns_list);
 bool l_netconfig_set_domain_names_override(struct l_netconfig *netconfig,
 						uint8_t family, char **names);
+bool l_netconfig_set_acd_enabled(struct l_netconfig *netconfig, bool enabled);
 bool l_netconfig_check_config(struct l_netconfig *netconfig);
 bool l_netconfig_reset_config(struct l_netconfig *netconfig);
 
