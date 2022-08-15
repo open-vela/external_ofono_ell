@@ -748,6 +748,7 @@ global:
 	l_netconfig_set_gateway_override;
 	l_netconfig_set_dns_override;
 	l_netconfig_set_domain_names_override;
+	l_netconfig_set_acd_enabled;
 	l_netconfig_check_config;
 	l_netconfig_reset_config;
 	l_netconfig_start;
