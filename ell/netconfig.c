@@ -67,6 +67,7 @@ struct l_netconfig {
 	char *v4_gateway_override;
 	char **v4_dns_override;
 	char **v4_domain_names_override;
+	bool acd_enabled;
 
 	bool v6_enabled;
 	struct l_rtnl_address *v6_static_addr;
@@ -1031,7 +1032,6 @@ LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 
 	nc = l_new(struct l_netconfig, 1);
 	nc->ifindex = ifindex;
-	nc->v4_enabled = true;
 
 	nc->addresses.current = l_queue_new();
 	nc->addresses.added = l_queue_new();
@@ -1061,6 +1061,7 @@ LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 	/* Disable in-kernel autoconfiguration for the interface */
 	netconfig_proc_write_ipv6_uint_setting(nc, "accept_ra", 0);
 
+	l_netconfig_reset_config(nc);
 	return nc;
 }
 
@@ -1275,6 +1276,16 @@ LIB_EXPORT bool l_netconfig_set_domain_names_override(
 	return true;
 }
 
+LIB_EXPORT bool l_netconfig_set_acd_enabled(struct l_netconfig *netconfig,
+						bool enabled)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	netconfig->acd_enabled = enabled;
+	return true;
+}
+
 static bool netconfig_check_family_config(struct l_netconfig *nc,
 						uint8_t family)
 {
@@ -1343,6 +1354,7 @@ LIB_EXPORT bool l_netconfig_reset_config(struct l_netconfig *netconfig)
 	l_netconfig_set_gateway_override(netconfig, AF_INET, NULL);
 	l_netconfig_set_dns_override(netconfig, AF_INET, NULL);
 	l_netconfig_set_domain_names_override(netconfig, AF_INET, NULL);
+	l_netconfig_set_acd_enabled(netconfig, true);
 	l_netconfig_set_family_enabled(netconfig, AF_INET6, false);
 	l_netconfig_set_static_addr(netconfig, AF_INET6, NULL);
 	l_netconfig_set_gateway_override(netconfig, AF_INET6, NULL);
@@ -1434,25 +1446,29 @@ static void netconfig_do_static_config(struct l_idle *idle, void *user_data)
 	l_idle_remove(l_steal_ptr(nc->do_static_work));
 
 	if (nc->v4_static_addr && !nc->v4_configured) {
-		char ip[INET_ADDRSTRLEN];
+		if (nc->acd_enabled) {
+			char ip[INET_ADDRSTRLEN];
 
-		l_rtnl_address_get_address(nc->v4_static_addr, ip);
+			l_rtnl_address_get_address(nc->v4_static_addr, ip);
 
-		nc->acd = l_acd_new(nc->ifindex);
-                l_acd_set_event_handler(nc->acd, netconfig_ipv4_acd_event, nc,
-					NULL);
+			nc->acd = l_acd_new(nc->ifindex);
+			l_acd_set_event_handler(nc->acd,
+						netconfig_ipv4_acd_event, nc,
+						NULL);
 
-		if (!l_acd_start(nc->acd, ip)) {
+			if (l_acd_start(nc->acd, ip))
+				goto configure_ipv6;
+
 			l_acd_destroy(l_steal_ptr(nc->acd));
-
 			/* Configure right now as a fallback */
-			netconfig_add_v4_static_address_routes(nc);
-			nc->v4_configured = true;
-			netconfig_emit_event(nc, AF_INET,
-						L_NETCONFIG_EVENT_CONFIGURE);
 		}
+
+		netconfig_add_v4_static_address_routes(nc);
+		nc->v4_configured = true;
+		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_CONFIGURE);
 	}
 
+configure_ipv6:
 	if (nc->v6_static_addr && !nc->v6_configured) {
 		netconfig_add_v6_static_address_routes(nc);
 		nc->v6_configured = true;
