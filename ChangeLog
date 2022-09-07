@@ -1,3 +1,6 @@
+ver 0.53:
+	Add support for EC based certificates.
+
 ver 0.52:
 	Fix issue with using PTRDIFF_MAX constant.
 	Fix issue with accepting FD 0 as epoll_fd.
