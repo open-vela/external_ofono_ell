@@ -50,12 +50,21 @@
 #include "netlink.h"
 #include "rtnl.h"
 #include "missing.h"
+#include "utf8.h"
 #include "icmp6.h"
 #include "icmp6-private.h"
 
 /* RFC4191 */
 #ifndef ND_OPT_ROUTE_INFORMATION
 #define ND_OPT_ROUTE_INFORMATION	24
+#endif
+
+/* RFC8106 */
+#ifndef ND_OPT_RECURSIVE_DNS_SERVER
+#define ND_OPT_RECURSIVE_DNS_SERVER	25
+#endif
+#ifndef ND_OPT_DNS_SEARCH_LIST
+#define ND_OPT_DNS_SEARCH_LIST		31
 #endif
 
 #define CLIENT_DEBUG(fmt, args...)					\
@@ -755,6 +764,8 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	uint32_t opts_len;
 	uint32_t n_routes = 0;
 	uint32_t n_ac_prefixes = 0;
+	uint32_t n_dns = 0;
+	uint32_t n_domains = 0;
 
 	if (ra->nd_ra_type != ND_ROUTER_ADVERT)
 		return NULL;
@@ -825,6 +836,46 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 
 			n_routes += 1;
 			break;
+		case ND_OPT_RECURSIVE_DNS_SERVER:
+			if (l < 24 || (l & 15) != 8)
+				return NULL;
+
+			n_dns += (l - 8) / 16;
+			break;
+		case ND_OPT_DNS_SEARCH_LIST:
+		{
+			unsigned int n_labels;
+			unsigned int pos = 8;
+
+			if (l < 16)
+				return NULL;
+
+			/* Count domains according to RFC1035 Section 3.1 */
+			do {
+				unsigned int label_len;
+
+				n_labels = 0;
+
+				do {
+					label_len = opts[pos];
+					pos += 1 + label_len;
+					n_labels += label_len ? 1 : 0;
+				} while (label_len && pos < l);
+
+				/*
+				 * Check if the root label was missing, or
+				 * a label didn't fit in the option bytes, or
+				 * the first domain had 0 labels, i.e. there
+				 * were no domains.
+				 */
+				if (label_len || pos > l || pos == 9)
+					return NULL;
+
+				n_domains += n_labels ? 1 : 0;
+			} while (n_labels && pos < l);
+
+			break;
+		}
 		}
 
 		opts += l;
@@ -834,9 +885,9 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	r = _icmp6_router_new();
 	memcpy(r->address, src, sizeof(r->address));
 	r->routes = l_new(struct route_info, n_routes);
-	r->n_routes = n_routes;
 	r->ac_prefixes = l_new(struct autoconf_prefix_info, n_ac_prefixes);
-	r->n_ac_prefixes = n_ac_prefixes;
+	r->dns_list = l_new(struct dns_info, n_dns);
+	r->domains = l_new(struct domain_info, n_domains);
 
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
 		r->managed = true;
@@ -855,6 +906,8 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	opts_len = len - sizeof(struct nd_router_advert);
 	n_routes = 0;
 	n_ac_prefixes = 0;
+	n_dns = 0;
+	n_domains = 0;
 
 	while (opts_len) {
 		uint8_t t = opts[0];
@@ -946,12 +999,49 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 			n_routes += 1;
 			break;
 		}
+		case ND_OPT_RECURSIVE_DNS_SERVER:
+		{
+			unsigned int pos;
+
+			for (pos = 8; pos < l; pos += 16) {
+				struct dns_info *i = &r->dns_list[n_dns++];
+
+				i->lifetime = l_get_be32(opts + 4);
+				memcpy(i->address, opts + pos, 16);
+			}
+
+			break;
+		}
+		case ND_OPT_DNS_SEARCH_LIST:
+		{
+			struct domain_info *info = &r->domains[n_domains];
+			_auto_(l_free) char **domain_list =
+				net_domain_list_parse(opts + 8, l - 8);
+			char **i;
+
+			/* Ignore invalid option */
+			if (!domain_list)
+				break;
+
+			for (i = domain_list; *i; i++) {
+				info->lifetime = l_get_be32(opts + 4);
+				info->domain = *i;
+				info++;
+				n_domains++;
+			}
+
+			break;
+		}
 		}
 
 		opts += l;
 		opts_len -= l;
 	}
 
+	r->n_routes = n_routes;
+	r->n_ac_prefixes = n_ac_prefixes;
+	r->n_dns = n_dns;
+	r->n_domains = n_domains;
 	return r;
 }
 

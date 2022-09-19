@@ -34,6 +34,16 @@ struct autoconf_prefix_info {
 	uint32_t valid_lifetime;
 };
 
+struct dns_info {
+	uint8_t address[16];
+	uint32_t lifetime;
+};
+
+struct domain_info {
+	char *domain;
+	uint32_t lifetime;
+};
+
 struct l_icmp6_router {
 	uint8_t address[16];
 	bool managed : 1;
@@ -47,6 +57,10 @@ struct l_icmp6_router {
 	struct route_info *routes;
 	uint32_t n_ac_prefixes;
 	struct autoconf_prefix_info *ac_prefixes;
+	uint32_t n_dns;
+	struct dns_info *dns_list;
+	uint32_t n_domains;
+	struct domain_info *domains;
 };
 
 struct l_icmp6_router *_icmp6_router_new();
