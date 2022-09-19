@@ -44,6 +44,7 @@ void l_rtnl_address_free(struct l_rtnl_address *addr);
 DEFINE_CLEANUP_FUNC(l_rtnl_address_free);
 bool l_rtnl_address_get_address(const struct l_rtnl_address *addr,
 				char *out_buf);
+const void *l_rtnl_address_get_in_addr(const struct l_rtnl_address *addr);
 uint8_t l_rtnl_address_get_family(const struct l_rtnl_address *addr);
 uint8_t l_rtnl_address_get_prefix_length(const struct l_rtnl_address *addr);
 bool l_rtnl_address_get_broadcast(const struct l_rtnl_address *addr,

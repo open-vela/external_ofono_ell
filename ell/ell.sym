@@ -626,6 +626,7 @@ global:
 	l_rtnl_address_clone;
 	l_rtnl_address_free;
 	l_rtnl_address_get_address;
+	l_rtnl_address_get_in_addr;
 	l_rtnl_address_get_family;
 	l_rtnl_address_get_prefix_length;
 	l_rtnl_address_get_broadcast;

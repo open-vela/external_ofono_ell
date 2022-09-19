@@ -180,6 +180,15 @@ LIB_EXPORT bool l_rtnl_address_get_address(const struct l_rtnl_address *addr,
 						out_buf);
 }
 
+LIB_EXPORT const void *l_rtnl_address_get_in_addr(
+					const struct l_rtnl_address *addr)
+{
+	if (unlikely(!addr))
+		return NULL;
+
+	return addr->family == AF_INET ? (void *) &addr->in_addr : &addr->in6_addr;
+}
+
 LIB_EXPORT uint8_t l_rtnl_address_get_family(const struct l_rtnl_address *addr)
 {
 	if (unlikely(!addr))
