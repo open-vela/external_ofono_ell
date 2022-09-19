@@ -693,7 +693,56 @@ struct l_icmp6_router *_icmp6_router_new()
 void _icmp6_router_free(struct l_icmp6_router *r)
 {
 	l_free(r->routes);
+	l_free(r->ac_prefixes);
 	l_free(r);
+}
+
+/* Note: the following two write to @out even when they return false */
+static bool icmp6_prefix_parse_rt_info(const uint8_t *data,
+					struct route_info *out)
+{
+	out->prefix_len = data[2];
+	out->onlink = true;
+	out->preference = 0;
+	out->valid_lifetime = l_get_be32(data + 4);
+
+	/*
+	 * Only the initial Prefix Length bits of the prefix are valid.
+	 * The remaining bits "MUST" be ignored by the receiver.
+	 */
+	memcpy(out->address, net_prefix_from_ipv6(data + 16, out->prefix_len),
+		16);
+
+	if (out->prefix_len >= 10 && IN6_IS_ADDR_LINKLOCAL(out->address))
+		return false;
+
+	return true;
+}
+
+static bool icmp6_prefix_parse_ac_info(const uint8_t *data,
+					struct autoconf_prefix_info *out)
+{
+	/*
+	 * Per RFC4862 we need to silently ignore prefixes with a
+	 * preferred lifetime longer than valid lifetime, those with
+	 * 0 valid lifetime and those with link-local prefixes.
+	 * Prefix Length must be 8 bytes (IPv6 address - Interface ID).
+	 */
+	if (data[2] != 64)
+		return false;
+
+	if (IN6_IS_ADDR_LINKLOCAL(data + 16))
+		return false;
+
+	out->valid_lifetime = l_get_be32(data + 4);
+	out->preferred_lifetime = l_get_be32(data + 8);
+
+	if (out->valid_lifetime == 0 ||
+			out->preferred_lifetime > out->valid_lifetime)
+		return false;
+
+	memcpy(out->prefix, data + 16, 8);
+	return true;
 }
 
 struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
@@ -705,6 +754,7 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	const uint8_t *opts;
 	uint32_t opts_len;
 	uint32_t n_routes = 0;
+	uint32_t n_ac_prefixes = 0;
 
 	if (ra->nd_ra_type != ND_ROUTER_ADVERT)
 		return NULL;
@@ -742,6 +792,10 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 
 			if (opts[3] & ND_OPT_PI_FLAG_ONLINK)
 				n_routes += 1;
+
+			if (opts[3] & ND_OPT_PI_FLAG_AUTO)
+				n_ac_prefixes += 1;
+
 			break;
 		case ND_OPT_ROUTE_INFORMATION:
 			if (l < 8)
@@ -781,6 +835,8 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	memcpy(r->address, src, sizeof(r->address));
 	r->routes = l_new(struct route_info, n_routes);
 	r->n_routes = n_routes;
+	r->ac_prefixes = l_new(struct autoconf_prefix_info, n_ac_prefixes);
+	r->n_ac_prefixes = n_ac_prefixes;
 
 	if (ra->nd_ra_flags_reserved & ND_RA_FLAG_MANAGED)
 		r->managed = true;
@@ -798,6 +854,7 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 	opts = (uint8_t *) (ra + 1);
 	opts_len = len - sizeof(struct nd_router_advert);
 	n_routes = 0;
+	n_ac_prefixes = 0;
 
 	while (opts_len) {
 		uint8_t t = opts[0];
@@ -814,41 +871,22 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 
 			break;
 		case ND_OPT_PREFIX_INFORMATION:
-		{
-			struct route_info *i = &r->routes[n_routes];
+			if (opts[3] & ND_OPT_PI_FLAG_ONLINK) {
+				struct route_info *i = &r->routes[n_routes];
 
-			if (!(opts[3] & ND_OPT_PI_FLAG_ONLINK))
-				break;
+				if (icmp6_prefix_parse_rt_info(opts, i))
+					n_routes++;
+			}
 
-			i->prefix_len = opts[2];
-			i->onlink = true;
-			i->valid_lifetime = l_get_be32(opts + 4);
-			i->preferred_lifetime = l_get_be32(opts + 8);
+			if (opts[3] & ND_OPT_PI_FLAG_AUTO) {
+				struct autoconf_prefix_info *i =
+					&r->ac_prefixes[n_ac_prefixes];
 
-			/*
-			 * Only the initial Prefix Length bits of the prefix
-			 * are valid.  The remaining bits "MUST" be ignored
-			 * by the receiver.
-			 */
-			memcpy(i->address, net_prefix_from_ipv6(opts + 16,
-							i->prefix_len), 16);
+				if (icmp6_prefix_parse_ac_info(opts, i))
+					n_ac_prefixes++;
+			}
 
-			/*
-			 * For SLAAC (RFC4862) we need to "silently ignore"
-			 * routes with a preferred lifetime longer than valid
-			 * lifetime, and those with the link-local prefix.
-			 * Since it makes sense, do it regardless of SLAAC.
-			 */
-			if (i->preferred_lifetime > i->valid_lifetime)
-				break;
-
-			if (i->prefix_len >= 10 &&
-					IN6_IS_ADDR_LINKLOCAL(i->address))
-				break;
-
-			n_routes += 1;
 			break;
-		}
 		case ND_OPT_RTR_ADV_INTERVAL:
 			if (l < 8)
 				break;

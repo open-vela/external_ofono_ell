@@ -799,7 +799,6 @@ static bool netconfig_check_route_need_update(
 static void netconfig_set_icmp6_route_data(struct l_netconfig *nc,
 						struct netconfig_route_data *rd,
 						const struct l_icmp6_router *ra,
-						uint32_t preferred_lifetime,
 						uint32_t valid_lifetime,
 						uint32_t mtu, bool updated)
 {
@@ -916,10 +915,10 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 		 * netconfig_set_icmp6_route_data.
 		 */
 		netconfig_set_icmp6_route_data(nc, default_rd, r, r->lifetime,
-						r->lifetime, r->mtu, false);
+						r->mtu, false);
 	} else if (default_rd && r->lifetime)
 		netconfig_set_icmp6_route_data(nc, default_rd, r, r->lifetime,
-						r->lifetime, r->mtu, true);
+						r->mtu, true);
 	else if (default_rd && !r->lifetime)
 		netconfig_remove_icmp6_route(nc, default_rd);
 
@@ -941,12 +940,10 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 				continue;
 
 			netconfig_set_icmp6_route_data(nc, rd, r,
-						info->preferred_lifetime,
 						info->valid_lifetime,
 						gateway ? r->mtu : 0, false);
 		} else if (rd && info->valid_lifetime)
 			netconfig_set_icmp6_route_data(nc, rd, r,
-						info->preferred_lifetime,
 						info->valid_lifetime,
 						gateway ? r->mtu : 0, true);
 		else if (rd && !info->valid_lifetime)
