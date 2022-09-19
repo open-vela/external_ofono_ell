@@ -703,6 +703,7 @@ global:
 	l_icmp6_client_set_nodelay;
 	l_icmp6_client_set_rtnl;
 	l_icmp6_client_set_route_priority;
+	l_icmp6_client_set_link_local_address;
 	l_icmp6_router_get_address;
 	l_icmp6_router_get_managed;
 	l_icmp6_router_get_other;
