@@ -24,12 +24,13 @@
 #include <config.h>
 #endif
 
+#include <net/if.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/if_arp.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <netinet/icmp6.h>
-#include <net/if.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -56,6 +57,7 @@
 #include "net.h"
 #include "net-private.h"
 #include "acd.h"
+#include "timeout.h"
 #include "netconfig.h"
 
 struct l_netconfig {
@@ -87,6 +89,8 @@ struct l_netconfig {
 	struct l_queue *icmp_route_data;
 	struct l_acd *acd;
 	unsigned int orig_disable_ipv6;
+	uint8_t mac[ETH_ALEN];
+	struct l_timeout *ra_timeout;
 
 	/* These objects, if not NULL, are owned by @addresses and @routes */
 	struct l_rtnl_address *v4_address;
@@ -665,6 +669,35 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 	}
 }
 
+static bool netconfig_match(const void *a, const void *b)
+{
+	return a == b;
+}
+
+static bool netconfig_check_start_dhcp6(struct l_netconfig *nc)
+{
+	/* Don't start DHCPv6 until we get an RA with the managed bit set */
+	if (nc->ra_timeout)
+		return true;
+
+	/* Don't start DHCPv6 while waiting for the link-local address */
+	if (l_queue_find(addr_wait_list, netconfig_match, nc))
+		return true;
+
+	return l_dhcp6_client_start(nc->dhcp6_client);
+}
+
+static void netconfig_ra_timeout_cb(struct l_timeout *timeout, void *user_data)
+{
+	struct l_netconfig *nc = user_data;
+
+	l_timeout_remove(l_steal_ptr(nc->ra_timeout));
+
+	/* No Router Advertisements received, assume no DHCPv6 or SLAAC */
+	l_icmp6_client_stop(nc->icmp6_client);
+	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
+}
+
 static uint64_t now;
 
 static bool netconfig_check_route_expired(void *data, void *user_data)
@@ -883,22 +916,22 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 	const struct l_icmp6_router *r;
 	struct netconfig_route_data *default_rd;
 	unsigned int i;
+	bool first_ra = false;
 
 	if (event != L_ICMP6_CLIENT_EVENT_ROUTER_FOUND)
 		return;
 
 	r = event_data;
 
-	/*
-	 * Note: If this is the first RA received, the l_dhcp6_client
-	 * will have received the event before us and will be acting
-	 * on it by now.
-	 */
-
-	if (nc->v6_gateway_override)
-		return;
+	if (nc->ra_timeout) {
+		first_ra = true;
+		l_timeout_remove(l_steal_ptr(nc->ra_timeout));
+	}
 
 	netconfig_expire_routes(nc);
+
+	if (nc->v6_gateway_override)
+		goto process_nondefault_routes;
 
 	/* Process the default gateway information */
 	default_rd = netconfig_find_icmp6_route(nc, r->address, NULL);
@@ -922,6 +955,7 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 	else if (default_rd && !r->lifetime)
 		netconfig_remove_icmp6_route(nc, default_rd);
 
+process_nondefault_routes:
 	/*
 	 * Process the onlink and offlink routes, from the Router
 	 * Advertisement's Prefix Information options and Route
@@ -948,6 +982,16 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 						gateway ? r->mtu : 0, true);
 		else if (rd && !info->valid_lifetime)
 			netconfig_remove_icmp6_route(nc, rd);
+	}
+
+	/* See if we should start DHCPv6 now */
+	if (first_ra) {
+		if (!l_icmp6_router_get_managed(r) ||
+				!netconfig_check_start_dhcp6(nc)) {
+			netconfig_emit_event(nc, AF_INET6,
+						L_NETCONFIG_EVENT_FAILED);
+			return;
+		}
 	}
 
 	/*
@@ -1046,6 +1090,7 @@ LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
 					nc, NULL);
 
 	nc->dhcp6_client = l_dhcp6_client_new(ifindex);
+	l_dhcp6_client_set_nora(nc->dhcp6_client, true);
 	l_dhcp6_client_set_event_handler(nc->dhcp6_client,
 					netconfig_dhcp6_event_handler,
 					nc, NULL);
@@ -1535,10 +1580,10 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 	l_icmp6_client_set_link_local_address(nc->icmp6_client, ip);
 
 	/*
-	 * Only now that we have a link-local address start actual DHCPv6
-	 * setup.
+	 * Only now that we have a link-local address see if we can start
+	 * actual DHCPv6 setup.
 	 */
-	if (l_dhcp6_client_start(nc->dhcp6_client))
+	if (netconfig_check_start_dhcp6(nc))
 		return;
 
 	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
@@ -1687,6 +1732,35 @@ configure_ipv6:
 
 	l_queue_push_tail(addr_wait_list, netconfig);
 
+	if (!l_net_get_mac_address(netconfig->ifindex, netconfig->mac))
+		goto unregister;
+
+	l_dhcp6_client_set_address(netconfig->dhcp6_client, ARPHRD_ETHER,
+					netconfig->mac, ETH_ALEN);
+	l_icmp6_client_set_address(netconfig->icmp6_client, netconfig->mac);
+
+	/*
+	 * RFC4862 Section 4: "To speed the autoconfiguration process, a host
+	 * may generate its link-local address (and verify its uniqueness) in
+	 * parallel with waiting for a Router Advertisement.  Because a router
+	 * may delay responding to a Router Solicitation for a few seconds,
+	 * the total time needed to complete autoconfiguration can be
+	 * significantly longer if the two steps are done serially."
+	 *
+	 * We don't know whether we have the LL address yet.  The interface
+	 * may have been just brought up and DAD may still running or the LL
+	 * address may have been deleted and won't be added until
+	 * netconfig_ifaddr_ipv6_dump_done_cb() writes the /proc settings.
+	 * In any case the Router Solicitation doesn't depend on having the
+	 * LL address so send it now.  We won't start DHCPv6 however until we
+	 * have both the LL address and the Router Advertisement.
+	 */
+	if (!l_icmp6_client_start(netconfig->icmp6_client))
+		goto unregister;
+
+	netconfig->ra_timeout = l_timeout_create(10, netconfig_ra_timeout_cb,
+							netconfig, NULL);
+
 done:
 	netconfig->started = true;
 	return true;
@@ -1717,6 +1791,9 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 	if (netconfig->signal_expired_work)
 		l_idle_remove(l_steal_ptr(netconfig->signal_expired_work));
 
+	if (netconfig->ra_timeout)
+		l_timeout_remove(l_steal_ptr(netconfig->ra_timeout));
+
 	netconfig_addr_wait_unregister(netconfig, false);
 
 	netconfig_update_cleanup(netconfig);
@@ -1734,6 +1811,7 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 
 	l_dhcp_client_stop(netconfig->dhcp_client);
 	l_dhcp6_client_stop(netconfig->dhcp6_client);
+	l_icmp6_client_stop(netconfig->icmp6_client);
 
 	l_acd_destroy(l_steal_ptr(netconfig->acd));
 

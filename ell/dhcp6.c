@@ -1473,6 +1473,9 @@ static void dhcp6_client_icmp6_event(struct l_icmp6_client *icmp6,
 {
 	struct l_dhcp6_client *client = user_data;
 
+	if (client->nora)
+		return;
+
 	switch (event) {
 	case L_ICMP6_CLIENT_EVENT_ROUTER_FOUND:
 	{
