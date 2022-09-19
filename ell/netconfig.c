@@ -1532,6 +1532,7 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 	netconfig_addr_wait_unregister(nc, true);
 
 	l_dhcp6_client_set_link_local_address(nc->dhcp6_client, ip);
+	l_icmp6_client_set_link_local_address(nc->icmp6_client, ip);
 
 	/*
 	 * Only now that we have a link-local address start actual DHCPv6

@@ -1619,6 +1619,9 @@ LIB_EXPORT bool l_dhcp6_client_set_link_local_address(
 	if (inet_pton(AF_INET6, ll, &client->ll_address) != 1)
 		return false;
 
+	if (!client->nora)
+		l_icmp6_client_set_link_local_address(client->icmp6, ll);
+
 	return true;
 }
 
