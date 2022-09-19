@@ -76,6 +76,7 @@ struct l_netconfig {
 	char *v6_gateway_override;
 	char **v6_dns_override;
 	char **v6_domain_names_override;
+	bool optimistic_dad_enabled;
 
 	bool started;
 	struct l_idle *do_static_work;
@@ -89,6 +90,7 @@ struct l_netconfig {
 	struct l_queue *icmp_route_data;
 	struct l_acd *acd;
 	unsigned int orig_disable_ipv6;
+	unsigned int orig_optimistic_dad;
 	uint8_t mac[ETH_ALEN];
 	struct l_timeout *ra_timeout;
 	enum {
@@ -1490,6 +1492,17 @@ LIB_EXPORT bool l_netconfig_set_acd_enabled(struct l_netconfig *netconfig,
 	return true;
 }
 
+LIB_EXPORT bool l_netconfig_set_optimistic_dad_enabled(
+						struct l_netconfig *netconfig,
+						bool enabled)
+{
+	if (unlikely(!netconfig || netconfig->started))
+		return false;
+
+	netconfig->optimistic_dad_enabled = enabled;
+	return true;
+}
+
 static bool netconfig_check_family_config(struct l_netconfig *nc,
 						uint8_t family)
 {
@@ -1724,7 +1737,8 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 	struct in6_addr in6;
 	_auto_(l_free) char *ip = NULL;
 
-	if (ifa->ifa_flags & IFA_F_TENTATIVE)
+	if ((ifa->ifa_flags & IFA_F_TENTATIVE) &&
+			!(ifa->ifa_flags & IFA_F_OPTIMISTIC))
 		return;
 
 	if (!nc->started)
@@ -1828,6 +1842,8 @@ static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
 
 LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 {
+	bool optimistic_dad;
+
 	if (unlikely(!netconfig || netconfig->started))
 		return false;
 
@@ -1854,6 +1870,28 @@ LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 configure_ipv6:
 	if (!netconfig->v6_enabled)
 		goto done;
+
+	/*
+	 * Enable optimistic DAD if the user has requested it *and* it is
+	 * recommended by RFC 4429 Section 3.1 for the address generation
+	 * method in use:
+	 *   * mac-based Interface ID such as EUI-64
+	 *   * random
+	 *   * well-distributed hash function
+	 *   * DHCPv6
+	 * i.e. all autoconfiguration methods.  In any other case disable
+	 * it.
+	 */
+	optimistic_dad = netconfig->optimistic_dad_enabled &&
+		!netconfig->v6_static_addr;
+	netconfig->orig_optimistic_dad =
+		netconfig_proc_read_ipv6_uint_setting(netconfig,
+							"optimistic_dad");
+
+	if (!!netconfig->orig_optimistic_dad != optimistic_dad)
+		netconfig_proc_write_ipv6_uint_setting(netconfig,
+							"optimistic_dad",
+							optimistic_dad ? 1 : 0);
 
 	if (netconfig->v6_static_addr) {
 		/*
@@ -1944,6 +1982,8 @@ unregister:
 
 LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 {
+	bool optimistic_dad;
+
 	if (unlikely(!netconfig || !netconfig->started))
 		return;
 
@@ -1985,6 +2025,13 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 						netconfig->orig_disable_ipv6);
 		netconfig->orig_disable_ipv6 = 0;
 	}
+
+	optimistic_dad = netconfig->optimistic_dad_enabled &&
+		!netconfig->v6_static_addr;
+	if (!!netconfig->orig_optimistic_dad != optimistic_dad)
+		netconfig_proc_write_ipv6_uint_setting(netconfig,
+						"optimistic_dad",
+						netconfig->orig_optimistic_dad);
 }
 
 /*
