@@ -113,11 +113,13 @@ static void test_net_domain_list_parse(const void *data)
 	static const uint8_t l1[] = { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
 					3, 'c', 'o', 'm', 0,
 					4, 't', 'e', 's', 't', 0 };
-	static const uint8_t l2[] = { 0, 0};
+	static const uint8_t l2[] = { 0, 0 };
 	static const uint8_t l3[] = { 4, '.', '=', '2', '3', 0 };
+	static const uint8_t l4[] = { 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
+					3, 'c', 'o', 'm', 0, 0 };
 	char **domains;
 
-	domains = net_domain_list_parse(l1, sizeof(l1));
+	domains = net_domain_list_parse(l1, sizeof(l1), false);
 	assert(domains);
 	assert(domains[0]);
 	assert(!strcmp(domains[0], "example.com"));
@@ -126,12 +128,19 @@ static void test_net_domain_list_parse(const void *data)
 	assert(!domains[2]);
 	l_strfreev(domains);
 
-	assert(!net_domain_list_parse(l2, sizeof(l2)));
+	assert(!net_domain_list_parse(l2, sizeof(l2), false));
 
-	domains = net_domain_list_parse(l3, sizeof(l3));
+	domains = net_domain_list_parse(l3, sizeof(l3), false);
 	assert(domains);
 	assert(domains[0]);
 	assert(!strcmp(domains[0], "\\.\\06123"));
+	assert(!domains[1]);
+	l_strfreev(domains);
+
+	domains = net_domain_list_parse(l4, sizeof(l4), true);
+	assert(domains);
+	assert(domains[0]);
+	assert(!strcmp(domains[0], "example.com"));
 	assert(!domains[1]);
 	l_strfreev(domains);
 }
