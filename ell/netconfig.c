@@ -750,6 +750,7 @@ static void netconfig_add_slaac_address(struct l_netconfig *nc,
 
 	l_queue_push_tail(nc->addresses.current, nc->v6_address);
 	l_queue_push_tail(nc->addresses.added, nc->v6_address);
+	nc->v6_configured = true;
 	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_CONFIGURE);
 
 	/* TODO: set a renew timeout */
