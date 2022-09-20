@@ -295,7 +295,7 @@ char *net_domain_name_parse(const uint8_t *raw, size_t raw_len)
 /*
  * Parse list of domain names encoded according to RFC 1035 Section 3.1
  */
-char **net_domain_list_parse(const uint8_t *raw, size_t raw_len)
+char **net_domain_list_parse(const uint8_t *raw, size_t raw_len, bool padded)
 {
 	size_t remaining = raw_len;
 	const uint8_t *p = raw;
@@ -305,6 +305,9 @@ char **net_domain_list_parse(const uint8_t *raw, size_t raw_len)
 	struct l_string *growable = NULL;
 
 	while (remaining) {
+		if (padded && p[0] == 0)
+			break;
+
 		r = validate_next_domain_name(p, remaining);
 		if (r < 0)
 			return NULL;
@@ -323,6 +326,9 @@ char **net_domain_list_parse(const uint8_t *raw, size_t raw_len)
 		remaining -= *p + 1;
 
 		if (*p == 0) {
+			if (!growable)
+				break;
+
 			p += 1;
 			ret[nitems++] = l_string_unwrap(growable);
 			growable = NULL;

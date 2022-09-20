@@ -21,7 +21,7 @@
  */
 
 char *net_domain_name_parse(const uint8_t *raw, size_t raw_len);
-char **net_domain_list_parse(const uint8_t *raw, size_t raw_len);
+char **net_domain_list_parse(const uint8_t *raw, size_t raw_len, bool padded);
 
 static inline const void *net_prefix_from_ipv6(const uint8_t *address,
 						uint8_t prefix_len)

@@ -1104,11 +1104,11 @@ struct l_icmp6_router *_icmp6_router_parse(const struct nd_router_advert *ra,
 		{
 			struct domain_info *info = &r->domains[n_domains];
 			_auto_(l_free) char **domain_list =
-				net_domain_list_parse(opts + 8, l - 8);
+				net_domain_list_parse(opts + 8, l - 8, true);
 			char **i;
 
-			/* Ignore invalid option */
-			if (!domain_list)
+			/* Ignore malformed option */
+			if (!domain_list || !domain_list[0])
 				break;
 
 			for (i = domain_list; *i; i++) {
