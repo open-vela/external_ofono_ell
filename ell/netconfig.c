@@ -90,7 +90,7 @@ struct l_netconfig {
 	struct l_queue *icmp_route_data;
 	struct l_acd *acd;
 	unsigned int orig_disable_ipv6;
-	unsigned int orig_optimistic_dad;
+	long orig_optimistic_dad;
 	uint8_t mac[ETH_ALEN];
 	struct l_timeout *ra_timeout;
 	bool have_lla;
@@ -2010,7 +2010,8 @@ configure_ipv6:
 		netconfig_proc_read_ipv6_uint_setting(netconfig,
 							"optimistic_dad");
 
-	if (!!netconfig->orig_optimistic_dad != optimistic_dad)
+	if (netconfig->orig_optimistic_dad >= 0 &&
+			!!netconfig->orig_optimistic_dad != optimistic_dad)
 		netconfig_proc_write_ipv6_uint_setting(netconfig,
 							"optimistic_dad",
 							optimistic_dad ? 1 : 0);
@@ -2160,7 +2161,8 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 
 	optimistic_dad = netconfig->optimistic_dad_enabled &&
 		!netconfig->v6_static_addr;
-	if (!!netconfig->orig_optimistic_dad != optimistic_dad)
+	if (netconfig->orig_optimistic_dad >= 0 &&
+			!!netconfig->orig_optimistic_dad != optimistic_dad)
 		netconfig_proc_write_ipv6_uint_setting(netconfig,
 						"optimistic_dad",
 						netconfig->orig_optimistic_dad);
