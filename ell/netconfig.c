@@ -98,6 +98,8 @@ struct l_netconfig {
 		NETCONFIG_V6_METHOD_DHCP,
 		NETCONFIG_V6_METHOD_SLAAC,
 	} v6_auto_method;
+	struct l_queue *slaac_dnses;
+	struct l_queue *slaac_domains;
 
 	/* These objects, if not NULL, are owned by @addresses and @routes */
 	struct l_rtnl_address *v4_address;
@@ -151,6 +153,8 @@ static struct l_queue *addr_wait_list;
 static unsigned int rtnl_id;
 
 static const unsigned int max_icmp6_routes = 100;
+static const unsigned int max_icmp6_dnses = 10;
+static const unsigned int max_icmp6_domains = 10;
 
 static void netconfig_update_cleanup(struct l_netconfig *nc)
 {
@@ -681,6 +685,16 @@ static bool netconfig_match(const void *a, const void *b)
 	return a == b;
 }
 
+static bool netconfig_match_addr(const void *a, const void *b)
+{
+	return memcmp(a, b, 16) == 0;
+}
+
+static bool netconfig_match_str(const void *a, const void *b)
+{
+	return strcmp(a, b) == 0;
+}
+
 static bool netconfig_check_start_dhcp6(struct l_netconfig *nc)
 {
 	/* Don't start DHCPv6 until we get an RA with the managed bit set */
@@ -807,6 +821,88 @@ static void netconfig_set_slaac_address_lifetimes(struct l_netconfig *nc,
 	if (updated && !l_queue_find(nc->addresses.added, netconfig_match,
 					nc->v6_address))
 		l_queue_push_tail(nc->addresses.updated, nc->v6_address);
+}
+
+static bool netconfig_process_slaac_dns_info(struct l_netconfig *nc,
+						const struct l_icmp6_router *r)
+{
+	bool updated = false;
+	unsigned int i;
+	unsigned int n_dns = l_queue_length(nc->slaac_dnses);
+	unsigned int n_domains = l_queue_length(nc->slaac_domains);
+
+	for (i = 0; i < r->n_dns; i++) {
+		const struct dns_info *info = &r->dns_list[i];
+
+		/*
+		 * For simplicity don't track lifetimes (TODO), add entries
+		 * when the lifetime is non-zero, remove them when the
+		 * lifetime is zero.  We have no API to add time-limited
+		 * entries to the system either.
+		 *
+		 * RFC8106 Section 5.1: "A value of zero means that the RDNSS
+		 * addresses MUST no longer be used."
+		 */
+		if (info->lifetime) {
+			if (n_dns >= max_icmp6_dnses)
+				continue;
+
+			if (l_queue_find(nc->slaac_dnses, netconfig_match_addr,
+						info->address))
+				continue;
+
+			l_queue_push_tail(nc->slaac_dnses,
+						l_memdup(info->address, 16));
+			n_dns++;
+		} else {
+			void *addr = l_queue_remove_if(nc->slaac_dnses,
+							netconfig_match_addr,
+							info->address);
+
+			if (!addr)
+				continue;
+
+			l_free(addr);
+			n_dns--;
+		}
+
+		updated = true;
+	}
+
+	for (i = 0; i < r->n_domains; i++) {
+		const struct domain_info *info = &r->domains[i];
+
+		/*
+		 * RFC8106 Section 5.2: "A value of zero means that the DNSSL
+		 * domain names MUST no longer be used."
+		 */
+		if (info->lifetime) {
+			if (n_domains >= max_icmp6_domains)
+				continue;
+
+			if (l_queue_find(nc->slaac_domains, netconfig_match_str,
+						info->domain))
+				continue;
+
+			l_queue_push_tail(nc->slaac_domains,
+						l_strdup(info->domain));
+			n_domains++;
+		} else {
+			void *str = l_queue_remove_if(nc->slaac_domains,
+							netconfig_match_str,
+							info->domain);
+
+			if (!str)
+				continue;
+
+			l_free(str);
+			n_domains--;
+		}
+
+		updated = true;
+	}
+
+	return updated;
 }
 
 static uint64_t now;
@@ -1027,6 +1123,7 @@ static void netconfig_icmp6_event_handler(struct l_icmp6_client *client,
 	const struct l_icmp6_router *r;
 	struct netconfig_route_data *default_rd;
 	unsigned int i;
+	bool dns_updated = false;
 
 	if (event != L_ICMP6_CLIENT_EVENT_ROUTER_FOUND)
 		return;
@@ -1123,6 +1220,14 @@ process_nondefault_routes:
 		nc->v6_auto_method = NETCONFIG_V6_METHOD_SLAAC;
 
 		/*
+		 * Do this first so that any changes are included in the
+		 * CONFIGURE event emitted next.
+		 */
+		nc->slaac_dnses = l_queue_new();
+		nc->slaac_domains = l_queue_new();
+		netconfig_process_slaac_dns_info(nc, r);
+
+		/*
 		 * The DAD for the link-local address may be still running
 		 * but again we can generate the global address already and
 		 * commit it to start in-kernel DAD for it.
@@ -1156,6 +1261,7 @@ process_nondefault_routes:
 	 * and allows us to extend its lifetime.
 	 */
 	netconfig_set_slaac_address_lifetimes(nc, r);
+	dns_updated = netconfig_process_slaac_dns_info(nc, r);
 
 emit_event:
 	/*
@@ -1168,7 +1274,8 @@ emit_event:
 			!l_queue_isempty(nc->routes.updated) ||
 			!l_queue_isempty(nc->routes.removed) ||
 			!l_queue_isempty(nc->routes.expired) ||
-			!l_queue_isempty(nc->addresses.updated))
+			!l_queue_isempty(nc->addresses.updated) ||
+			dns_updated)
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 }
 
@@ -2007,6 +2114,8 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 	l_queue_clear(netconfig->routes.current,
 			(l_queue_destroy_func_t) l_rtnl_route_free);
 	l_queue_clear(netconfig->icmp_route_data, l_free);
+	l_queue_clear(netconfig->slaac_dnses, l_free);
+	l_queue_clear(netconfig->slaac_domains, l_free);
 	netconfig->v4_address = NULL;
 	netconfig->v4_subnet_route = NULL;
 	netconfig->v4_default_route = NULL;
@@ -2255,9 +2364,31 @@ append_v6:
 
 	if (netconfig->v6_dns_override)
 		netconfig_strv_cat(&ret, netconfig->v6_dns_override, false);
-	else if ((v6_lease =
-			l_dhcp6_client_get_lease(netconfig->dhcp6_client)))
+	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_DHCP &&
+			(v6_lease = l_dhcp6_client_get_lease(
+						netconfig->dhcp6_client)))
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_dns(v6_lease), true);
+	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC &&
+			!l_queue_isempty(netconfig->slaac_dnses)) {
+		unsigned int dest_len = l_strv_length(ret);
+		unsigned int src_len = l_queue_length(netconfig->slaac_dnses);
+		char **i;
+		const struct l_queue_entry *entry;
+
+		ret = l_realloc(ret, sizeof(char *) * (dest_len + src_len + 1));
+		i = ret + dest_len;
+
+		for (entry = l_queue_get_entries(netconfig->slaac_dnses);
+				entry; entry = entry->next) {
+			char addr_str[INET6_ADDRSTRLEN];
+
+			if (inet_ntop(AF_INET6, entry->data, addr_str,
+					sizeof(addr_str)))
+				*i++ = l_strdup(addr_str);
+		}
+
+		*i = NULL;
+	}
 
 done:
 	return ret;
@@ -2288,13 +2419,30 @@ append_v6:
 	if (!netconfig->v6_configured)
 		goto done;
 
-	if (netconfig->v6_dns_override)
+	if (netconfig->v6_domain_names_override)
 		netconfig_strv_cat(&ret, netconfig->v6_domain_names_override,
 					false);
-	else if ((v6_lease =
-			l_dhcp6_client_get_lease(netconfig->dhcp6_client)))
+	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_DHCP &&
+			(v6_lease = l_dhcp6_client_get_lease(
+						netconfig->dhcp6_client)))
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_domains(v6_lease),
 					true);
+	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC &&
+			!l_queue_isempty(netconfig->slaac_domains)) {
+		unsigned int dest_len = l_strv_length(ret);
+		unsigned int src_len = l_queue_length(netconfig->slaac_domains);
+		char **i;
+		const struct l_queue_entry *entry;
+
+		ret = l_realloc(ret, sizeof(char *) * (dest_len + src_len + 1));
+		i = ret + dest_len;
+
+		for (entry = l_queue_get_entries(netconfig->slaac_domains);
+				entry; entry = entry->next)
+			*i++ = l_strdup(entry->data);
+
+		*i = NULL;
+	}
 
 done:
 	return ret;
