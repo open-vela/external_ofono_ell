@@ -206,7 +206,8 @@ static uint16_t icmp6_checksum(const struct iovec *iov, unsigned int iov_len)
 
 static int icmp6_send_router_solicitation(int s, int ifindex,
 					const uint8_t src_mac[static 6],
-					const struct in6_addr *src_ip)
+					const struct in6_addr *src_ip,
+					bool src_ip_optimistic)
 {
 	struct nd_router_solicit rs = {
 		.nd_rs_type = ND_ROUTER_SOLICIT,
@@ -247,11 +248,17 @@ static int icmp6_send_router_solicitation(int s, int ifindex,
 
 	memcpy(&ip_hdr.ip6_src, src_ip, 16);
 
-	if (l_memeqzero(src_ip, 16)) {
+	if (l_memeqzero(src_ip, 16) || src_ip_optimistic) {
 		/*
-		 * radvd will discard and warn about RSs from the unspecified
-		 * address with the SLLAO, omit that option by dropping the
-		 * last two iov buffers.
+		 * RFC 4429 Section 3.2: "A node MUST NOT send a Router
+		 * Solicitation with a SLLAO from an Optimistic Address.
+		 * Router Solicitations SHOULD be sent from a non-Optimistic
+		 * or the Unspecified Address; however, they MAY be sent from
+		 * an Optimistic Address as long as the SLLAO is not included."
+		 *
+		 * Additionally radvd will also discard and warn about RSs
+		 * from the unspecified address with the SLLAO.  Omit that
+		 * option by dropping the last two iov buffers.
 		 */
 		msg.msg_iovlen -= 2;
 		ip_hdr.ip6_plen = htons(ntohs(ip_hdr.ip6_plen) - rs_sllao_size);
@@ -347,6 +354,7 @@ struct l_icmp6_client {
 	uint64_t retransmit_time;
 	struct l_io *io;
 	struct in6_addr src_ip;
+	bool src_ip_optimistic;
 
 	struct l_icmp6_router *ra;
 	struct l_netlink *rtnl;
@@ -547,7 +555,8 @@ static void icmp6_client_timeout_send(struct l_timeout *timeout,
 
 	r = icmp6_send_router_solicitation(l_io_get_fd(client->io),
 						client->ifindex, client->mac,
-						&client->src_ip);
+						&client->src_ip,
+						client->src_ip_optimistic);
 	if (r < 0) {
 		CLIENT_DEBUG("Error sending Router Solicitation: %s",
 				strerror(-r));
@@ -766,7 +775,7 @@ LIB_EXPORT bool l_icmp6_client_set_route_priority(
 
 LIB_EXPORT bool l_icmp6_client_set_link_local_address(
 						struct l_icmp6_client *client,
-						const char *ll)
+						const char *ll, bool optimistic)
 {
 	if (unlikely(!client))
 		return false;
@@ -777,7 +786,11 @@ LIB_EXPORT bool l_icmp6_client_set_link_local_address(
 	 * is fine.  Once we have a confirmed link-local address we use that
 	 * as the source address.
 	 */
-	return inet_pton(AF_INET6, ll, &client->src_ip) == 1;
+	if (inet_pton(AF_INET6, ll, &client->src_ip) != 1)
+		return false;
+
+	client->src_ip_optimistic = optimistic;
+	return true;
 }
 
 struct l_icmp6_router *_icmp6_router_new()
