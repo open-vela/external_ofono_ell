@@ -1623,7 +1623,7 @@ LIB_EXPORT bool l_dhcp6_client_set_link_local_address(
 		return false;
 
 	if (!client->nora)
-		l_icmp6_client_set_link_local_address(client->icmp6, ll);
+		l_icmp6_client_set_link_local_address(client->icmp6, ll, false);
 
 	return true;
 }

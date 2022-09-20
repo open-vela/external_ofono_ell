@@ -93,6 +93,7 @@ struct l_netconfig {
 	unsigned int orig_optimistic_dad;
 	uint8_t mac[ETH_ALEN];
 	struct l_timeout *ra_timeout;
+	bool have_lla;
 	enum {
 		NETCONFIG_V6_METHOD_UNSET,
 		NETCONFIG_V6_METHOD_DHCP,
@@ -702,7 +703,7 @@ static bool netconfig_check_start_dhcp6(struct l_netconfig *nc)
 		return true;
 
 	/* Don't start DHCPv6 while waiting for the link-local address */
-	if (l_queue_find(addr_wait_list, netconfig_match, nc))
+	if (!nc->have_lla)
 		return true;
 
 	return l_dhcp6_client_start(nc->dhcp6_client);
@@ -1844,6 +1845,7 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 {
 	struct in6_addr in6;
 	_auto_(l_free) char *ip = NULL;
+	bool new_lla;
 
 	if ((ifa->ifa_flags & IFA_F_TENTATIVE) &&
 			!(ifa->ifa_flags & IFA_F_OPTIMISTIC))
@@ -1858,16 +1860,28 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 	if (!IN6_IS_ADDR_LINKLOCAL(&in6))
 		return;
 
-	netconfig_addr_wait_unregister(nc, true);
+	new_lla = !nc->have_lla;
+	nc->have_lla = true;
+
+	if (!(ifa->ifa_flags & IFA_F_TENTATIVE))
+		netconfig_addr_wait_unregister(nc, true);
+	else if (nc->ifaddr6_dump_cmd_id) {
+		struct l_netlink *rtnl = l_rtnl_get();
+		unsigned int cmd_id = nc->ifaddr6_dump_cmd_id;
+
+		nc->ifaddr6_dump_cmd_id = 0;
+		l_netlink_cancel(rtnl, cmd_id);
+	}
 
 	l_dhcp6_client_set_link_local_address(nc->dhcp6_client, ip);
-	l_icmp6_client_set_link_local_address(nc->icmp6_client, ip);
+	l_icmp6_client_set_link_local_address(nc->icmp6_client, ip,
+					!!(ifa->ifa_flags & IFA_F_OPTIMISTIC));
 
 	/*
 	 * Only now that we have a link-local address see if we can start
 	 * actual DHCPv6 setup.
 	 */
-	if (netconfig_check_start_dhcp6(nc))
+	if (new_lla && netconfig_check_start_dhcp6(nc))
 		return;
 
 	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
@@ -2022,6 +2036,13 @@ configure_ipv6:
 	 * before we start the dump, instead of after it ends, to eliminate
 	 * the possibility of missing an RTM_NEWADDR between the end of
 	 * the dump command and registering for the events.
+	 *
+	 * We stay on that list until we receive a non-tentative LL address.
+	 * Note that we may set .have_lla earlier, specifically when we
+	 * receive a tentative LL address that is also optimistic.  We will
+	 * however stay on addr_wait_list because we want to notify
+	 * l_icmp6_client again when the LL address completes DAD and becomes
+	 * non-tentative.
 	 */
 	if (!addr_wait_list) {
 		addr_wait_list = l_queue_new();
@@ -2041,6 +2062,7 @@ configure_ipv6:
 		goto unregister;
 
 	l_queue_push_tail(addr_wait_list, netconfig);
+	netconfig->have_lla = false;
 
 	if (!l_net_get_mac_address(netconfig->ifindex, netconfig->mac))
 		goto unregister;
