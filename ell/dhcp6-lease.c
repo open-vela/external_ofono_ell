@@ -312,7 +312,7 @@ struct l_dhcp6_lease *_dhcp6_lease_parse_options(
 			lease->rapid_commit = true;
 			break;
 		case L_DHCP6_OPTION_DOMAIN_LIST:
-			lease->domain_list = net_domain_list_parse(v, l);
+			lease->domain_list = net_domain_list_parse(v, l, false);
 			if (!lease->domain_list)
 				goto error;
 
