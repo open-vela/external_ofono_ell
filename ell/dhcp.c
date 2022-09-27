@@ -820,6 +820,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 	const void *v;
 	int r, e;
 	struct in_addr ia;
+	enum l_dhcp_client_event event = L_DHCP_CLIENT_EVENT_LEASE_EXPIRED;
 
 	CLIENT_DEBUG("");
 
@@ -874,6 +875,8 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 			dhcp_client_handle_offer(client, message, len);
 			return;
 		}
+
+		event = L_DHCP_CLIENT_EVENT_NO_LEASE;
 		/* Fall through */
 	case DHCP_STATE_RENEWING:
 	case DHCP_STATE_REBINDING:
@@ -882,8 +885,7 @@ static void dhcp_client_rx_message(const void *data, size_t len, void *userdata,
 			CLIENT_INFO("Received NAK, Stopping...");
 			l_dhcp_client_stop(client);
 
-			dhcp_client_event_notify(client,
-					L_DHCP_CLIENT_EVENT_NO_LEASE);
+			dhcp_client_event_notify(client, event);
 			return;
 		}
 
