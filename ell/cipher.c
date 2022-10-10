@@ -667,7 +667,7 @@ LIB_EXPORT bool l_aead_cipher_decrypt(struct l_aead_cipher *cipher,
 			(ssize_t)out_len;
 }
 
-static void init_supported()
+static void init_supported(void)
 {
 	static bool initialized = false;
 	struct sockaddr_alg salg;
