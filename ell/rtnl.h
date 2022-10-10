@@ -227,7 +227,7 @@ uint32_t l_rtnl_neighbor_set_hwaddr(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy);
 
-struct l_netlink *l_rtnl_get();
+struct l_netlink *l_rtnl_get(void);
 
 #ifdef __cplusplus
 }
