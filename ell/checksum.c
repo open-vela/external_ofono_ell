@@ -413,7 +413,7 @@ LIB_EXPORT char *l_checksum_get_string(struct l_checksum *checksum)
 	return l_util_hexstring(digest, checksum->alg_info->digest_len);
 }
 
-static void init_supported()
+static void init_supported(void)
 {
 	static bool initialized = false;
 	struct sockaddr_alg salg;
