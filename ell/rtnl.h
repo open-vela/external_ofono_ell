@@ -24,7 +24,11 @@
 #define __ELL_RTNL_H
 
 #include <stdint.h>
+#ifdef __NuttX__
+#include <netpacket/netlink.h>
+#else
 #include <linux/rtnetlink.h>
+#endif
 #include <ell/cleanup.h>
 
 #ifdef __cplusplus
