@@ -66,6 +66,7 @@ struct l_debug_desc {
  * --gc-sections -z start-stop-gc. Older compilers would warn for the unknown
  *  attribute, so just disable -Wattributes.
  */
+#ifdef ELL_LOG_DEBUG_SYMBOL
 #define L_DEBUG_SYMBOL(symbol, format, ...) do { \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic ignored \"-Wattributes\"") \
@@ -79,6 +80,9 @@ _Pragma("GCC diagnostic pop") \
 		l_log(L_LOG_DEBUG, "%s:%s() " format, __FILE__, \
 					__func__ , ##__VA_ARGS__); \
 } while (0)
+#else
+#define L_DEBUG_SYMBOL(symbol, format, ...) l_log(L_LOG_DEBUG, format, ##__VA_ARGS__)
+#endif
 
 void l_debug_enable_full(const char *pattern,
 				struct l_debug_desc *start,
@@ -86,6 +90,7 @@ void l_debug_enable_full(const char *pattern,
 void l_debug_add_section(struct l_debug_desc *start,
 					struct l_debug_desc *end);
 
+#ifdef ELL_LOG_DEBUG_SYMBOL
 #define l_debug_enable(pattern) do { \
 _Pragma("GCC diagnostic push") \
 _Pragma("GCC diagnostic ignored \"-Wredundant-decls\"") \
@@ -94,6 +99,9 @@ _Pragma("GCC diagnostic ignored \"-Wredundant-decls\"") \
 	l_debug_enable_full(pattern, __start___ell_debug, __stop___ell_debug); \
 _Pragma("GCC diagnostic pop") \
 } while (0)
+#else
+#define l_debug_enable(pattern)
+#endif
 
 void l_debug_disable(void);
 

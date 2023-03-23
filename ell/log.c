@@ -443,6 +443,7 @@ LIB_EXPORT void l_debug_disable(void)
 	debug_pattern = NULL;
 }
 
+#ifdef ELL_LOG_DEBUG_SYMBOL
 __attribute__((constructor)) static void register_debug_section(void)
 {
 	extern struct l_debug_desc __start___ell_debug[];
@@ -455,3 +456,4 @@ __attribute__((destructor(65535))) static void free_debug_sections(void)
 {
 	l_queue_destroy(debug_sections, l_free);
 }
+#endif
