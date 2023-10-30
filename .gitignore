@@ -89,3 +89,4 @@ tools/genl-discover
 tools/genl-watch
 tools/genl-request
 tools/gpio
+ell/*.wo
