@@ -472,9 +472,10 @@ LIB_EXPORT void *l_utf8_to_ucs2be(const char *utf8, size_t *out_size)
 			return NULL;
 
 		if (wc >= 0x10000)
-			return NULL;
+			n_ucs2be += 2;  		// Split into two UCS-2 characters
+		else
+			n_ucs2be += 1;
 
-		n_ucs2be += 1;
 		c += len;
 	}
 
@@ -484,7 +485,14 @@ LIB_EXPORT void *l_utf8_to_ucs2be(const char *utf8, size_t *out_size)
 
 	while (*c) {
 		len = l_utf8_get_codepoint(c, 4, &wc);
-		ucs2be[n_ucs2be++] = L_CPU_TO_BE16(wc);
+		if (wc >= 0x10000) {
+			// Split into two UCS-2 characters
+			wc -= 0x10000;
+			ucs2be[n_ucs2be++] = L_CPU_TO_BE16(0xD800 + (wc >> 10));
+			ucs2be[n_ucs2be++] = L_CPU_TO_BE16(0xDC00 + (wc & 0x3FF));
+		} else {
+			ucs2be[n_ucs2be++] = L_CPU_TO_BE16(wc);
+		}
 		c += len;
 	}
 
