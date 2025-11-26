@@ -207,10 +207,10 @@ static inline int __attribute__ ((always_inline))
 	return 4;
 }
 
-static inline uint16_t __attribute__ ((always_inline))
+static inline uint32_t __attribute__ ((always_inline))
 			surrogate_value(uint16_t h, uint16_t l)
 {
-	return 0x10000 + (h - 0xd800) * 0x400 + l - 0xdc00;
+	return 0x10000u + (h - 0xd800) * 0x400 + l - 0xdc00;
 }
 
 /*
@@ -222,7 +222,7 @@ static inline uint16_t __attribute__ ((always_inline))
  * utf8 character (maximum 4 bytes)
  * Returns: number of characters written
  */
-LIB_EXPORT size_t l_utf8_from_wchar(wchar_t c, char *out_buf)
+LIB_EXPORT size_t l_utf8_from_wchar(uint32_t c, char *out_buf)
 {
 	int len = utf8_length(c);
 	int i;
@@ -254,10 +254,10 @@ LIB_EXPORT char *l_utf8_from_utf16(const void *utf16, ssize_t utf16_size)
 {
 	char *utf8;
 	size_t utf8_len = 0;
-	wchar_t high_surrogate = 0;
+	uint32_t high_surrogate = 0;
 	ssize_t i = 0;
 	uint16_t in;
-	wchar_t c;
+	uint32_t c;
 
 	if (unlikely(utf16_size % 2))
 		return NULL;
