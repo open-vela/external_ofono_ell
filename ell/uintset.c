@@ -31,7 +31,9 @@
 #include "useful.h"
 #include "private.h"
 
+#ifndef BITS_PER_LONG
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)
+#endif
 
 static inline int __ffz(unsigned long word)
 {
